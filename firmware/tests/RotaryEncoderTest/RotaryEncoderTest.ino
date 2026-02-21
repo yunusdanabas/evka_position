@@ -1,8 +1,7 @@
 // RotaryEncoderTest.ino
 // Phase 2 validation: dual quadrature encoder count + angle
 //
-// Target: ESP32 (all GPIO pins are interrupt-capable)
-// Also compatible with Arduino Mega / Uno.
+// Target: ESP32 (Wemos D1 R32 — all GPIO pins are interrupt-capable)
 //
 // Requires: "Encoder" library by Paul Stoffregen (Library Manager)
 //
