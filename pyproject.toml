@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "evka-position-tools"
+version = "0.1.0"
+description = "Python tools for the evka_position spherical 3D positioning system"
+requires-python = ">=3.8"
+dependencies = [
+    "pyserial>=3.5",
+    "matplotlib>=3.7",
+]
+
+[project.scripts]
+position-checker = "tools.position_checker.main:main"
+
+[tool.setuptools.packages.find]
+include = ["tools*"]
