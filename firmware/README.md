@@ -4,25 +4,27 @@ ESP32 firmware for the Spherical 3D Positioning System.
 
 ## Project Structure
 
-*   `EvkaPosition/`: Main Arduino/PlatformIO project.
-    *   `EvkaPosition.ino`: Sketch entry point (`setup()` / `loop()`).
+*   `EvkaPosition/`: Main PlatformIO project for ESP32.
+    *   `EvkaPosition.cpp`: Entry point (`setup()` / `loop()`).
     *   `SphericalSensor.h`: Configuration defines, structs, class declaration.
     *   `SphericalSensor.cpp`: Coordinate math, filtering, validation.
-*   `tests/`: Standalone test sketches.
-    *   `DrawWireTest/`: Tests the OPKON DWE3000 draw-wire encoder alone.
-    *   `RotaryEncoderTest/`: Tests the Autonics E40S6 rotary encoder alone.
+*   `DrawWireTest/`: Standalone test app for the OPKON DWE3000 draw-wire encoder.
+*   `RotaryEncoderTest/`: Standalone test app for the Autonics E40S6 rotary encoder.
+*   `SingleRotaryTest/`: Standalone test for a single rotary encoder (theta or phi independently).
 
 ## Dependencies
 
-*   **Encoder** by Paul Stoffregen (v1.4.1+) — install via Arduino Library Manager or PlatformIO.
+*   **Encoder** by Paul Stoffregen (v1.4.4+) — automatically installed by PlatformIO via `platformio.ini`.
 
 ## Build & Flash
+
+Supported workflow policy: use PlatformIO on ESP32 only. Arduino IDE and `arduino-cli` are not part of this firmware workflow.
 
 See [`docs/setup_test_guide.md`](../docs/setup_test_guide.md) for full toolchain setup and step-by-step instructions.
 
 Quick compile check:
 ```bash
-arduino-cli compile --fqbn esp32:esp32:d1_r32 firmware/EvkaPosition
+pio run -e wemos_d1_r32
 ```
 
 ## Configuration

@@ -1,5 +1,7 @@
 # Research Resources: Spherical 3D Positioning Systems
 
+> Workflow note: this file is a broad reference catalog across ecosystems. Project build/flash operations are PlatformIO on ESP32 only (see `platformio.ini` and `docs/setup_test_guide.md`).
+
 This document consolidates open-source projects, libraries, documentation, and academic resources relevant to spherical coordinate positioning systems using rotary and linear encoders.
 
 ---
@@ -101,8 +103,8 @@ This document consolidates open-source projects, libraries, documentation, and a
 - **Manufacturer:** Autonics
 - **Datasheet:** [Included in `hardware/Rotary_Encoder_E40S6/`]
 - **Relevant Specs:**
-  - 5000 PPR @ 1 revolution
-  - 0.072° resolution
+  - 5000 PPR datasheet (1480 counts/rev measured)
+  - ~0.2432° resolution (measured)
   - Quadrature output (TTL)
   - Operating frequency up to ~1 MHz
 
@@ -230,7 +232,7 @@ This document consolidates open-source projects, libraries, documentation, and a
 ## 10. Recommended Learning Path
 
 1. **Fundamentals** (Week 1-2)
-   - Read: GEMINI.md & System_Architecture.md (this project)
+   - Read: CLAUDE.md & System_Architecture.md (this project)
    - Watch: 3Blue1Brown Linear Algebra series
    - Code: Basic quadrature decoder on Wokwi
 
@@ -259,4 +261,3 @@ This document consolidates open-source projects, libraries, documentation, and a
 | **Curator** | Evka Position Project |
 | **Scope** | Spherical 3D positioning with rotary + linear encoders |
 | **License** | References are external; this compilation is open-source |
-

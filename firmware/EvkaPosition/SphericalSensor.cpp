@@ -2,9 +2,9 @@
 
 // Constructor
 SphericalPositioningSensor::SphericalPositioningSensor()
-    : thetaEncoder(PIN_THETA_A, PIN_THETA_B),
-      phiEncoder(PIN_PHI_A, PIN_PHI_B),
-      wireEncoder(PIN_WIRE_A, PIN_WIRE_B),
+    : thetaEncoder(nullptr),
+      phiEncoder(nullptr),
+      wireEncoder(nullptr),
       theta_offset(0),
       phi_offset(0),
       radius_offset(0),
@@ -19,14 +19,18 @@ SphericalPositioningSensor::SphericalPositioningSensor()
 }
 
 void SphericalPositioningSensor::begin() {
-    // Encoder library handles pin modes and interrupts internally for all three encoders
+    // Construct Encoders here (not in constructor) — ESP32 GPIO ISR service
+    // is not ready during global construction.
+    thetaEncoder = new Encoder(PIN_THETA_A, PIN_THETA_B);
+    phiEncoder   = new Encoder(PIN_PHI_A, PIN_PHI_B);
+    wireEncoder  = new Encoder(PIN_WIRE_A, PIN_WIRE_B);
     Serial.println("[SphericalSensor] Initialized");
 }
 
 void SphericalPositioningSensor::setZeroPoint() {
-    theta_offset = thetaEncoder.read();
-    phi_offset = phiEncoder.read();
-    radius_offset = wireEncoder.read();
+    theta_offset = thetaEncoder->read();
+    phi_offset = phiEncoder->read();
+    radius_offset = wireEncoder->read();
     
     Serial.print("[Calibration] Zero point set at T:");
     Serial.print(theta_offset);
@@ -37,9 +41,9 @@ void SphericalPositioningSensor::setZeroPoint() {
 }
 
 void SphericalPositioningSensor::readRawEncoders(int32_t& theta_counts, int32_t& phi_counts, int32_t& radius_counts) {
-    theta_counts = thetaEncoder.read() - theta_offset;
-    phi_counts   = phiEncoder.read() - phi_offset;
-    radius_counts = wireEncoder.read() - radius_offset;
+    theta_counts = thetaEncoder->read() - theta_offset;
+    phi_counts   = phiEncoder->read() - phi_offset;
+    radius_counts = wireEncoder->read() - radius_offset;
 }
 
 SphericalCoords SphericalPositioningSensor::countsToSpherical(int32_t theta_counts, int32_t phi_counts, int32_t radius_counts) {

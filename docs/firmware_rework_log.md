@@ -14,7 +14,7 @@ This rework corrects both issues.
 
 ## Files Changed
 
-### 1. `firmware/tests/DrawWireTest/DrawWireTest.ino` — Full rewrite
+### 1. `firmware/DrawWireTest/DrawWireTest.cpp` — Full rewrite
 
 **Before:** ISR on clock pin (GPIO 6), direction read from GPIO 7, PPR=1000, MM_PER_PULSE=1.0
 
@@ -23,7 +23,7 @@ PPR=2000, MM_PER_PULSE=0.1
 
 Key changes:
 - `#include <Encoder.h>` added
-- `Encoder wireEnc(PIN_WIRE_A, PIN_WIRE_B)` object replaces ISR
+- Heap-allocated `Encoder* wireEnc = new Encoder(PIN_WIRE_A, PIN_WIRE_B)` replaces ISR
 - `PIN_WIRE_CLK 6` / `PIN_WIRE_DIR 7` → `PIN_WIRE_A 16` / `PIN_WIRE_B 17`
 - `PPR_WIRE 1000` → `2000`
 - `MM_PER_PULSE = 1000.0/1000.0 = 1.0` → `DRUM_CIRCUM_MM/PPR_WIRE = 200.0/2000.0 = 0.1`
@@ -134,14 +134,110 @@ radius_counts = wireEncoder.read() - radius_offset;
 
 ## Files NOT Changed in This Phase
 
-- `firmware/EvkaPosition/EvkaPosition.ino`
-- `firmware/tests/RotaryEncoderTest/RotaryEncoderTest.ino`
+- `firmware/EvkaPosition/EvkaPosition.cpp`
+- `firmware/RotaryEncoderTest/RotaryEncoderTest.cpp`
 - Python tools
 
 ---
 
-## Pending — Phase 3
+---
 
-- Remap `PIN_PHI_A` from GPIO 3 → GPIO 27 (UART0 RX conflict)
-- Remap `PIN_PHI_B` from GPIO 5 → GPIO 26
-- Full system test with all three encoders active
+# Firmware Rework Log — Phase 3: Phi Pin Remap
+_Session: 2026-02-21_
+
+---
+
+## Problem
+
+`PIN_PHI_A` was assigned to GPIO 3 (UART0 RX on ESP32). With Serial active at
+115200 baud, UART receive traffic toggled GPIO 3, injecting false phi encoder
+counts and corrupting position data.
+
+`PIN_PHI_B` was on GPIO 5, a strapping pin — moved proactively.
+
+---
+
+## Changes
+
+### `firmware/EvkaPosition/SphericalSensor.h` — two defines
+```cpp
+// Before:
+#define PIN_PHI_A     3   // TODO: Remap to GPIO 27 (GPIO 3 = UART0 RX conflict)
+#define PIN_PHI_B     5   // TODO: Remap to GPIO 26
+
+// After:
+#define PIN_PHI_A     27  // safe GPIO (was GPIO 3)
+#define PIN_PHI_B     26  // safe GPIO (was GPIO 5)
+```
+
+### `firmware/RotaryEncoderTest/RotaryEncoderTest.cpp`
+Updated wiring comment and `#define PIN_PHI_A/B` to match.
+
+---
+
+## Hardware Action Required
+
+Rewire phi encoder: move wire A from GPIO 3 voltage-divider output to GPIO 27 divider
+output. Move wire B from GPIO 5 output to GPIO 26 output. Divider circuits unchanged.
+
+---
+
+## Files NOT Changed in This Phase
+
+- `firmware/EvkaPosition/SphericalSensor.cpp`
+- `firmware/EvkaPosition/EvkaPosition.cpp`
+- `firmware/DrawWireTest/DrawWireTest.cpp`
+- Python tools
+
+---
+
+---
+
+# Firmware Rework Log — Phase 4: PlatformIO Migration & PPR Correction
+_Session: 2026-02-26_
+
+---
+
+## Summary
+
+Migrated all firmware from `.ino` to `.cpp` for PlatformIO compatibility, corrected
+PPR_ROTARY from datasheet 5000 to measured 1480, restructured test directories out
+of `firmware/tests/` to `firmware/`, and switched all Encoder objects to heap
+allocation (ESP32 GPIO ISR service not ready during global construction).
+
+---
+
+## Changes
+
+### `.ino` → `.cpp` migration
+All firmware files renamed from `.ino` to `.cpp`:
+- `EvkaPosition.ino` → `EvkaPosition.cpp`
+- `DrawWireTest.ino` → `DrawWireTest.cpp`
+- `RotaryEncoderTest.ino` → `RotaryEncoderTest.cpp`
+
+### Test directory restructuring
+- `firmware/tests/DrawWireTest/` → `firmware/DrawWireTest/`
+- `firmware/tests/RotaryEncoderTest/` → `firmware/RotaryEncoderTest/`
+- New: `firmware/SingleRotaryTest/` — single encoder test
+
+### PPR correction
+- `PPR_ROTARY`: 5000.0 → 1480.0 (measured counts/rev)
+- `DEG_PER_PULSE`: 0.072 → ~0.2432 (360/1480)
+- Datasheet specifies 5000 PPR; measured value on hardware is 1480
+
+### Heap-allocated Encoder objects
+All Encoder objects changed from stack to heap allocation in `begin()`:
+```cpp
+// Before (global construction — crashes on ESP32):
+Encoder thetaEncoder(PIN_THETA_A, PIN_THETA_B);
+
+// After (heap in begin() — ISR service ready):
+thetaEncoder = new Encoder(PIN_THETA_A, PIN_THETA_B);
+```
+
+---
+
+## Files NOT Changed in This Phase
+
+- Python tools
+- Hardware documentation (updated separately)

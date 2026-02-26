@@ -1,7 +1,7 @@
 #include "SphericalSensor.h"
 
 // ============================================================================
-// ARDUINO SKETCH
+// ESP32 PLATFORMIO ENTRY POINT
 // ============================================================================
 
 SphericalPositioningSensor sensor;
@@ -14,12 +14,10 @@ void setup() {
     // Wait for serial to settle
     delay(500);
     
-    Serial.println("
-========================================");
+    Serial.println("\n========================================");
     Serial.println("  Spherical 3D Positioning System");
     Serial.println("  Firmware v1.0.1 (Refactored)");
-    Serial.println("========================================
-");
+    Serial.println("========================================\n");
     
     // Initialize sensor hardware
     sensor.begin();

@@ -10,15 +10,17 @@ The system uses industrial-grade sensors and an **ESP32 (Wemos D1 R32)** control
 
 ## Features
 *   **Real-time 3D Tracking:** Converts raw sensor data to Cartesian coordinates $(X, Y, Z)$ instantly.
-*   **High Precision:** Autonics E40S6 rotary encoders (5000 PPR) and OPKON DWE3000 draw-wire sensor (2000 PPR, 0.1 mm/pulse).
+*   **High Precision:** Autonics E40S6 rotary encoders (1480 measured counts/rev) and OPKON DWE3000 draw-wire sensor (2000 PPR, 0.1 mm/pulse).
 *   **Robust Firmware:** Quadrature decoding via the PaulStoffregen Encoder library on ESP32.
 *   **Python Visualiser:** Real-time 3D scatter plot of position data.
 
 ## Directory Structure
 
 *   **`firmware/`**: Microcontroller source code.
-    *   `EvkaPosition/`: Main sketch and `SphericalSensor` class.
-    *   `tests/`: Standalone test sketches for individual encoders.
+    *   `EvkaPosition/`: Main application and `SphericalSensor` class.
+    *   `DrawWireTest/`: Standalone test app for the draw-wire encoder.
+    *   `RotaryEncoderTest/`: Standalone test app for the rotary encoders.
+    *   `SingleRotaryTest/`: Standalone test for a single rotary encoder.
 *   **`hardware/`**: Sensor datasheets and system architecture documentation.
     *   `System_Architecture.md`: Kinematic math and error analysis.
     *   `Rotary_Encoder_E40S6/`: Autonics E40S6 docs and PDFs.
@@ -28,7 +30,9 @@ The system uses industrial-grade sensors and an **ESP32 (Wemos D1 R32)** control
 
 ## Getting Started
 
-1.  **Setup Toolchain:** Follow [`docs/setup_test_guide.md`](docs/setup_test_guide.md) for arduino-cli installation, ESP32 board support, and library setup.
+Supported workflow policy: this project uses PlatformIO on ESP32 only. Arduino IDE and `arduino-cli` are not part of the build/flash workflow.
+
+1.  **Setup Toolchain:** Follow [`docs/setup_test_guide.md`](docs/setup_test_guide.md) for PlatformIO installation and setup.
 2.  **Connect Hardware:** Wire encoders per pin definitions in `firmware/EvkaPosition/SphericalSensor.h`. All encoder signal lines require 5V-to-3.3V voltage dividers (see [`docs/DWE3000_hardware_notes.md`](docs/DWE3000_hardware_notes.md)).
 3.  **Flash Firmware:** Compile and upload for ESP32 (Wemos D1 R32).
 4.  **Calibrate:** On startup, the system assumes the arm is at mechanical home ($\theta=0, \phi=0, r=0$). Ensure the device is homed before powering on.

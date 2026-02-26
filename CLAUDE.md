@@ -6,15 +6,12 @@ ESP32 firmware for a Spherical 3D Positioning System. Reads encoder pulses from 
 
 ## Build & Flash
 
-**arduino-cli (primary):**
-1. Install ESP32 board support and Encoder library (see `docs/setup_test_guide.md`)
-2. Compile: `arduino-cli compile --fqbn esp32:esp32:d1_r32 firmware/EvkaPosition`
-3. Upload: `arduino-cli upload --fqbn esp32:esp32:d1_r32 --port /dev/ttyUSB0 firmware/EvkaPosition`
-
-**PlatformIO (alternative):**
-```bash
-pio run -e wemos_d1_r32 --target upload
-```
+**PlatformIO:**
+Supported workflow policy: this project uses PlatformIO on ESP32 only. Arduino IDE and `arduino-cli` are not part of the build/flash workflow.
+1. Install PlatformIO (see `docs/setup_test_guide.md`)
+2. Compile: `pio run -e wemos_d1_r32`
+3. Upload: `pio run -e wemos_d1_r32 --target upload`
+4. Monitor: `pio device monitor`
 
 Serial monitor: 115200 baud. On boot, the firmware waits 2 s then calls `setZeroPoint()` — the robot **must** be at mechanical home at that moment.
 
@@ -22,9 +19,12 @@ Serial monitor: 115200 baud. On boot, the firmware waits 2 s then calls `setZero
 
 | File | Role |
 |---|---|
-| `firmware/EvkaPosition/EvkaPosition.ino` | Entry point: `setup()` / `loop()`, 20 Hz update rate |
+| `firmware/EvkaPosition/EvkaPosition.cpp` | Entry point: `setup()` / `loop()`, 20 Hz update rate |
 | `firmware/EvkaPosition/SphericalSensor.h` | All config `#define`s, struct definitions, class declaration |
 | `firmware/EvkaPosition/SphericalSensor.cpp` | Coordinate math, filtering, validation |
+| `firmware/DrawWireTest/DrawWireTest.cpp` | Standalone draw-wire encoder test |
+| `firmware/RotaryEncoderTest/RotaryEncoderTest.cpp` | Dual rotary encoder test (theta + phi) |
+| `firmware/SingleRotaryTest/SingleRotaryTest.cpp` | Single rotary encoder test |
 
 ## Architecture
 
@@ -48,15 +48,15 @@ All three encoders use the PaulStoffregen `Encoder` library — no manual ISRs.
 
 | Constant | Value | Meaning |
 |---|---|---|
-| `PPR_ROTARY` | 5000.0 | Pulses/rev — Autonics E40S6 |
+| `PPR_ROTARY` | 1480.0 | Measured counts/rev — Autonics E40S6 |
 | `PPR_WIRE` | 2000.0 | Pulses/rev — OPKON DWE3000 |
 | `DRUM_CIRCUM_MM` | 200.0 | Drum circumference (mm/rev) |
-| `DEG_PER_PULSE` | 0.072 | 360 / PPR_ROTARY |
+| `DEG_PER_PULSE` | ~0.2432 | 360 / PPR_ROTARY |
 | `MM_PER_PULSE` | 0.1 | DRUM_CIRCUM_MM / PPR_WIRE |
 | `RADIUS_MIN_MM` / `RADIUS_MAX_MM` | 100 / 3000 | Safety range (mm) |
 | `THETA_MIN/MAX_DEG` | -180 / 180 | Azimuth range |
 | `PHI_MIN/MAX_DEG` | 0 / 180 | Elevation range |
-| `UPDATE_PERIOD_MS` | 50 | Loop period (20 Hz) — in `.ino` |
+| `UPDATE_PERIOD_MS` | 50 | Loop period (20 Hz) — in `EvkaPosition.cpp` |
 
 ## Pin Map (current)
 
@@ -64,12 +64,10 @@ All three encoders use the PaulStoffregen `Encoder` library — no manual ISRs.
 |---|---|---|
 | 2 | `PIN_THETA_A` | Theta encoder A |
 | 4 | `PIN_THETA_B` | Theta encoder B |
-| 3 | `PIN_PHI_A` | Phi encoder A |
-| 5 | `PIN_PHI_B` | Phi encoder B |
+| 27 | `PIN_PHI_A` | Phi encoder A |
+| 26 | `PIN_PHI_B` | Phi encoder B |
 | 16 | `PIN_WIRE_A` | Draw-wire encoder A |
 | 17 | `PIN_WIRE_B` | Draw-wire encoder B |
-
-**Pending Phase 3 remap**: `PIN_PHI_A` must move from GPIO 3 to GPIO 27 (GPIO 3 = UART0 RX on ESP32 — causes false counts when serial is active). `PIN_PHI_B` moves from GPIO 5 to GPIO 26. See `docs/DWE3000_hardware_notes.md` for details.
 
 **Voltage dividers required**: All encoder signal lines output 0-5V TTL. ESP32 GPIO max input is 3.6V. Use 10k/20k resistive dividers on every signal line (A and B for each encoder = 6 lines minimum). See `docs/DWE3000_hardware_notes.md` for circuit.
 

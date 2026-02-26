@@ -13,16 +13,16 @@
 // Pin Definitions (must be interrupt-capable pins)
 #define PIN_THETA_A   2     // Encoder interrupt pin (Theta azimuth axis)
 #define PIN_THETA_B   4     // Encoder complementary pin
-#define PIN_PHI_A     3     // TODO: Remap to GPIO 27 (GPIO 3 = UART0 RX conflict on ESP32)
-#define PIN_PHI_B     5     // TODO: Remap to GPIO 26
+#define PIN_PHI_A     27    // GPIO 27 — safe interrupt-capable GPIO (was GPIO 3, UART0 RX)
+#define PIN_PHI_B     26    // GPIO 26 — safe interrupt-capable GPIO (was GPIO 5, strapping pin)
 #define PIN_WIRE_A    16    // Quadrature A (safe GPIO on ESP32-WROOM-32)
 #define PIN_WIRE_B    17    // Quadrature B
 
 // Encoder Specifications
-#define PPR_ROTARY      5000.0  // Pulses per revolution (Autonics E40S6)
+#define PPR_ROTARY      1480.0  // Measured counts/rev (Autonics E40S6)
 #define PPR_WIRE        2000.0  // Pulses per revolution — OPKON DWE3000
 #define DRUM_CIRCUM_MM   200.0  // Drum circumference in mm (200 mm/rev)
-#define DEG_PER_PULSE  (360.0 / PPR_ROTARY)          // = 0.072 deg per pulse
+#define DEG_PER_PULSE  (360.0 / PPR_ROTARY)          // ≈ 0.2432 deg per pulse
 #define MM_PER_PULSE   (DRUM_CIRCUM_MM / PPR_WIRE)   // = 0.1 mm per pulse
 
 // Mechanical Limits (safety constraints)
@@ -72,10 +72,11 @@ struct SystemStatus {
 
 class SphericalPositioningSensor {
 private:
-    // Encoder objects
-    Encoder thetaEncoder;
-    Encoder phiEncoder;
-    Encoder wireEncoder;
+    // Encoder objects (heap-allocated in begin() — ESP32 GPIO ISR service
+    // is not ready during global construction)
+    Encoder* thetaEncoder;
+    Encoder* phiEncoder;
+    Encoder* wireEncoder;
 
     // Calibration offsets
     int32_t theta_offset;

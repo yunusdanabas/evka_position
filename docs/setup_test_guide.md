@@ -11,8 +11,8 @@ Use an external 5 V supply (5–30 V accepted by DWE3000).
 GND must be shared between supply, encoder, and ESP32.
 
 ```
-External 5 V (+) ──────────── DWE3000 +V (Red)
-External 5 V (−) ──┬───────── DWE3000 GND (Black)
+External 5 V (+) ──────────── DWE3000 V+ (Brown)
+External 5 V (−) ──┬───────── DWE3000 0V (White)
                    └───────── ESP32 GND
 ```
 
@@ -50,45 +50,24 @@ Before encoder is powered you will see constant 3.3 V — this is normal (pull-u
 
 | DWE3000 terminal | Via circuit | ESP32 GPIO |
 |---|---|---|
-| A (Green) | Divider or 2.2kΩ+pullup | **16** |
-| B (White) | Divider or 2.2kΩ+pullup | **17** |
-| Z (Yellow) | Divider or 2.2kΩ+pullup | **18** |
+| A (Yellow) | Divider or 2.2kΩ+pullup | **16** |
+| B (Green) | Divider or 2.2kΩ+pullup | **17** |
+| Z (Gray) | Divider or 2.2kΩ+pullup | **18** |
 
 ---
 
 ## 2. PC Toolchain Setup
 
-### Install arduino-cli
+### Install PlatformIO
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh
-sudo mv bin/arduino-cli /usr/local/bin/
-arduino-cli version
+pip install -U platformio
+pio --version
 ```
 
-### Add ESP32 board support
+> Alternatively install the PlatformIO IDE extension in VS Code (search "PlatformIO IDE").
 
-```bash
-arduino-cli config init
-arduino-cli config add board_manager.additional_urls \
-  https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
-
-arduino-cli core update-index
-arduino-cli core install esp32:esp32
-```
-
-### Install Encoder library
-
-```bash
-arduino-cli lib install "Encoder"
-```
-
-### Verify
-
-```bash
-arduino-cli core list    # must show esp32:esp32
-arduino-cli lib list     # must show Encoder
-```
+Board support (espressif32) and the Encoder library are declared in `platformio.ini` and downloaded automatically on first build — no manual installation required.
 
 ### Find USB port
 
@@ -108,21 +87,10 @@ newgrp dialout
 
 ## 3. Phase 1 — DrawWireTest (draw-wire encoder only)
 
-### Compile
+### Compile and upload
 
 ```bash
-arduino-cli compile \
-  --fqbn esp32:esp32:d1_r32 \
-  /home/yunusdanabas/evka_position/firmware/tests/DrawWireTest
-```
-
-### Upload
-
-```bash
-arduino-cli upload \
-  --fqbn esp32:esp32:d1_r32 \
-  --port /dev/ttyUSB0 \
-  /home/yunusdanabas/evka_position/firmware/tests/DrawWireTest
+pio run -e test_drawwire --target upload
 ```
 
 If upload times out: hold **BOOT**, press **RESET**, release **BOOT**, retry.
@@ -130,10 +98,7 @@ If upload times out: hold **BOOT**, press **RESET**, release **BOOT**, retry.
 ### Serial monitor
 
 ```bash
-arduino-cli monitor --port /dev/ttyUSB0 --config baudrate=115200
-# or:
-screen /dev/ttyUSB0 115200
-# Exit screen: Ctrl-A then K then Y
+pio device monitor -e test_drawwire
 ```
 
 ### Expected output at rest
@@ -159,40 +124,24 @@ COUNT goes negative when pulling? → Swap A and B wires.
 
 ---
 
-## 4. Phase 2 — Compile-Check Main Firmware (no flash yet)
-
-⚠️ Do NOT flash yet. `PIN_PHI_A = 3` is UART0 RX on ESP32 — serial noise causes false phi counts.
+## 4. Phase 2 — Compile Main Firmware
 
 ```bash
-arduino-cli compile \
-  --fqbn esp32:esp32:d1_r32 \
-  /home/yunusdanabas/evka_position/firmware/EvkaPosition
+pio run -e wemos_d1_r32
 ```
 
-Zero errors = firmware rework is syntactically correct.
+Zero errors = firmware compiles correctly. Proceed to Phase 3 to flash.
 
 ---
 
-## 5. Phase 3 — Full System (after PIN_PHI_A remap)
+## 5. Phase 3 — Full System (phi pins remapped to GPIO 27/26)
 
-Before flashing the main firmware, edit `SphericalSensor.h`:
+`PIN_PHI_A = 27`, `PIN_PHI_B = 26` — UART0 RX conflict resolved.
 
-```cpp
-#define PIN_PHI_A   27   // was 3 (UART0 RX — causes false counts)
-#define PIN_PHI_B   26   // was 5
-```
-
-Then compile and flash:
+Compile and flash:
 
 ```bash
-arduino-cli compile \
-  --fqbn esp32:esp32:d1_r32 \
-  /home/yunusdanabas/evka_position/firmware/EvkaPosition
-
-arduino-cli upload \
-  --fqbn esp32:esp32:d1_r32 \
-  --port /dev/ttyUSB0 \
-  /home/yunusdanabas/evka_position/firmware/EvkaPosition
+pio run -e wemos_d1_r32 --target upload
 ```
 
 Boot the ESP32 with robot at **mechanical home** (wire fully retracted, angles at zero).
@@ -210,9 +159,10 @@ To re-zero without reflashing, send `ZERO\n` over serial.
 | Constant 3.3 V on A/B before powering encoder | Normal — pull-up with encoder unpowered | Power the encoder |
 | COUNT stays 0 after powering | Wrong GPIO / broken divider | Probe GPIO 16 — should toggle 0–3.3 V when pulling wire |
 | COUNT jumps erratically | GND not common between supply and ESP32 | Tie all GNDs together |
+| `raw_edges` rises fast but COUNT stays near 0/1 | One quadrature channel stuck or B/Z pin-map swap | Confirm draw-wire B -> GPIO 17 and Z -> GPIO 18, verify A/B/Z divider continuity, tie all grounds, then run `DIAG` while moving wire |
 | COUNT goes negative on pull | A and B swapped | Swap A↔B wires |
 | Z_ticks never increments | GPIO 18 not connected | Check Z wire and its divider |
 | Upload timeout | Board not entering bootloader | Hold BOOT → RESET → release BOOT → retry |
-| `Encoder` not found on compile | Library missing | `arduino-cli lib install "Encoder"` |
+| `Encoder` not found on compile | Library missing | PlatformIO auto-installs from `platformio.ini`; run `pio lib install` if needed |
 | Port permission denied | User not in dialout | `sudo usermod -aG dialout $USER && newgrp dialout` |
-| False phi counts after main firmware flash | PIN_PHI_A=3 is UART0 RX | Remap to GPIO 27 (Phase 3) |
+| False phi counts after main firmware flash | PHI_A wired to wrong GPIO | Verify phi A wire goes to GPIO 27 divider |

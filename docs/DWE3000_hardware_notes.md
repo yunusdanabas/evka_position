@@ -96,8 +96,8 @@ Encoder is unpowered → output transistors off → line floating → 10 kΩ pul
 | PIN_WIRE_Z | **18** | Index / Z channel (optional sanity check) |
 | PIN_THETA_A | 2 | OK for now |
 | PIN_THETA_B | 4 | OK |
-| PIN_PHI_A | 3 | ⚠️ UART0 RX — causes false counts when serial active |
-| PIN_PHI_B | 5 | OK |
+| PIN_PHI_A | 27 | Safe interrupt-capable GPIO (remapped from GPIO 3, UART0 RX) |
+| PIN_PHI_B | 26 | Safe interrupt-capable GPIO (remapped from GPIO 5, strapping pin) |
 
 ### Forbidden GPIOs on ESP32-WROOM-32
 
@@ -129,8 +129,8 @@ The same voltage level mismatch applies to the **Autonics E40S6** rotary encoder
 |---|---|---|---|
 | Theta | A (Black wire) | 2 | 10k/20k |
 | Theta | B (White wire) | 4 | 10k/20k |
-| Phi | A (Black wire) | 3 (-> 27) | 10k/20k |
-| Phi | B (White wire) | 5 (-> 26) | 10k/20k |
+| Phi | A (Black wire) | 27 | 10k/20k |
+| Phi | B (White wire) | 26 | 10k/20k |
 
 Use the same 10k/20k divider circuit as Option A above. The E40S6 shield wire (bare/braid) should connect to GND at the MCU end only for EMI protection.
 
@@ -140,14 +140,8 @@ Use the same 10k/20k divider circuit as Option A above. The E40S6 shield wire (b
 
 ---
 
-## Phase 3 Prerequisite (Before Full System Test)
+## Phase 3 & 4 Complete
 
-`PIN_PHI_A = 3` is UART0 RX on ESP32. Serial traffic injects false phi encoder counts.
-
-Must remap before full system testing:
-
-```cpp
-// SphericalSensor.h
-#define PIN_PHI_A   27   // was 3
-#define PIN_PHI_B   26   // was 5
-```
+`PIN_PHI_A` remapped to GPIO 27, `PIN_PHI_B` remapped to GPIO 26.
+UART0 RX conflict resolved. PPR_ROTARY corrected from datasheet 5000 to measured 1480.
+Full system testing can proceed.

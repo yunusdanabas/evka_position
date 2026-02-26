@@ -11,7 +11,7 @@ To match the system requirements (3D positioning with 2 angles):
 | **Output Type** | **Incremental Pulse (A/B)** | Direct microcontroller interface, high precision |
 | **Measurement Range** | 0 - 5m (or 10m) | Matches typical workspace |
 | **Resolution** | 0.05mm - 0.1mm per pulse | <1mm system accuracy |
-| **Output Voltage** | 5V (TTL) or 24V (HTL) | 5V preferred for Arduino/MCU direct connection |
+| **Output Voltage** | 5V (TTL) or 24V (HTL) | 5V preferred for ESP32 + level-shift/divider interfaces |
 | **Interface** | Quadrature (A, B Phase) | Same code as rotary encoders |
 
 ## DWE part code specification
@@ -35,8 +35,8 @@ Part-code breakdown for the Draw Wire Encoder model in use (e.g. DWE-3000-HLD-P2
 | :--- | :--- | :--- |
 | **VCC** | Brown/Red | 5V |
 | **GND** | Blue/Black | GND |
-| **Phase A** | White | Interrupt Pin (e.g., D6) |
-| **Phase B** | Green | GPIO Pin (for direction) |
+| **Phase A** | White | Interrupt Pin (GPIO 16) |
+| **Phase B** | Green | GPIO Pin (GPIO 17) |
 
 ### Cable identification (ZV35MR SL-TS incremental encoder)
 
@@ -86,7 +86,7 @@ From the encoder nameplate. Use **V** (Brown) and **0 V** (White) for power; **A
 | **Pins (ESP32)** | PIN_WIRE_CLK = 6, PIN_WIRE_DIR = 7 | PIN_WIRE_A = 16, PIN_WIRE_B = 17 |
 | **Why 6/7 changed** | GPIO 6–11 are reserved for SPI flash on ESP32-WROOM-32 (Wemos D1 R32) — must not be used as I/O | 16/17 are safe GPIOs |
 | **Voltage** | Encoder 5 V outputs; direct connect risks ESP32 (3.3 V max) | Use 10 kΩ / 20 kΩ divider on A, B, Z before ESP32 |
-| **Phi encoder** | PIN_PHI_A = 3 (UART0 RX — serial can inject false counts) | Before full-system test, remap to GPIO 27 (and PHI_B to 26) |
+| **Phi encoder** | PIN_PHI_A = 3 (was UART0 RX — serial injected false counts) | Remapped to GPIO 27 (PHI_B to GPIO 26) — conflict resolved |
 
 Current firmware uses the **Encoder** library (quadrature) for the draw-wire; legacy used a single ISR on the clock pin and read direction from the other pin.
 

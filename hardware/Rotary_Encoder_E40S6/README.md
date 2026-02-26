@@ -4,7 +4,7 @@
 
 The **Autonics E40S6-5000-3-T-5** is a high-resolution incremental rotary encoder used for the theta and phi axes of the Evka Position system.
 
-- 5000 PPR (0.072 deg per pulse)
+- 5000 PPR datasheet (1480 counts/rev measured on hardware)
 - Compact 40mm housing, 6mm shaft
 - Totem-pole (push-pull) output, 0-5V TTL
 - Phase A, B, Z (index) outputs
@@ -71,7 +71,7 @@ Shield       --> GND (at MCU end only)
 
 Current pin assignments in `SphericalSensor.h`:
 - **Theta axis**: A = GPIO 2, B = GPIO 4
-- **Phi axis**: A = GPIO 3, B = GPIO 5 (pending remap to GPIO 27/26)
+- **Phi axis**: A = GPIO 27, B = GPIO 26
 
 **Power**: Use an external regulated 5V supply for all encoders (~50 mA each). Share GND with ESP32 but do not power encoders from ESP32.
 
@@ -84,6 +84,7 @@ Current pin assignments in `SphericalSensor.h`:
 
 ### Resolution Modes
 
+Datasheet values (not matching measured results):
 ```
 X1 counting:  5000 counts/rev  (0.072 deg/count)
 X2 counting: 10000 counts/rev  (0.036 deg/count)
@@ -91,6 +92,8 @@ X4 counting: 20000 counts/rev  (0.018 deg/count)
 ```
 
 The PaulStoffregen Encoder library uses X4 counting by default when both pins support interrupts.
+
+**Measured on hardware:** 1480 counts/rev (~0.2432 deg/count). The discrepancy with the datasheet 5000 PPR is under investigation — firmware uses the measured value.
 
 ## Troubleshooting
 
