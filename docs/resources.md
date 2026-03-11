@@ -101,7 +101,7 @@ This document consolidates open-source projects, libraries, documentation, and a
 
 ### **Autonics E40S6 Encoder Datasheets**
 - **Manufacturer:** Autonics
-- **Datasheet:** [Included in `hardware/Rotary_Encoder_E40S6/`]
+- **Datasheet:** [Included in `docs/hardware_design/encoders/rotary_e40s6/`]
 - **Relevant Specs:**
   - 5000 PPR datasheet (1480 counts/rev measured)
   - ~0.2432° resolution (measured)

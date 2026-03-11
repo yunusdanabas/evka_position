@@ -10,7 +10,7 @@
 //
 // Wiring:
 //   Theta: A (black) → GPIO 2,  B (white) → GPIO 4
-//   Phi:   A (black) → GPIO 27, B (white) → GPIO 26
+//   Phi:   A (black) → GPIO 32, B (white) → GPIO 35
 //
 // Serial: 115200 baud, output every 200 ms.
 //
@@ -27,10 +27,10 @@
 #include <Encoder.h>
 
 // Pin assignments — must match SphericalSensor.h
-#define PIN_THETA_A  2
-#define PIN_THETA_B  4
-#define PIN_PHI_A    27
-#define PIN_PHI_B    26
+#define PIN_THETA_A  32
+#define PIN_THETA_B  35
+#define PIN_PHI_A    14
+#define PIN_PHI_B    12
 
 // Runtime calibration values — measured 1480 counts/rev on both axes
 float ppr_theta       = 1480.0f;
@@ -175,7 +175,7 @@ void loop() {
         Serial.println();
         Serial.println("RotaryEncoderTest ready. (ESP32 / Autonics E40S6)");
         Serial.println("  Theta: A (black) -> GPIO 2,  B (white) -> GPIO 4");
-        Serial.println("  Phi:   A (black) -> GPIO 27, B (white) -> GPIO 26");
+        Serial.println("  Phi:   A (black) -> GPIO 32, B (white) -> GPIO 35");
         Serial.print  ("  PPR theta="); Serial.print(ppr_theta, 1);
         Serial.print  ("  phi=");       Serial.println(ppr_phi, 1);
         Serial.println("  Calibrate: ZERO_T -> rotate N turns -> CAL_T N  (same for PHI)");

@@ -4,13 +4,15 @@ ESP32 firmware for the Spherical 3D Positioning System.
 
 ## Project Structure
 
-*   `EvkaPosition/`: Main PlatformIO project for ESP32.
+*   `src/`: Production firmware (PlatformIO build target `wemos_d1_r32`).
     *   `EvkaPosition.cpp`: Entry point (`setup()` / `loop()`).
     *   `SphericalSensor.h`: Configuration defines, structs, class declaration.
     *   `SphericalSensor.cpp`: Coordinate math, filtering, validation.
-*   `DrawWireTest/`: Standalone test app for the OPKON DWE3000 draw-wire encoder.
-*   `RotaryEncoderTest/`: Standalone test app for the Autonics E40S6 rotary encoder.
-*   `SingleRotaryTest/`: Standalone test for a single rotary encoder (theta or phi independently).
+*   `tests/`: Standalone test sketches, each compiled independently.
+    *   `DrawWireTest/`: Standalone test for the OPKON DWE3000 draw-wire encoder.
+    *   `RotaryEncoderTest/`: Standalone test for the Autonics E40S6 rotary encoder (theta + phi).
+    *   `SingleRotaryTest/`: Single rotary encoder test (theta or phi independently).
+    *   `AllSensorsTest/`: All three encoders together, without position math.
 
 ## Dependencies
 
@@ -29,4 +31,4 @@ pio run -e wemos_d1_r32
 
 ## Configuration
 
-Edit `SphericalSensor.h` to change pin assignments, encoder resolution, or safety limits. See [`CLAUDE.md`](../CLAUDE.md) for a summary of all constants.
+Edit `src/SphericalSensor.h` to change pin assignments, encoder resolution, or safety limits. See [`CLAUDE.md`](../CLAUDE.md) for a summary of all constants.

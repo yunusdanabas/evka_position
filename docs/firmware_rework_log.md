@@ -1,6 +1,9 @@
 # Firmware Rework Log — Draw-Wire Encoder (DWE3000 Quadrature)
 _Session: 2026-02-18_
 
+> **Note (2026-03-09):** File paths in this log reflect the pre-reorganization layout.
+> Current paths: `firmware/src/` (production), `firmware/tests/` (test sketches).
+
 ---
 
 ## Summary

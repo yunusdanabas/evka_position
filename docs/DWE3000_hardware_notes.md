@@ -91,13 +91,13 @@ Encoder is unpowered → output transistors off → line floating → 10 kΩ pul
 
 | Signal | GPIO | Notes |
 |---|---|---|
-| PIN_WIRE_A | **16** | Safe — avoids flash-reserved GPIO 6–11 |
-| PIN_WIRE_B | **17** | Safe |
+| PIN_WIRE_A | **16** | Draw-wire encoder quadrature A |
+| PIN_WIRE_B | **17** | Draw-wire encoder quadrature B |
 | PIN_WIRE_Z | **18** | Index / Z channel (optional sanity check) |
-| PIN_THETA_A | 2 | OK for now |
+| PIN_THETA_A | 14 | Safe interrupt-capable GPIO |
 | PIN_THETA_B | 4 | OK |
-| PIN_PHI_A | 27 | Safe interrupt-capable GPIO (remapped from GPIO 3, UART0 RX) |
-| PIN_PHI_B | 26 | Safe interrupt-capable GPIO (remapped from GPIO 5, strapping pin) |
+| PIN_PHI_A | 32 | Interrupt-capable, ADC1_CH4 |
+| PIN_PHI_B | 35 | Input-only, interrupt-capable, ADC1_CH7 |
 
 ### Forbidden GPIOs on ESP32-WROOM-32
 

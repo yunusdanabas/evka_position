@@ -9,6 +9,66 @@ SphericalPositioningSensor sensor;
 // Update Frequency
 #define UPDATE_PERIOD_MS  50  // 20 Hz position update rate
 
+static String serial_buffer;
+
+static void printStatusLine() {
+    SystemStatus st = sensor.getStatus();
+    Serial.print("STATUS,");
+    Serial.print(st.is_valid);
+    Serial.print(",");
+    Serial.print(st.frame_count);
+    Serial.print(",");
+    Serial.print(st.last_update_ms);
+    Serial.print(",");
+    Serial.print(st.spherical.r_mm, 2);
+    Serial.print(",");
+    Serial.print(st.spherical.theta_deg, 3);
+    Serial.print(",");
+    Serial.print(st.spherical.phi_deg, 3);
+    Serial.print(",");
+    Serial.print(st.position.x_mm, 2);
+    Serial.print(",");
+    Serial.print(st.position.y_mm, 2);
+    Serial.print(",");
+    Serial.println(st.position.z_mm, 2);
+
+#if ENABLE_BATTERY_MONITOR
+    BatteryStatus bat = sensor.readBattery();
+    Serial.print("BATT,");
+    Serial.print(bat.voltage, 3);
+    Serial.print(",");
+    Serial.print(bat.percentage);
+    Serial.print(",");
+    Serial.println(bat.is_low ? 1 : 0);
+#endif
+}
+
+static void processCommand(const String& cmd) {
+    if (cmd == "ZERO") {
+        sensor.setZeroPoint();
+        Serial.println("ACK:ZERO");
+    } else if (cmd == "PING") {
+        Serial.println("ACK:PONG");
+    } else if (cmd == "STATUS") {
+        printStatusLine();
+    }
+}
+
+static void handleSerialCommands() {
+    while (Serial.available() > 0) {
+        const char ch = (char)Serial.read();
+        if (ch == '\n' || ch == '\r') {
+            serial_buffer.trim();
+            if (serial_buffer.length() > 0) {
+                processCommand(serial_buffer);
+            }
+            serial_buffer = "";
+        } else {
+            serial_buffer += ch;
+        }
+    }
+}
+
 void setup() {
     Serial.begin(115200);
     // Wait for serial to settle
@@ -34,14 +94,7 @@ void loop() {
     static unsigned long last_update = 0;
 
     // Non-blocking serial command handler
-    if (Serial.available() > 0) {
-        String cmd = Serial.readStringUntil('\n');
-        cmd.trim();
-        if (cmd == "ZERO") {
-            sensor.setZeroPoint();
-            Serial.println("ACK:ZERO");
-        }
-    }
+    handleSerialCommands();
 
     // Update position at fixed interval
     if (millis() - last_update >= UPDATE_PERIOD_MS) {

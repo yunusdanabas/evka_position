@@ -24,6 +24,13 @@ void SphericalPositioningSensor::begin() {
     thetaEncoder = new Encoder(PIN_THETA_A, PIN_THETA_B);
     phiEncoder   = new Encoder(PIN_PHI_A, PIN_PHI_B);
     wireEncoder  = new Encoder(PIN_WIRE_A, PIN_WIRE_B);
+
+#if ENABLE_BATTERY_MONITOR
+    // Battery ADC pin (input-only, no pull-up)
+    pinMode(PIN_BATTERY_ADC, INPUT);
+    analogSetAttenuation(ADC_11db);  // Full range 0-3.3V
+#endif
+
     Serial.println("[SphericalSensor] Initialized");
 }
 
@@ -48,15 +55,13 @@ void SphericalPositioningSensor::readRawEncoders(int32_t& theta_counts, int32_t&
 
 SphericalCoords SphericalPositioningSensor::countsToSpherical(int32_t theta_counts, int32_t phi_counts, int32_t radius_counts) {
     SphericalCoords sph;
-    
+
     sph.theta_deg = theta_counts * DEG_PER_PULSE;
     sph.phi_deg   = phi_counts * DEG_PER_PULSE;
     sph.r_mm      = radius_counts * MM_PER_PULSE;
-    
+
     sph.theta_deg = normalizeAngle(sph.theta_deg);
-    sph.phi_deg   = clamp(sph.phi_deg, PHI_MIN_DEG, PHI_MAX_DEG);
-    sph.r_mm      = clamp(sph.r_mm, RADIUS_MIN_MM, RADIUS_MAX_MM);
-    
+
     return sph;
 }
 
@@ -119,9 +124,15 @@ uint8_t SphericalPositioningSensor::validateLimits(const SphericalCoords& sph, c
 void SphericalPositioningSensor::updatePosition() {
     int32_t theta_raw, phi_raw, radius_raw;
     readRawEncoders(theta_raw, phi_raw, radius_raw);
-    
-    SphericalCoords sph = countsToSpherical(theta_raw, phi_raw, radius_raw);
-    CartesianCoords cart = sphericalToCartesian(sph);
+
+    // Keep a raw spherical reading for diagnostics, and clamp for downstream
+    // conversion/validation in the zero-referenced coordinate frame.
+    SphericalCoords sph_raw = countsToSpherical(theta_raw, phi_raw, radius_raw);
+    SphericalCoords sph_limited = sph_raw;
+    sph_limited.phi_deg = clamp(sph_limited.phi_deg, PHI_MIN_DEG, PHI_MAX_DEG);
+    sph_limited.r_mm = clamp(sph_limited.r_mm, RADIUS_MIN_MM, RADIUS_MAX_MM);
+
+    CartesianCoords cart = sphericalToCartesian(sph_limited);
     
     // Low-pass filter
     if (system_state.frame_count > 0) {
@@ -130,10 +141,10 @@ void SphericalPositioningSensor::updatePosition() {
         cart.z_mm = position_filter_alpha * cart.z_mm + (1.0 - position_filter_alpha) * system_state.position.z_mm;
     }
     
-    uint8_t is_valid = validateLimits(sph, cart);
+    uint8_t is_valid = validateLimits(sph_limited, cart);
     
     system_state.position = cart;
-    system_state.spherical = sph;
+    system_state.spherical = sph_limited;
     system_state.is_valid = is_valid;
     system_state.frame_count++;
     system_state.last_update_ms = millis();
@@ -149,6 +160,27 @@ SphericalCoords SphericalPositioningSensor::getSphericalCoords() {
 
 SystemStatus SphericalPositioningSensor::getStatus() {
     return system_state;
+}
+
+BatteryStatus SphericalPositioningSensor::readBattery() {
+    BatteryStatus bat;
+#if ENABLE_BATTERY_MONITOR
+    int raw = analogRead(PIN_BATTERY_ADC);
+    float adc_voltage = (raw / 4095.0f) * 3.3f;
+    bat.voltage = adc_voltage * BATT_DIVIDER_RATIO;
+
+    // Linear mapping: 3.0V = 0%, 4.2V = 100%
+    float pct = (bat.voltage - BATT_EMPTY_V) / (BATT_FULL_V - BATT_EMPTY_V) * 100.0f;
+    if (pct < 0.0f) pct = 0.0f;
+    if (pct > 100.0f) pct = 100.0f;
+    bat.percentage = (uint8_t)pct;
+    bat.is_low = (bat.percentage < BATT_LOW_THRESHOLD);
+#else
+    bat.voltage = 0.0f;
+    bat.percentage = 0;
+    bat.is_low = false;
+#endif
+    return bat;
 }
 
 void SphericalPositioningSensor::printPosition() {

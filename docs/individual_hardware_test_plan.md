@@ -83,12 +83,12 @@ GPIOs **6, 7, 8, 9, 10, 11** are connected to internal SPI flash. **Do not use t
 
 | Signal    | GPIO | Encoder / notes |
 |-----------|------|------------------|
-| Theta A   | 2    | E40S6 (Black)    |
-| Theta B   | 4    | E40S6 (White)    |
+| Theta A   | 14   | E40S6 (Black)    |
+| Theta B   | 12   | E40S6 (White)    |
 | Phi A     | 27   | E40S6 (Black)    |
 | Phi B     | 26   | E40S6 (White)    |
-| Wire A    | 16   | DWE3000          |
-| Wire B    | 17   | DWE3000          |
+| Wire A    | 32   | DWE3000          |
+| Wire B    | 33   | DWE3000          |
 | Wire Z    | 18   | DWE3000 (index)  |
 
 Voltage divider required on every signal line (5 V → 3.3 V).
@@ -156,7 +156,7 @@ If COUNT goes negative when pulling, swap A and B wires.
 
 ## 4. Test 2: Theta rotary encoder only
 
-Connect **only** the theta axis Autonics E40S6. Leave phi encoder disconnected (pins 27 and 26 unused). Use the same test app as for phi; only the theta column in the serial output is relevant—ignore PHI (it may be 0 or noisy).
+Connect **only** the theta axis Autonics E40S6. Leave phi encoder disconnected (pins 32 and 35 unused). Use the same test app as for phi; only the theta column in the serial output is relevant—ignore PHI (it may be 0 or noisy).
 
 ### Wiring
 

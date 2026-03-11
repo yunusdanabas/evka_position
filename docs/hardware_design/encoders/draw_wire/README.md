@@ -35,8 +35,8 @@ Part-code breakdown for the Draw Wire Encoder model in use (e.g. DWE-3000-HLD-P2
 | :--- | :--- | :--- |
 | **VCC** | Brown/Red | 5V |
 | **GND** | Blue/Black | GND |
-| **Phase A** | White | Interrupt Pin (GPIO 16) |
-| **Phase B** | Green | GPIO Pin (GPIO 17) |
+| **Phase A** | White | Interrupt Pin (GPIO 32) |
+| **Phase B** | Green | GPIO Pin (GPIO 33) |
 
 ### Cable identification (ZV35MR SL-TS incremental encoder)
 
@@ -83,8 +83,8 @@ From the encoder nameplate. Use **V** (Brown) and **0 V** (White) for power; **A
 | Aspect | Legacy | Current |
 | :--- | :--- | :--- |
 | **Interface** | Clock + direction (one pin = pulses, one = direction) | Quadrature A/B (both pins carry phase; direction from sequence) |
-| **Pins (ESP32)** | PIN_WIRE_CLK = 6, PIN_WIRE_DIR = 7 | PIN_WIRE_A = 16, PIN_WIRE_B = 17 |
-| **Why 6/7 changed** | GPIO 6–11 are reserved for SPI flash on ESP32-WROOM-32 (Wemos D1 R32) — must not be used as I/O | 16/17 are safe GPIOs |
+| **Pins (ESP32)** | PIN_WIRE_CLK = 6, PIN_WIRE_DIR = 7 | PIN_WIRE_A = 32, PIN_WIRE_B = 33 |
+| **Why 6/7 changed** | GPIO 6–11 are reserved for SPI flash on ESP32-WROOM-32 (Wemos D1 R32) — must not be used as I/O | 32/33 are safe GPIOs with full I/O and pull-ups |
 | **Voltage** | Encoder 5 V outputs; direct connect risks ESP32 (3.3 V max) | Use 10 kΩ / 20 kΩ divider on A, B, Z before ESP32 |
 | **Phi encoder** | PIN_PHI_A = 3 (was UART0 RX — serial injected false counts) | Remapped to GPIO 27 (PHI_B to GPIO 26) — conflict resolved |
 

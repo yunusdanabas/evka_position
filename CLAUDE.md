@@ -19,12 +19,16 @@ Serial monitor: 115200 baud. On boot, the firmware waits 2 s then calls `setZero
 
 | File | Role |
 |---|---|
-| `firmware/EvkaPosition/EvkaPosition.cpp` | Entry point: `setup()` / `loop()`, 20 Hz update rate |
-| `firmware/EvkaPosition/SphericalSensor.h` | All config `#define`s, struct definitions, class declaration |
-| `firmware/EvkaPosition/SphericalSensor.cpp` | Coordinate math, filtering, validation |
-| `firmware/DrawWireTest/DrawWireTest.cpp` | Standalone draw-wire encoder test |
-| `firmware/RotaryEncoderTest/RotaryEncoderTest.cpp` | Dual rotary encoder test (theta + phi) |
-| `firmware/SingleRotaryTest/SingleRotaryTest.cpp` | Single rotary encoder test |
+| `firmware/src/EvkaPosition.cpp` | Entry point: `setup()` / `loop()`, 20 Hz update rate |
+| `firmware/src/SphericalSensor.h` | All config `#define`s, struct definitions, class declaration |
+| `firmware/src/SphericalSensor.cpp` | Coordinate math, filtering, validation |
+| `firmware/tests/DrawWireTest/DrawWireTest.cpp` | Standalone draw-wire encoder test |
+| `firmware/tests/RotaryEncoderTest/RotaryEncoderTest.cpp` | Dual rotary encoder test (theta + phi) |
+| `firmware/tests/SingleRotaryTest/SingleRotaryTest.cpp` | Single rotary encoder test |
+| `docs/hardware_design/circuit_schematic.md` | Full ASCII circuit schematic (power + signal conditioning + protection) |
+| `docs/hardware_design/bill_of_materials.md` | Complete BOM (~30 line items) |
+| `docs/hardware_design/pcb_layout_guide.md` | PCB layout zones, trace widths, assembly sequence |
+| `docs/hardware_design/system_architecture.md` | System-level architecture overview |
 
 ## Architecture
 
@@ -56,20 +60,22 @@ All three encoders use the PaulStoffregen `Encoder` library — no manual ISRs.
 | `RADIUS_MIN_MM` / `RADIUS_MAX_MM` | 100 / 3000 | Safety range (mm) |
 | `THETA_MIN/MAX_DEG` | -180 / 180 | Azimuth range |
 | `PHI_MIN/MAX_DEG` | 0 / 180 | Elevation range |
+| `ENABLE_BATTERY_MONITOR` | 0 (default) | 0 = compile out battery ADC path |
 | `UPDATE_PERIOD_MS` | 50 | Loop period (20 Hz) — in `EvkaPosition.cpp` |
 
 ## Pin Map (current)
 
 | Pin | Define | Signal |
 |---|---|---|
-| 2 | `PIN_THETA_A` | Theta encoder A |
-| 4 | `PIN_THETA_B` | Theta encoder B |
-| 27 | `PIN_PHI_A` | Phi encoder A |
-| 26 | `PIN_PHI_B` | Phi encoder B |
+| 14 | `PIN_THETA_A` | Theta encoder A |
+| 12 | `PIN_THETA_B` | Theta encoder B (strapping pin — add pull-down) |
+| 32 | `PIN_PHI_A` | Phi encoder A |
+| 35 | `PIN_PHI_B` | Phi encoder B |
 | 16 | `PIN_WIRE_A` | Draw-wire encoder A |
 | 17 | `PIN_WIRE_B` | Draw-wire encoder B |
+| 36 | `PIN_BATTERY_ADC` | Battery voltage monitor (ADC1_CH0, input-only) |
 
-**Voltage dividers required**: All encoder signal lines output 0-5V TTL. ESP32 GPIO max input is 3.6V. Use 10k/20k resistive dividers on every signal line (A and B for each encoder = 6 lines minimum). See `docs/DWE3000_hardware_notes.md` for circuit.
+**Voltage dividers required**: All encoder signal lines output 0-5V TTL. ESP32 GPIO max input is 3.6V. Use 10k/20k resistive dividers on every signal line (A and B for each encoder = 6 lines minimum). See `docs/hardware_design/circuit_schematic.md` for full schematic.
 
 ## Coordinate Convention
 
@@ -84,3 +90,12 @@ Physics spherical convention:
 2. Power on — firmware auto-calls `setZeroPoint()` after 2 s delay
 3. All subsequent counts are relative to that snapshot
 4. To re-zero without reflashing: send `ZERO\n` over serial (firmware responds `ACK:ZERO`)
+
+## Serial Commands (main firmware)
+
+- `ZERO` -> `ACK:ZERO` (re-calibrate offsets)
+- `PING` -> `ACK:PONG`
+- `STATUS` -> `STATUS,<is_valid>,<frame_count>,<ts_ms>,<r>,<theta>,<phi>,<x>,<y>,<z>`
+
+If `ENABLE_BATTERY_MONITOR=1`, `STATUS` also emits:
+- `BATT,<voltage>,<percentage>,<is_low>`

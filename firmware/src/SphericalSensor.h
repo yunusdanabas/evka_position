@@ -11,12 +11,22 @@
 // ============================================================================
 
 // Pin Definitions (must be interrupt-capable pins)
-#define PIN_THETA_A   2     // Encoder interrupt pin (Theta azimuth axis)
-#define PIN_THETA_B   4     // Encoder complementary pin
-#define PIN_PHI_A     27    // GPIO 27 — safe interrupt-capable GPIO (was GPIO 3, UART0 RX)
-#define PIN_PHI_B     26    // GPIO 26 — safe interrupt-capable GPIO (was GPIO 5, strapping pin)
-#define PIN_WIRE_A    16    // Quadrature A (safe GPIO on ESP32-WROOM-32)
-#define PIN_WIRE_B    17    // Quadrature B
+#define PIN_THETA_A   14    // Encoder interrupt pin (Theta azimuth axis)
+#define PIN_THETA_B   12    // Encoder complementary pin (strapping pin — add pull-down)
+#define PIN_PHI_A     32    // GPIO 32 — interrupt-capable, ADC1_CH4
+#define PIN_PHI_B     35    // GPIO 35 — input-only, interrupt-capable, ADC1_CH7
+#define PIN_WIRE_A    16    // Draw-wire encoder quadrature A
+#define PIN_WIRE_B    17    // Draw-wire encoder quadrature B
+
+// Optional features
+#define ENABLE_BATTERY_MONITOR 0  // 0: disable battery ADC path (prototype on 5V adapter)
+
+// Battery monitoring (ADC via 100k+100k voltage divider)
+#define PIN_BATTERY_ADC  36   // GPIO 36 (ADC1_CH0, input-only)
+#define BATT_DIVIDER_RATIO 2.0  // 100k/(100k+100k) → multiply ADC voltage by 2
+#define BATT_FULL_V    4.2    // LiPo full charge voltage
+#define BATT_EMPTY_V   3.0    // LiPo empty voltage (safe cutoff)
+#define BATT_LOW_THRESHOLD 15 // Battery low warning (percent)
 
 // Encoder Specifications
 #define PPR_ROTARY      1480.0  // Measured counts/rev (Autonics E40S6)
@@ -66,6 +76,12 @@ struct SystemStatus {
     uint32_t last_update_ms;       ///< Timestamp of last update
 };
 
+struct BatteryStatus {
+    float voltage;       ///< Battery voltage (V)
+    uint8_t percentage;  ///< Battery level (0-100%)
+    bool is_low;         ///< True if below BATT_LOW_THRESHOLD
+};
+
 // ============================================================================
 // SENSOR CLASS
 // ============================================================================
@@ -101,11 +117,12 @@ public:
     void updatePosition();
     
     void readRawEncoders(int32_t& theta_counts, int32_t& phi_counts, int32_t& radius_counts);
-    
+
     CartesianCoords getPosition();
     SphericalCoords getSphericalCoords();
     SystemStatus getStatus();
-    
+    BatteryStatus readBattery();
+
     void printPosition();
     
     // Math Helpers (Static)

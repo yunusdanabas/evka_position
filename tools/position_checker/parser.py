@@ -1,6 +1,7 @@
 """parser.py — parse DATA CSV lines from the firmware serial stream."""
 
 from collections import namedtuple
+from typing import Optional
 
 ParsedFrame = namedtuple(
     "ParsedFrame",
@@ -12,7 +13,7 @@ _PREFIX = "DATA,"
 _FIELD_COUNT = 9
 
 
-def parse_line(line: str) -> "ParsedFrame | None":
+def parse_line(line: str) -> Optional[ParsedFrame]:
     """Return a ParsedFrame if *line* is a valid DATA CSV line, else None.
 
     Expected format (emitted by SphericalSensor.printPosition()):
@@ -38,3 +39,19 @@ def parse_line(line: str) -> "ParsedFrame | None":
         )
     except ValueError:
         return None
+
+
+def parse_info_line(line: str) -> Optional[str]:
+    """Return human-readable non-DATA status lines, or None.
+
+    Informational lines are routed to GUI/status panels without affecting the
+    DATA parser contract.
+    """
+    clean = line.strip()
+    if not clean:
+        return None
+
+    info_prefixes = ("ACK:", "STATUS,", "BATT,", "ERR:", "!")
+    if clean.startswith(info_prefixes):
+        return clean
+    return None

@@ -9,8 +9,8 @@
 //   on both A and B lines before the ESP32 GPIO pins.
 //
 // Wiring (theta):
-//   A signal  →  10k/20k divider  →  GPIO 2
-//   B signal  →  10k/20k divider  →  GPIO 4
+//   A signal  →  10k/20k divider  →  GPIO 32
+//   B signal  →  10k/20k divider  →  GPIO 35  (input-only, no internal pull-up)
 //   GND → GND,  +5 V → external 5 V supply
 //
 // Serial: 115200 baud, output every 200 ms.
@@ -25,8 +25,8 @@
 #include <Arduino.h>
 #include <Encoder.h>
 
-#define PIN_ENC_A  2
-#define PIN_ENC_B  4
+#define PIN_ENC_A  32
+#define PIN_ENC_B  35
 
 // Runtime calibration values — update with CAL command or set measured PPR here
 float ppr           = 1480.0f;   // measured counts per revolution

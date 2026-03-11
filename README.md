@@ -17,23 +17,18 @@ The system uses industrial-grade sensors and an **ESP32 (Wemos D1 R32)** control
 ## Directory Structure
 
 *   **`firmware/`**: Microcontroller source code.
-    *   `EvkaPosition/`: Main application and `SphericalSensor` class.
-    *   `DrawWireTest/`: Standalone test app for the draw-wire encoder.
-    *   `RotaryEncoderTest/`: Standalone test app for the rotary encoders.
-    *   `SingleRotaryTest/`: Standalone test for a single rotary encoder.
-*   **`hardware/`**: Sensor datasheets and system architecture documentation.
-    *   `System_Architecture.md`: Kinematic math and error analysis.
-    *   `Rotary_Encoder_E40S6/`: Autonics E40S6 docs and PDFs.
-    *   `Draw_Wire_Encoder/`: OPKON DWE3000 specs.
+    *   `src/`: Production firmware (`EvkaPosition.cpp`, `SphericalSensor` class).
+    *   `tests/`: Standalone test sketches (`DrawWireTest`, `RotaryEncoderTest`, `SingleRotaryTest`, `AllSensorsTest`).
 *   **`tools/`**: Python utilities (position_checker visualiser).
-*   **`docs/`**: Setup guides, hardware notes, and rework logs.
+*   **`docs/`**: Setup guides, hardware notes, rework logs, and hardware design.
+    *   `hardware_design/`: Circuit schematic, BOM, PCB layout, encoder datasheets.
 
 ## Getting Started
 
 Supported workflow policy: this project uses PlatformIO on ESP32 only. Arduino IDE and `arduino-cli` are not part of the build/flash workflow.
 
 1.  **Setup Toolchain:** Follow [`docs/setup_test_guide.md`](docs/setup_test_guide.md) for PlatformIO installation and setup.
-2.  **Connect Hardware:** Wire encoders per pin definitions in `firmware/EvkaPosition/SphericalSensor.h`. All encoder signal lines require 5V-to-3.3V voltage dividers (see [`docs/DWE3000_hardware_notes.md`](docs/DWE3000_hardware_notes.md)).
+2.  **Connect Hardware:** Wire encoders per pin definitions in `firmware/src/SphericalSensor.h`. All encoder signal lines require 5V-to-3.3V voltage dividers (see [`docs/DWE3000_hardware_notes.md`](docs/DWE3000_hardware_notes.md)).
 3.  **Flash Firmware:** Compile and upload for ESP32 (Wemos D1 R32).
 4.  **Calibrate:** On startup, the system assumes the arm is at mechanical home ($\theta=0, \phi=0, r=0$). Ensure the device is homed before powering on.
 
@@ -48,7 +43,7 @@ Z &= r \cdot \cos(\phi)
 \end{align*}
 $$
 
-For inverse kinematics and detailed error analysis, see [System Architecture](hardware/System_Architecture.md).
+For inverse kinematics and detailed error analysis, see [System Architecture](docs/hardware_design/system_architecture.md).
 
 ## Resources
 *   [CLAUDE.md](CLAUDE.md) - Project configuration reference for AI assistants.
