@@ -103,8 +103,8 @@ This document consolidates open-source projects, libraries, documentation, and a
 - **Manufacturer:** Autonics
 - **Datasheet:** [Included in `docs/hardware_design/encoders/rotary_e40s6/`]
 - **Relevant Specs:**
-  - 5000 PPR datasheet (1480 counts/rev measured)
-  - ~0.2432° resolution (measured)
+  - 5000 PPR datasheet (20000 counts/rev @ X4 quadrature)
+  - ~0.0180° resolution (X4 quadrature)
   - Quadrature output (TTL)
   - Operating frequency up to ~1 MHz
 

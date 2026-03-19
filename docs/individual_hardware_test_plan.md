@@ -83,12 +83,12 @@ GPIOs **6, 7, 8, 9, 10, 11** are connected to internal SPI flash. **Do not use t
 
 | Signal    | GPIO | Encoder / notes |
 |-----------|------|------------------|
-| Theta A   | 14   | E40S6 (Black)    |
-| Theta B   | 12   | E40S6 (White)    |
-| Phi A     | 27   | E40S6 (Black)    |
-| Phi B     | 26   | E40S6 (White)    |
-| Wire A    | 32   | DWE3000          |
-| Wire B    | 33   | DWE3000          |
+| Theta A   | 32   | E40S6 (Black)    |
+| Theta B   | 35   | E40S6 (White)    |
+| Phi A     | 14   | E40S6 (Black)    |
+| Phi B     | 12   | E40S6 (White)    |
+| Wire A    | 16   | DWE3000          |
+| Wire B    | 17   | DWE3000          |
 | Wire Z    | 18   | DWE3000 (index)  |
 
 Voltage divider required on every signal line (5 V → 3.3 V).
@@ -156,14 +156,14 @@ If COUNT goes negative when pulling, swap A and B wires.
 
 ## 4. Test 2: Theta rotary encoder only
 
-Connect **only** the theta axis Autonics E40S6. Leave phi encoder disconnected (pins 32 and 35 unused). Use the same test app as for phi; only the theta column in the serial output is relevant—ignore PHI (it may be 0 or noisy).
+Connect **only** the theta axis Autonics E40S6. Leave phi encoder disconnected (pins 14 and 12 unused). Use the same test app as for phi; only the theta column in the serial output is relevant—ignore PHI (it may be 0 or noisy).
 
 ### Wiring
 
 | E40S6 (theta) | Via 10k/20k divider | ESP32 GPIO |
 |---------------|----------------------|------------|
-| A (Black)     | Divider              | **2**      |
-| B (White)     | Divider              | **4**      |
+| A (Black)     | Divider              | **32**     |
+| B (White)     | Divider              | **35**     |
 
 **Power:** External 5 V to encoder, GND common with ESP32. Do not power from ESP32.
 
@@ -179,14 +179,14 @@ pio device monitor -e test_rotary
 
 ### Expected output
 
-Serial prints every 200 ms. Format: `THETA_counts=<n>  THETA_deg=<n*0.2432>  |  PHI_counts=<n>  PHI_deg=<n*0.2432>`. When testing theta only, watch **THETA_counts** and **THETA_deg**; ignore the PHI column.
+Serial prints every 200 ms. Format: `THETA_counts=<n>  THETA_deg=<n*0.018>  |  PHI_counts=<n>  PHI_deg=<n*0.018>`. When testing theta only, watch **THETA_counts** and **THETA_deg**; ignore the PHI column.
 
 ### Acceptance criteria
 
 | Action                    | Expected result                    |
 |---------------------------|------------------------------------|
-| One full turn CW          | THETA_counts +1480, THETA_deg +360 |
-| One full turn CCW         | THETA_counts -1480, THETA_deg -360 |
+| One full turn CW          | THETA_counts +20000, THETA_deg +360 |
+| One full turn CCW         | THETA_counts -20000, THETA_deg -360 |
 | Small rotation            | Count and angle track smoothly      |
 
 If direction is inverted, swap A and B wires on the theta encoder.
@@ -195,14 +195,14 @@ If direction is inverted, swap A and B wires on the theta encoder.
 
 ## 5. Test 3: Phi rotary encoder only
 
-Connect **only** the phi axis Autonics E40S6. Leave theta encoder disconnected (pins 2 and 4 unused). Use the same RotaryEncoderTest test app; only the phi column is relevant—ignore THETA (it may be 0 or noisy).
+Connect **only** the phi axis Autonics E40S6. Leave theta encoder disconnected (pins 32 and 35 unused). Use the same RotaryEncoderTest test app; only the phi column is relevant—ignore THETA (it may be 0 or noisy).
 
 ### Wiring
 
 | E40S6 (phi) | Via 10k/20k divider | ESP32 GPIO |
 |-------------|----------------------|------------|
-| A (Black)   | Divider              | **27**     |
-| B (White)   | Divider              | **26**     |
+| A (Black)   | Divider              | **14**     |
+| B (White)   | Divider              | **12**     |
 
 **Power:** External 5 V to encoder, GND common with ESP32. Do not power from ESP32.
 
@@ -223,8 +223,8 @@ Same format as Test 2. When testing phi only, watch **PHI_counts** and **PHI_deg
 
 | Action                    | Expected result                 |
 |---------------------------|---------------------------------|
-| One full turn CW          | PHI_counts +1480, PHI_deg +360  |
-| One full turn CCW         | PHI_counts -1480, PHI_deg -360  |
+| One full turn CW          | PHI_counts +20000, PHI_deg +360  |
+| One full turn CCW         | PHI_counts -20000, PHI_deg -360  |
 | Small rotation            | Count and angle track smoothly  |
 
 If direction is inverted, swap A and B wires on the phi encoder.

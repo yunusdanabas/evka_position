@@ -1,5 +1,10 @@
 #include "SphericalSensor.h"
 
+#if ENABLE_WIFI
+#include "WebDashboard.h"
+WebDashboard dashboard;
+#endif
+
 // ============================================================================
 // ESP32 PLATFORMIO ENTRY POINT
 // ============================================================================
@@ -13,24 +18,13 @@ static String serial_buffer;
 
 static void printStatusLine() {
     SystemStatus st = sensor.getStatus();
-    Serial.print("STATUS,");
-    Serial.print(st.is_valid);
-    Serial.print(",");
-    Serial.print(st.frame_count);
-    Serial.print(",");
-    Serial.print(st.last_update_ms);
-    Serial.print(",");
-    Serial.print(st.spherical.r_mm, 2);
-    Serial.print(",");
-    Serial.print(st.spherical.theta_deg, 3);
-    Serial.print(",");
-    Serial.print(st.spherical.phi_deg, 3);
-    Serial.print(",");
-    Serial.print(st.position.x_mm, 2);
-    Serial.print(",");
-    Serial.print(st.position.y_mm, 2);
-    Serial.print(",");
-    Serial.println(st.position.z_mm, 2);
+    char buf[128];
+    snprintf(buf, sizeof(buf),
+        "STATUS,%u,%lu,%lu,%.2f,%.3f,%.3f,%.2f,%.2f,%.2f",
+        st.is_valid, (unsigned long)st.frame_count, (unsigned long)st.last_update_ms,
+        st.spherical.r_mm, st.spherical.theta_deg, st.spherical.phi_deg,
+        st.position.x_mm, st.position.y_mm, st.position.z_mm);
+    Serial.println(buf);
 
 #if ENABLE_BATTERY_MONITOR
     BatteryStatus bat = sensor.readBattery();
@@ -76,12 +70,16 @@ void setup() {
     
     Serial.println("\n========================================");
     Serial.println("  Spherical 3D Positioning System");
-    Serial.println("  Firmware v1.0.1 (Refactored)");
+    Serial.println("  Firmware v1.0");
     Serial.println("========================================\n");
     
     // Initialize sensor hardware
     sensor.begin();
-    
+
+#if ENABLE_WIFI
+    dashboard.begin();
+#endif
+
     // CRITICAL: Set zero point when robot is at home position
     Serial.println("Waiting 2s before calibration...");
     delay(2000);
@@ -96,18 +94,39 @@ void loop() {
     // Non-blocking serial command handler
     handleSerialCommands();
 
+#if ENABLE_WIFI
+    {
+        String wsCmd = dashboard.takePendingCommand();
+        if (wsCmd.length() > 0) {
+            processCommand(wsCmd);   // handles sensor + Serial ACK
+            // Also send ACK back to WebSocket clients
+            if (wsCmd == "ZERO") dashboard.broadcast("ACK:ZERO");
+            else if (wsCmd == "PING") dashboard.broadcast("ACK:PONG");
+        }
+    }
+#endif
+
     // Update position at fixed interval
     if (millis() - last_update >= UPDATE_PERIOD_MS) {
         last_update = millis();
 
         // Calculate new position from current sensor readings
         sensor.updatePosition();
+        sensor.printPosition();
 
-        // Print position every ~500 ms
-        static unsigned long last_print = 0;
-        if (millis() - last_print >= 500) {
-            last_print = millis();
-            sensor.printPosition();
+#if ENABLE_WIFI
+        // Broadcast DATA line to all WebSocket clients
+        {
+            SystemStatus st = sensor.getStatus();
+            char buf[128];
+            snprintf(buf, sizeof(buf),
+                     "DATA,%.2f,%.2f,%.2f,%.2f,%.3f,%.3f,%u,%lu,%lu",
+                     st.position.x_mm, st.position.y_mm, st.position.z_mm,
+                     st.spherical.r_mm, st.spherical.theta_deg, st.spherical.phi_deg,
+                     st.is_valid, (unsigned long)st.frame_count,
+                     (unsigned long)st.last_update_ms);
+            dashboard.broadcast(buf);
         }
+#endif
     }
 }

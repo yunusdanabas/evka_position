@@ -12,14 +12,18 @@
 
 // Pin Definitions (must be interrupt-capable pins)
 #define PIN_THETA_A   14    // Encoder interrupt pin (Theta azimuth axis)
-#define PIN_THETA_B   12    // Encoder complementary pin (strapping pin — add pull-down)
+#define PIN_THETA_B   12    // Strapping pin — add pull-down
 #define PIN_PHI_A     32    // GPIO 32 — interrupt-capable, ADC1_CH4
-#define PIN_PHI_B     35    // GPIO 35 — input-only, interrupt-capable, ADC1_CH7
+#define PIN_PHI_B     35    // GPIO 35 — input-only, interrupt-capable
 #define PIN_WIRE_A    16    // Draw-wire encoder quadrature A
 #define PIN_WIRE_B    17    // Draw-wire encoder quadrature B
 
 // Optional features
 #define ENABLE_BATTERY_MONITOR 0  // 0: disable battery ADC path (prototype on 5V adapter)
+#define ENABLE_WIFI            1  // 0: serial only, 1: serial + WiFi AP + web dashboard
+#define WIFI_AP_SSID           "EvkaPosition"
+#define WIFI_AP_PASSWORD       "evka1234"    // min 8 chars for WPA2
+#define WIFI_WEB_PORT          80
 
 // Battery monitoring (ADC via 100k+100k voltage divider)
 #define PIN_BATTERY_ADC  36   // GPIO 36 (ADC1_CH0, input-only)
@@ -29,17 +33,17 @@
 #define BATT_LOW_THRESHOLD 15 // Battery low warning (percent)
 
 // Encoder Specifications
-#define PPR_ROTARY      1480.0  // Measured counts/rev (Autonics E40S6)
-#define PPR_WIRE        2000.0  // Pulses per revolution — OPKON DWE3000
+#define PPR_ROTARY      20000.0  // E30S6-5000 @ X4 quadrature (5000 PPR × 4)
+#define PPR_WIRE        8020.0  // Calibrated — OPKON DWE3000 @ X4 quadrature (actual 400mm → firmware read 1604mm)
 #define DRUM_CIRCUM_MM   200.0  // Drum circumference in mm (200 mm/rev)
-#define DEG_PER_PULSE  (360.0 / PPR_ROTARY)          // ≈ 0.2432 deg per pulse
-#define MM_PER_PULSE   (DRUM_CIRCUM_MM / PPR_WIRE)   // = 0.1 mm per pulse
+#define DEG_PER_PULSE  (360.0 / PPR_ROTARY)          // ≈ 0.018 deg per pulse
+#define MM_PER_PULSE   (DRUM_CIRCUM_MM / PPR_WIRE)   // ≈ 0.02494 mm per pulse
 
 // Mechanical Limits (safety constraints)
 #define THETA_MIN_DEG    -180.0   // Min azimuth angle
 #define THETA_MAX_DEG     180.0   // Max azimuth angle
-#define PHI_MIN_DEG        0.0    // Min elevation angle (straight up)
-#define PHI_MAX_DEG      180.0    // Max elevation angle (straight down)
+#define PHI_MIN_DEG      -90.0    // Min elevation angle (arm pointing down)
+#define PHI_MAX_DEG       90.0    // Max elevation angle (arm pointing up)
 #define RADIUS_MIN_MM    100.0    // Min extension (safety margin)
 #define RADIUS_MAX_MM   3000.0    // Max extension — DWE3000 stroke limit
 
@@ -53,7 +57,7 @@
 struct SphericalCoords {
     float r_mm;        ///< Radius in millimeters
     float theta_deg;   ///< Azimuth angle in degrees (-180 to 180)
-    float phi_deg;     ///< Elevation angle in degrees (0 to 180)
+    float phi_deg;     ///< Elevation angle from horizontal in degrees (-90=down, 0=horizontal, +90=up)
 };
 
 /**

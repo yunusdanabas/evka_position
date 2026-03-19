@@ -4,12 +4,8 @@
 // Target: ESP32 (Wemos D1 R32 — all GPIO pins are interrupt-capable)
 // Encoder: Autonics E40S6 (push-pull 0-5 V output)
 //
-// VOLTAGE WARNING: E40S6 outputs swing 0-5 V.
-//   ESP32 GPIO max is 3.3 V. Use a 10k/20k voltage divider
-//   on every signal line (4 lines: Theta-A, Theta-B, Phi-A, Phi-B).
-//
 // Wiring:
-//   Theta: A (black) → GPIO 2,  B (white) → GPIO 4
+//   Theta: A (black) → GPIO 14, B (white) → GPIO 12
 //   Phi:   A (black) → GPIO 32, B (white) → GPIO 35
 //
 // Serial: 115200 baud, output every 200 ms.
@@ -27,16 +23,16 @@
 #include <Encoder.h>
 
 // Pin assignments — must match SphericalSensor.h
-#define PIN_THETA_A  32
-#define PIN_THETA_B  35
-#define PIN_PHI_A    14
-#define PIN_PHI_B    12
+#define PIN_THETA_A  14
+#define PIN_THETA_B  12
+#define PIN_PHI_A    32
+#define PIN_PHI_B    35
 
-// Runtime calibration values — measured 1480 counts/rev on both axes
-float ppr_theta       = 1480.0f;
-float ppr_phi         = 1480.0f;
-float deg_per_pulse_t = 360.0f / 1480.0f;
-float deg_per_pulse_p = 360.0f / 1480.0f;
+// Runtime calibration values — E30S6-5000 @ X4 quadrature = 20000 counts/rev
+float ppr_theta       = 20000.0f;
+float ppr_phi         = 20000.0f;
+float deg_per_pulse_t = 360.0f / 20000.0f;
+float deg_per_pulse_p = 360.0f / 20000.0f;
 
 Encoder* thetaEnc;
 Encoder* phiEnc;
@@ -174,7 +170,7 @@ void loop() {
         phiEnc->write(0);
         Serial.println();
         Serial.println("RotaryEncoderTest ready. (ESP32 / Autonics E40S6)");
-        Serial.println("  Theta: A (black) -> GPIO 2,  B (white) -> GPIO 4");
+        Serial.println("  Theta: A (black) -> GPIO 14, B (white) -> GPIO 12");
         Serial.println("  Phi:   A (black) -> GPIO 32, B (white) -> GPIO 35");
         Serial.print  ("  PPR theta="); Serial.print(ppr_theta, 1);
         Serial.print  ("  phi=");       Serial.println(ppr_phi, 1);

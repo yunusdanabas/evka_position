@@ -4,10 +4,6 @@
 // Target : ESP32 (Wemos D1 R32)
 // Encoder: Autonics E40S6  (push-pull 0-5 V output)
 //
-// VOLTAGE WARNING: E40S6 outputs swing 0-5 V.
-//   ESP32 GPIO max is 3.3 V.  Use a 10k/20k voltage divider
-//   on both A and B lines before the ESP32 GPIO pins.
-//
 // Wiring (theta):
 //   A signal  →  10k/20k divider  →  GPIO 32
 //   B signal  →  10k/20k divider  →  GPIO 35  (input-only, no internal pull-up)
@@ -28,9 +24,9 @@
 #define PIN_ENC_A  32
 #define PIN_ENC_B  35
 
-// Runtime calibration values — update with CAL command or set measured PPR here
-float ppr           = 1480.0f;   // measured counts per revolution
-float deg_per_pulse = 360.0f / 1480.0f;
+// Runtime calibration values — E30S6-5000 @ X4 quadrature = 20000 counts/rev
+float ppr           = 20000.0f;
+float deg_per_pulse = 360.0f / 20000.0f;
 
 Encoder* enc;
 bool verbose_mode = false;

@@ -1,12 +1,12 @@
-# Theta Rotary Calibration (GPIO 14 / 12)
+# Theta Rotary Calibration (GPIO 32 / 35)
 
 Calibrate theta counts-per-revolution using `test_rotary`.
 
 ## 1. Wiring and Environment Pre-check
 
 - Connect only theta encoder signals:
-  - A (black) -> divider -> GPIO `2`
-  - B (white) -> divider -> GPIO `4`
+  - A (black) -> divider -> GPIO `32`
+  - B (white) -> divider -> GPIO `35`
 - Keep phi disconnected for isolated theta calibration.
 - Provide external 5V to encoder and common GND to ESP32.
 - Confirm voltage divider on every signal line (5V -> 3.3V safe input).

@@ -3,8 +3,8 @@
 ## Completed
 - [x] Phase 1: DWE3000 quadrature rework (GPIO 16/17/18)
 - [x] Phase 2: Individual hardware tests — draw-wire verified
-- [x] Phase 3: Phi pin remap (GPIO 3→27, GPIO 5→26)
-- [x] Phase 4: PlatformIO migration (.ino→.cpp), PPR correction (1480), test suite
+- [x] Phase 3: Pin remap (Theta→GPIO 32/35, Phi→GPIO 14/12)
+- [x] Phase 4: PlatformIO migration (.ino→.cpp), PPR correction (1480→20000 X4), test suite
 - [x] Phase 6 (software): Python visualization update
   - [x] Serial auto-reconnect with status routing
   - [x] Replay mode from CSV / raw `DATA,` dumps
@@ -39,8 +39,8 @@
 
 ## Planned
 - [ ] Phase 7: Calibration refinement
-  - Compare measured PPR (1480) against multiple rotation counts
-  - Investigate datasheet vs measured PPR discrepancy
+  - Compare measured PPR (20000 @ X4 quadrature) against multiple rotation counts
+  - PPR discrepancy resolved: X4 quadrature accounts for 5000×4=20000; wire calibrated to 8020
   - Document final calibration procedure
   - Run calibration pack and store finalized record in `docs/calibration/`
   - Run software-assisted checklist in `docs/final_integration_validation.md`

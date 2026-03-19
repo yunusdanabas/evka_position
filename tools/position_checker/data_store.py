@@ -100,6 +100,11 @@ class DataStore:
                 "last_command_status": self._last_command_status,
             }
 
+    def clear(self) -> None:
+        """Clear all stored frames from the buffer."""
+        with self._lock:
+            self._buf.clear()
+
     def send_zero(self) -> bool:
         """Write 'ZERO\\n' to the serial port; returns True on success."""
         with self._lock:

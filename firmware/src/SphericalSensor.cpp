@@ -50,14 +50,15 @@ void SphericalPositioningSensor::setZeroPoint() {
 void SphericalPositioningSensor::readRawEncoders(int32_t& theta_counts, int32_t& phi_counts, int32_t& radius_counts) {
     theta_counts = thetaEncoder->read() - theta_offset;
     phi_counts   = phiEncoder->read() - phi_offset;
-    radius_counts = wireEncoder->read() - radius_offset;
+    // Wire encoder counts increase when rope retracts; negate so extension = positive radius
+    radius_counts = -(wireEncoder->read() - radius_offset);
 }
 
 SphericalCoords SphericalPositioningSensor::countsToSpherical(int32_t theta_counts, int32_t phi_counts, int32_t radius_counts) {
     SphericalCoords sph;
 
     sph.theta_deg = theta_counts * DEG_PER_PULSE;
-    sph.phi_deg   = phi_counts * DEG_PER_PULSE;
+    sph.phi_deg = -phi_counts * DEG_PER_PULSE;  // Phi encoder counts positive when arm drops
     sph.r_mm      = radius_counts * MM_PER_PULSE;
 
     sph.theta_deg = normalizeAngle(sph.theta_deg);
@@ -75,9 +76,9 @@ CartesianCoords SphericalPositioningSensor::sphericalToCartesian(const Spherical
     float cos_theta = cos(theta_rad);
     
     CartesianCoords cart;
-    cart.x_mm = spherical.r_mm * sin_phi * cos_theta;
-    cart.y_mm = spherical.r_mm * sin_phi * sin_theta;
-    cart.z_mm = spherical.r_mm * cos_phi;
+    cart.x_mm = spherical.r_mm * cos_phi * cos_theta;
+    cart.y_mm = spherical.r_mm * cos_phi * sin_theta;
+    cart.z_mm = spherical.r_mm * sin_phi;
     
     return cart;
 }
@@ -91,7 +92,7 @@ SphericalCoords SphericalPositioningSensor::cartesianToSpherical(const Cartesian
     sph.theta_deg = atan2(cartesian.y_mm, cartesian.x_mm) * 180.0 / M_PI;
     
     if (sph.r_mm > 0.001) {
-        sph.phi_deg = acos(cartesian.z_mm / sph.r_mm) * 180.0 / M_PI;
+        sph.phi_deg = asin(cartesian.z_mm / sph.r_mm) * 180.0 / M_PI;
     } else {
         sph.phi_deg = 0.0;
     }
@@ -199,14 +200,13 @@ void SphericalPositioningSensor::printPosition() {
 
     // Machine-readable CSV line for Python parser
     // Format: DATA,<x>,<y>,<z>,<r>,<theta>,<phi>,<is_valid>,<frame_count>,<ts_ms>
-    Serial.print("DATA,");
-    Serial.print(system_state.position.x_mm, 2);   Serial.print(",");
-    Serial.print(system_state.position.y_mm, 2);   Serial.print(",");
-    Serial.print(system_state.position.z_mm, 2);   Serial.print(",");
-    Serial.print(system_state.spherical.r_mm, 2);  Serial.print(",");
-    Serial.print(system_state.spherical.theta_deg, 3); Serial.print(",");
-    Serial.print(system_state.spherical.phi_deg, 3);   Serial.print(",");
-    Serial.print(system_state.is_valid);           Serial.print(",");
-    Serial.print(system_state.frame_count);        Serial.print(",");
-    Serial.println(system_state.last_update_ms);
+    char buf[128];
+    snprintf(buf, sizeof(buf),
+        "DATA,%.2f,%.2f,%.2f,%.2f,%.3f,%.3f,%u,%lu,%lu",
+        system_state.position.x_mm, system_state.position.y_mm, system_state.position.z_mm,
+        system_state.spherical.r_mm, system_state.spherical.theta_deg,
+        system_state.spherical.phi_deg,
+        system_state.is_valid, (unsigned long)system_state.frame_count,
+        (unsigned long)system_state.last_update_ms);
+    Serial.println(buf);
 }

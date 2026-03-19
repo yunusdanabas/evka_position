@@ -5,7 +5,7 @@ Python utilities for the evka_position project.
 ## position_checker
 
 Real-time 3D position visualiser that reads the `DATA,` CSV stream from the
-firmware and displays a live 3D scatter plot.
+firmware and renders a live OpenGL 3D trajectory (pyqtgraph GLViewWidget, 30-60+ FPS).
 
 ### Install dependencies
 
@@ -42,7 +42,7 @@ python -m tools.position_checker.main --replay-file /path/to/frames.csv --fps 20
 
 ### GUI features
 
-- **3-D scatter plot** — trajectory coloured by age; latest point in red.
+- **3-D OpenGL view** — trajectory line + scatter trail; current position in red (pyqtgraph, interactive rotation/zoom while streaming).
 - **Text panel** — X, Y, Z (mm), R, θ, φ, validity flag, frame counter,
   timestamp, total point count, and live connection/command status.
 - **Zero button** — sends `ZERO\n` to the firmware; firmware responds

@@ -244,3 +244,77 @@ thetaEncoder = new Encoder(PIN_THETA_A, PIN_THETA_B);
 
 - Python tools
 - Hardware documentation (updated separately)
+
+---
+
+---
+
+# Firmware Rework Log — Phase 5: PPR Calibration Correction (X4 Quadrature)
+_Session: 2026-03-11_
+
+---
+
+## Summary
+
+`PPR_ROTARY` corrected from 1480 (incorrect single-edge measurement) to 20000 (correct X4 quadrature: 5000 PPR × 4 edges). `PPR_WIRE` calibrated from datasheet 2000 to 8020 using a 400 mm reference pull (firmware read 1604 mm). Interactive `CalibrationTest.cpp` created.
+
+---
+
+## Changes
+
+### PPR_ROTARY: 1480.0 → 20000.0
+
+The PaulStoffregen Encoder library counts all 4 quadrature edges. The E30S6-5000 has 5000 PPR per channel; at X4: 5000 × 4 = 20000 counts/rev. The previous value of 1480 was an erroneous single-edge measurement.
+
+```cpp
+// Before:
+#define PPR_ROTARY      1480.0  // Measured counts/rev (Autonics E40S6)
+// After:
+#define PPR_ROTARY      20000.0  // E30S6-5000 @ X4 quadrature (5000 PPR × 4)
+```
+
+Files updated:
+- `firmware/src/SphericalSensor.h`
+- `firmware/tests/RotaryEncoderTest/RotaryEncoderTest.cpp`
+- `firmware/tests/AllSensorsTest/AllSensorsTest.cpp`
+- `firmware/tests/SingleRotaryTest/SingleRotaryTest.cpp`
+
+### PPR_WIRE: 2000.0 → 8020.0
+
+Calibrated by pulling wire exactly 400 mm; firmware reported 1604 mm.
+- Correction factor: 400 / 1604 = 0.24938
+- New `MM_PER_PULSE` = 0.1 × 0.24938 = 0.024938
+- New `PPR_WIRE` = 200 / 0.024938 = 8020
+
+```cpp
+// Before:
+#define PPR_WIRE        2000.0
+// After:
+#define PPR_WIRE        8020.0  // Calibrated — actual 400mm → firmware read 1604mm
+```
+
+Files updated:
+- `firmware/src/SphericalSensor.h`
+- `firmware/tests/DrawWireTest/DrawWireTest.cpp`
+- `firmware/tests/AllSensorsTest/AllSensorsTest.cpp`
+
+### New: `calibration/CalibrationTest.cpp`
+
+All-in-one interactive calibration sketch (project root). Commands:
+- `CAL_T` / `CAL_P` — interactive rotary cal: press SPACE each full turn, `DONE` to finalize
+- `CAL_W <mm>` — wire cal: `ZERO_W`, pull known distance, send `CAL_W <mm>`
+- `STATUS`, `CONSTANTS`, `DIAG`, `CANCEL`
+
+PlatformIO env `test_calibration` added to `platformio.ini` (`build_src_filter = +<../calibration/>`).
+
+### Extended: `firmware/tests/DrawWireTest/DrawWireTest.cpp`
+
+Added `ZERO_W` and `CAL_W <actual_mm>` commands. Runtime `mm_per_pulse` variable replaces compile-time `#define MM_PER_PULSE`.
+
+---
+
+## Files NOT Changed in This Phase
+
+- `firmware/src/SphericalSensor.cpp`
+- `firmware/src/EvkaPosition.cpp`
+- Python tools

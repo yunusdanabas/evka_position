@@ -30,3 +30,29 @@ venv/
 # OS
 .DS_Store
 Thumbs.db
+
+# Agent Files
+AGENTS.md
+CLAUDE.md
+CODEX.md
+COPILOT.md
+
+# Research / exploration docs (not production)
+docs/MICROROS*.md
+docs/FreeRTOS*.md
+docs/ESP32_*.md
+docs/improvement_research.md
+docs/QUICK_REFERENCE_DualCore.md
+docs/README_MICROROS.md
+docs/INTEGRATION_GUIDE.md
+
+# Reports and build artifacts
+report/
+
+# Root-level calibration folder (moved to firmware/tests/)
+calibration/
+
+# Experimental tools
+tools/analysis/
+tools/web_server/
+tools/VISUALIZATION_GUIDE.md

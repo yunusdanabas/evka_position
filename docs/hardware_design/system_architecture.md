@@ -61,10 +61,10 @@ Theoretical accuracy at maximum range ($5m$):
 
 | Axis | Sensor | Resolution | Error Contribution (at 5m) |
 | :--- | :--- | :--- | :--- |
-| **$\theta$** | E40S6 Encoder | $\approx 0.243^\circ$ (measured) | $\approx 21.2mm$ arc length |
-| **$\phi$** | E40S6 Encoder | $\approx 0.243^\circ$ (measured) | $\approx 21.2mm$ arc length |
-| **$r$** | Draw-Wire | $\pm 0.1mm$ | $\pm 0.1mm$ linear |
-| **Total** | **Combined** | | **$\approx \pm 30mm$** (Worst Case) |
+| **$\theta$** | E40S6 Encoder | $0.018^\circ$ (360°/20000 PPR) | $\approx 1.57mm$ arc length |
+| **$\phi$** | E40S6 Encoder | $0.018^\circ$ (360°/20000 PPR) | $\approx 1.57mm$ arc length |
+| **$r$** | Draw-Wire | $\pm 0.025mm$ (MM\_PER\_PULSE) | $\pm 0.025mm$ linear |
+| **Total** | **Combined** | | **$\approx \pm 3.2mm$** (Worst Case) |
 
 ## Calibration Requirements
 1. **Zero Point ($\\theta=0, \\phi=0$):** Establish a mechanical home position.

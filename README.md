@@ -1,51 +1,97 @@
 # Evka Position: Spherical 3D Positioning System
 
 ## Overview
-Evka Position is a hardware and firmware project capable of calculating the 3D position $(X, Y, Z)$ of a target object in real-time. It utilizes a **Spherical Coordinate System** derived from three sensor inputs:
-1.  **$\theta$ (Theta):** Azimuth angle (Horizontal rotation)
-2.  **$\phi$ (Phi):** Polar/Elevation angle (Vertical tilt)
-3.  **$r$ (Radius):** Linear distance (Extension)
+Evka Position is a firmware project for the **ESP32 (Wemos D1 R32)** that calculates the real-time 3D position $(X, Y, Z)$ of a target object using three sensor inputs:
 
-The system uses industrial-grade sensors and an **ESP32 (Wemos D1 R32)** controller.
+1. **$\theta$ (Theta):** Azimuth angle (horizontal rotation)
+2. **$\phi$ (Phi):** Elevation angle (vertical tilt)
+3. **$r$ (Radius):** Linear distance (draw-wire extension)
 
-## Features
-*   **Real-time 3D Tracking:** Converts raw sensor data to Cartesian coordinates $(X, Y, Z)$ instantly.
-*   **High Precision:** Autonics E40S6 rotary encoders (1480 measured counts/rev) and OPKON DWE3000 draw-wire sensor (2000 PPR, 0.1 mm/pulse).
-*   **Robust Firmware:** Quadrature decoding via the PaulStoffregen Encoder library on ESP32.
-*   **Python Visualiser:** Real-time 3D scatter plot of position data.
+## Hardware
+- **MCU:** ESP32 (Wemos D1 R32 / ESP32-WROOM-32)
+- **Rotary encoders:** Autonics E40S6 — 5000 PPR × X4 quadrature = 20000 counts/rev
+- **Draw-wire encoder:** OPKON DWE3000 — 8020 calibrated PPR (~0.02494 mm/pulse)
+- **Voltage dividers required** on all 6 encoder signal lines (encoder outputs 5V TTL, ESP32 max 3.3V)
+
+## Pin Map
+
+| Pin | Signal |
+|-----|--------|
+| 14  | Theta encoder A |
+| 12  | Theta encoder B |
+| 32  | Phi encoder A |
+| 35  | Phi encoder B |
+| 16  | Draw-wire encoder A |
+| 17  | Draw-wire encoder B |
 
 ## Directory Structure
 
-*   **`firmware/`**: Microcontroller source code.
-    *   `src/`: Production firmware (`EvkaPosition.cpp`, `SphericalSensor` class).
-    *   `tests/`: Standalone test sketches (`DrawWireTest`, `RotaryEncoderTest`, `SingleRotaryTest`, `AllSensorsTest`).
-*   **`tools/`**: Python utilities (position_checker visualiser).
-*   **`docs/`**: Setup guides, hardware notes, rework logs, and hardware design.
-    *   `hardware_design/`: Circuit schematic, BOM, PCB layout, encoder datasheets.
+```
+firmware/
+  src/          # Production firmware (EvkaPosition.cpp, SphericalSensor)
+  tests/        # Standalone test sketches (DrawWireTest, RotaryEncoderTest, ...)
+tools/
+  position_checker/   # Python real-time 3D visualiser
+```
 
-## Getting Started
+## Build & Flash (PlatformIO)
 
-Supported workflow policy: this project uses PlatformIO on ESP32 only. Arduino IDE and `arduino-cli` are not part of the build/flash workflow.
+> **PlatformIO only** — Arduino IDE and arduino-cli are not supported.
 
-1.  **Setup Toolchain:** Follow [`docs/setup_test_guide.md`](docs/setup_test_guide.md) for PlatformIO installation and setup.
-2.  **Connect Hardware:** Wire encoders per pin definitions in `firmware/src/SphericalSensor.h`. All encoder signal lines require 5V-to-3.3V voltage dividers (see [`docs/DWE3000_hardware_notes.md`](docs/DWE3000_hardware_notes.md)).
-3.  **Flash Firmware:** Compile and upload for ESP32 (Wemos D1 R32).
-4.  **Calibrate:** On startup, the system assumes the arm is at mechanical home ($\theta=0, \phi=0, r=0$). Ensure the device is homed before powering on.
+```bash
+# Install PlatformIO CLI
+pip install platformio
+
+# Compile
+pio run -e wemos_d1_r32
+
+# Flash to ESP32
+pio run -e wemos_d1_r32 --target upload
+
+# Open serial monitor (115200 baud)
+pio device monitor
+```
+
+On first boot, the firmware waits 2 seconds then calls `setZeroPoint()`. **Make sure the device is at mechanical home (all sensors at zero position) before powering on.**
+
+## Serial Output
+
+After boot the firmware prints `DATA` lines at 20 Hz:
+
+```
+DATA,<r_mm>,<theta_deg>,<phi_deg>,<x_mm>,<y_mm>,<z_mm>
+```
+
+### Serial Commands
+
+| Command | Response | Description |
+|---------|----------|-------------|
+| `ZERO`  | `ACK:ZERO` | Re-zero all encoder offsets |
+| `PING`  | `ACK:PONG` | Connectivity check |
+| `STATUS` | `STATUS,<valid>,<frame>,<ts_ms>,<r>,<theta>,<phi>,<x>,<y>,<z>` | Single status snapshot |
+
+## Python Visualiser
+
+```bash
+cd tools/position_checker
+pip install -r requirements.txt
+python main.py --port /dev/ttyUSB0
+```
+
+Displays a live 3D scatter plot of the position data.
 
 ## Mathematical Model
-The system uses standard spherical-to-cartesian conversion:
+
+Elevation-azimuth convention (phi = 0 is horizontal):
 
 $$
 \begin{align*}
-X &= r \cdot \sin(\phi) \cdot \cos(\theta) \\
-Y &= r \cdot \sin(\phi) \cdot \sin(\theta) \\
-Z &= r \cdot \cos(\phi)
+X &= r \cdot \cos(\phi) \cdot \cos(\theta) \\
+Y &= r \cdot \cos(\phi) \cdot \sin(\theta) \\
+Z &= r \cdot \sin(\phi)
 \end{align*}
 $$
 
-For inverse kinematics and detailed error analysis, see [System Architecture](docs/hardware_design/system_architecture.md).
+## WiFi Dashboard (optional)
 
-## Resources
-*   [CLAUDE.md](CLAUDE.md) - Project configuration reference for AI assistants.
-*   [Setup & Test Guide](docs/setup_test_guide.md) - Step-by-step build and test instructions.
-*   [Research Resources](docs/resources.md) - External libraries and learning materials.
+Set `ENABLE_WIFI 1` in `firmware/src/SphericalSensor.h` to enable a WiFi access point named **EvkaPosition**. Connect and open `http://192.168.4.1` for a live web dashboard.

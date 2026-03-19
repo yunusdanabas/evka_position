@@ -4,12 +4,9 @@
 // Target: ESP32 (Wemos D1 R32)
 //
 // Wiring (matches DrawWireTest + RotaryEncoderTest):
-//   Theta A -> GPIO 32,  B -> GPIO 35
-//   Phi   A -> GPIO 14,  B -> GPIO 12
+//   Theta A -> GPIO 14,  B -> GPIO 12
+//   Phi   A -> GPIO 32,  B -> GPIO 35
 //   Wire  A -> GPIO 16,  B -> GPIO 17
-//
-// VOLTAGE WARNING: Encoders output 0-5V. Use 10k/20k voltage dividers on
-//   every signal line. ESP32 GPIO max input is 3.3V.
 //
 // Serial: 115200 baud, output every 200 ms.
 //
@@ -21,16 +18,16 @@
 #include <Encoder.h>
 
 // --- Pin definitions (match DrawWireTest + RotaryEncoderTest) ---
-#define PIN_THETA_A  32
-#define PIN_THETA_B  35
-#define PIN_PHI_A    14
-#define PIN_PHI_B    12
+#define PIN_THETA_A  14
+#define PIN_THETA_B  12
+#define PIN_PHI_A    32
+#define PIN_PHI_B    35
 #define PIN_WIRE_A   16
 #define PIN_WIRE_B   17
 
 // --- Encoder constants ---
-#define PPR_ROTARY      1480.0f
-#define PPR_WIRE        2000.0f
+#define PPR_ROTARY      20000.0f
+#define PPR_WIRE        8020.0f
 #define DRUM_CIRCUM_MM   200.0f
 #define DEG_PER_PULSE   (360.0f / PPR_ROTARY)
 #define MM_PER_PULSE    (DRUM_CIRCUM_MM / PPR_WIRE)
@@ -45,7 +42,7 @@ static void runDiagnostic() {
     Serial.println("=== GPIO DIAGNOSTIC (all 6 encoder pins) ===");
 
     const int pins[]   = {PIN_THETA_A, PIN_THETA_B, PIN_PHI_A, PIN_PHI_B, PIN_WIRE_A, PIN_WIRE_B};
-    const char* names[] = {"THETA_A(32)", "THETA_B(35)", "PHI_A(14)", "PHI_B(12)", "WIRE_A(16)", "WIRE_B(17)"};
+    const char* names[] = {"THETA_A(14)", "THETA_B(12)", "PHI_A(32)", "PHI_B(35)", "WIRE_A(16)", "WIRE_B(17)"};
 
     for (int i = 0; i < 6; i++) {
         Serial.print("  "); Serial.print(names[i]);
@@ -115,8 +112,8 @@ void setup() {
     Serial.println("========================================");
     Serial.println("  AllSensorsTest — ESP32 / 3 Encoders");
     Serial.println("========================================");
-    Serial.println("  Theta: GPIO 32/35 (Autonics E40S6)");
-    Serial.println("  Phi  : GPIO 14/12 (Autonics E40S6)");
+    Serial.println("  Theta: GPIO 14/12 (Autonics E40S6)");
+    Serial.println("  Phi  : GPIO 32/35 (Autonics E40S6)");
     Serial.println("  Wire : GPIO 16/17 (OPKON DWE3000)");
     Serial.println("  Commands: ZERO | DIAG");
     Serial.println("========================================");

@@ -10,7 +10,7 @@ _Session: 2026-02-18_
 | Model code | DWE3000 HLD P2000 Z V3 |
 | PPR | 2000 pulses / revolution |
 | Drum circumference | 200 mm / revolution |
-| MM_PER_PULSE | 0.1 mm / pulse |
+| MM_PER_PULSE | ~0.02494 mm / pulse (calibrated; datasheet spec: 0.1) |
 | Max stroke | 3000 mm |
 | Z channel | 1 pulse per revolution (every 200 mm) |
 | Supply voltage | 5–30 V DC |
@@ -94,10 +94,10 @@ Encoder is unpowered → output transistors off → line floating → 10 kΩ pul
 | PIN_WIRE_A | **16** | Draw-wire encoder quadrature A |
 | PIN_WIRE_B | **17** | Draw-wire encoder quadrature B |
 | PIN_WIRE_Z | **18** | Index / Z channel (optional sanity check) |
-| PIN_THETA_A | 14 | Safe interrupt-capable GPIO |
-| PIN_THETA_B | 4 | OK |
-| PIN_PHI_A | 32 | Interrupt-capable, ADC1_CH4 |
-| PIN_PHI_B | 35 | Input-only, interrupt-capable, ADC1_CH7 |
+| PIN_THETA_A | 32 | Interrupt-capable, ADC1_CH4 |
+| PIN_THETA_B | 35 | Input-only, interrupt-capable |
+| PIN_PHI_A | 14 | Interrupt-capable GPIO |
+| PIN_PHI_B | 12 | Strapping pin — add pull-down |
 
 ### Forbidden GPIOs on ESP32-WROOM-32
 
@@ -127,10 +127,10 @@ The same voltage level mismatch applies to the **Autonics E40S6** rotary encoder
 
 | Encoder | Signal | GPIO | Divider needed |
 |---|---|---|---|
-| Theta | A (Black wire) | 2 | 10k/20k |
-| Theta | B (White wire) | 4 | 10k/20k |
-| Phi | A (Black wire) | 27 | 10k/20k |
-| Phi | B (White wire) | 26 | 10k/20k |
+| Theta | A (Black wire) | 32 | 10k/20k |
+| Theta | B (White wire) | 35 | 10k/20k |
+| Phi | A (Black wire) | 14 | 10k/20k |
+| Phi | B (White wire) | 12 | 10k/20k |
 
 Use the same 10k/20k divider circuit as Option A above. The E40S6 shield wire (bare/braid) should connect to GND at the MCU end only for EMI protection.
 
@@ -142,6 +142,7 @@ Use the same 10k/20k divider circuit as Option A above. The E40S6 shield wire (b
 
 ## Phase 3 & 4 Complete
 
-`PIN_PHI_A` remapped to GPIO 27, `PIN_PHI_B` remapped to GPIO 26.
-UART0 RX conflict resolved. PPR_ROTARY corrected from datasheet 5000 to measured 1480.
+`PIN_PHI_A` remapped to GPIO 14, `PIN_PHI_B` remapped to GPIO 12. `PIN_THETA_A` = GPIO 32, `PIN_THETA_B` = GPIO 35.
+UART0 RX conflict resolved. PPR_ROTARY corrected from datasheet 5000 to 20000 (X4 quadrature).
+Phase 5 (2026-03-11): PPR_ROTARY further corrected to 20000 (X4 quadrature); PPR_WIRE calibrated to 8020 (400 mm / 1604 mm reading).
 Full system testing can proceed.

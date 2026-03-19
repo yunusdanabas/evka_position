@@ -93,7 +93,6 @@ def main() -> None:
         worker.join(timeout=1.0)
         store.close()
         print("[main] Exiting.")
-        sys.exit(0)
 
 
 if __name__ == "__main__":

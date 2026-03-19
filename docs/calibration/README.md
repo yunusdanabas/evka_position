@@ -27,16 +27,16 @@ subsystems used by `evka_position`.
 
 ## Current Pin Map (source of truth: `SphericalSensor.h`)
 
-- Theta A/B: GPIO `14` / `12`
-- Phi A/B: GPIO `27` / `26`
-- Draw-wire A/B/Z: GPIO `32` / `33` / `18`
+- Theta A/B: GPIO `32` / `35`
+- Phi A/B: GPIO `14` / `12`
+- Draw-wire A/B/Z: GPIO `16` / `17` / `18`
 
 ## Current Working Constants (before recalibration)
 
-- `PPR_ROTARY = 1480.0`
-- `PPR_WIRE = 2000.0`
-- `DEG_PER_PULSE = 360 / PPR_ROTARY`
-- `MM_PER_PULSE = DRUM_CIRCUM_MM / PPR_WIRE = 0.1`
+- `PPR_ROTARY = 20000.0`  *(E30S6-5000 @ X4 quadrature)*
+- `PPR_WIRE = 8020.0`  *(calibrated: 400 mm actual → 1604 mm before cal)*
+- `DEG_PER_PULSE = 360 / PPR_ROTARY ≈ 0.0180`
+- `MM_PER_PULSE = DRUM_CIRCUM_MM / PPR_WIRE ≈ 0.02494`
 
 ## Formula Reference
 
