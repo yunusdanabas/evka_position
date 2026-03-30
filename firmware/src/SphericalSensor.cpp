@@ -1,4 +1,5 @@
 #include "SphericalSensor.h"
+#include <Preferences.h>
 
 // Constructor
 SphericalPositioningSensor::SphericalPositioningSensor()
@@ -8,7 +9,9 @@ SphericalPositioningSensor::SphericalPositioningSensor()
       theta_offset(0),
       phi_offset(0),
       radius_offset(0),
-      position_filter_alpha(0.2)
+      position_filter_alpha(0.2),
+      _ppr_rotary(PPR_ROTARY),
+      _ppr_wire(PPR_WIRE)
 {
     // Initialize state
     system_state.position = {0.0, 0.0, 0.0};
@@ -31,20 +34,51 @@ void SphericalPositioningSensor::begin() {
     analogSetAttenuation(ADC_11db);  // Full range 0-3.3V
 #endif
 
+    loadPPRFromNVS();
     Serial.println("[SphericalSensor] Initialized");
+}
+
+void SphericalPositioningSensor::loadPPRFromNVS() {
+    Preferences prefs;
+    prefs.begin("evka_cal", true);
+    _ppr_rotary = prefs.getFloat("ppr_rotary", PPR_ROTARY);
+    _ppr_wire   = prefs.getFloat("ppr_wire",   PPR_WIRE);
+    prefs.end();
+    Serial.printf("[Cal] NVS load: PPR_R=%.2f PPR_W=%.2f\n", _ppr_rotary, _ppr_wire);
+}
+
+void SphericalPositioningSensor::savePPRToNVS() {
+    Preferences prefs;
+    prefs.begin("evka_cal", false);
+    prefs.putFloat("ppr_rotary", _ppr_rotary);
+    prefs.putFloat("ppr_wire",   _ppr_wire);
+    prefs.end();
+    Serial.printf("[Cal] NVS save: PPR_R=%.2f PPR_W=%.2f\n", _ppr_rotary, _ppr_wire);
 }
 
 void SphericalPositioningSensor::setZeroPoint() {
     theta_offset = thetaEncoder->read();
     phi_offset = phiEncoder->read();
     radius_offset = wireEncoder->read();
-    
+
     Serial.print("[Calibration] Zero point set at T:");
     Serial.print(theta_offset);
     Serial.print(" P:");
     Serial.print(phi_offset);
     Serial.print(" R:");
     Serial.println(radius_offset);
+}
+
+void SphericalPositioningSensor::zeroTheta() {
+    theta_offset = thetaEncoder->read();
+}
+
+void SphericalPositioningSensor::zeroPhi() {
+    phi_offset = phiEncoder->read();
+}
+
+void SphericalPositioningSensor::zeroWire() {
+    radius_offset = wireEncoder->read();
 }
 
 void SphericalPositioningSensor::readRawEncoders(int32_t& theta_counts, int32_t& phi_counts, int32_t& radius_counts) {
@@ -57,13 +91,31 @@ void SphericalPositioningSensor::readRawEncoders(int32_t& theta_counts, int32_t&
 SphericalCoords SphericalPositioningSensor::countsToSpherical(int32_t theta_counts, int32_t phi_counts, int32_t radius_counts) {
     SphericalCoords sph;
 
-    sph.theta_deg = theta_counts * DEG_PER_PULSE;
-    sph.phi_deg = -phi_counts * DEG_PER_PULSE;  // Phi encoder counts positive when arm drops
-    sph.r_mm      = radius_counts * MM_PER_PULSE;
+    const float deg_pp = 360.0f / _ppr_rotary;
+    const float mm_pp  = DRUM_CIRCUM_MM / _ppr_wire;
+
+    sph.theta_deg = theta_counts * deg_pp;
+    sph.phi_deg   = -phi_counts  * deg_pp;  // Phi encoder counts positive when arm drops
+    sph.r_mm      = radius_counts * mm_pp;
 
     sph.theta_deg = normalizeAngle(sph.theta_deg);
 
     return sph;
+}
+
+void SphericalPositioningSensor::setPPRRotary(float ppr) {
+    if (ppr > 0) _ppr_rotary = ppr;
+}
+
+void SphericalPositioningSensor::setPPRWire(float ppr) {
+    if (ppr > 0) _ppr_wire = ppr;
+}
+
+void SphericalPositioningSensor::getConstants(char* buf, size_t n) {
+    const float mm_pp  = DRUM_CIRCUM_MM / _ppr_wire;
+    const float deg_pp = 360.0f / _ppr_rotary;
+    snprintf(buf, n, "CONSTANTS,%.2f,%.2f,%.6f,%.6f",
+             _ppr_rotary, _ppr_wire, mm_pp, deg_pp);
 }
 
 CartesianCoords SphericalPositioningSensor::sphericalToCartesian(const SphericalCoords& spherical) {
@@ -142,7 +194,7 @@ void SphericalPositioningSensor::updatePosition() {
         cart.z_mm = position_filter_alpha * cart.z_mm + (1.0 - position_filter_alpha) * system_state.position.z_mm;
     }
     
-    uint8_t is_valid = validateLimits(sph_limited, cart);
+    uint8_t is_valid = validateLimits(sph_raw, cart);
     
     system_state.position = cart;
     system_state.spherical = sph_limited;

@@ -44,10 +44,18 @@ docs/ESP32_*.md
 docs/improvement_research.md
 docs/QUICK_REFERENCE_DualCore.md
 docs/README_MICROROS.md
-docs/INTEGRATION_GUIDE.md
 
 # Reports and build artifacts
 report/
+
+# .NET / C# build artifacts
+bin/
+obj/
+*.dll
+*.pdb
+*.deps.json
+*.runtimeconfig.json
+*.cache
 
 # Root-level calibration folder (moved to firmware/tests/)
 calibration/

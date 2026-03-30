@@ -32,6 +32,8 @@ firmware/
   tests/        # Standalone test sketches (DrawWireTest, RotaryEncoderTest, ...)
 tools/
   position_checker/   # Python real-time 3D visualiser
+docs/
+  CMD_SOFTWARE_INTEGRATION.md  # Quick CMD software integration guide
 ```
 
 ## Build & Flash (PlatformIO)
@@ -66,9 +68,16 @@ DATA,<r_mm>,<theta_deg>,<phi_deg>,<x_mm>,<y_mm>,<z_mm>
 
 | Command | Response | Description |
 |---------|----------|-------------|
-| `ZERO`  | `ACK:ZERO` | Re-zero all encoder offsets |
-| `PING`  | `ACK:PONG` | Connectivity check |
+| `ZERO` | `ACK:ZERO` | Re-zero all encoder offsets |
+| `PING` | `ACK:PONG` | Connectivity check |
 | `STATUS` | `STATUS,<valid>,<frame>,<ts_ms>,<r>,<theta>,<phi>,<x>,<y>,<z>` | Single status snapshot |
+| `CONSTANTS` | `CONSTANTS,<ppr_r>,<ppr_w>,<mm_pp>,<deg_pp>` | Current calibration constants |
+| `ZERO_T` / `ZERO_P` / `ZERO_W` | `ACK:ZERO_*` | Zero individual encoder |
+| `CAL_W <mm>` | `CAL:WIRE,<factor>,<mm_pp>,<ppr_w>` | Wire calibration trial |
+| `CAL_T <n>` / `CAL_P <n>` | `CAL:THETA/<PHI>,<counts>,<ppr>` | Rotary calibration (N full turns) |
+| `SET_PPR_WIRE <v>` | `ACK:PPR_WIRE,<v>` | Set wire PPR (RAM) |
+| `SET_PPR_ROTARY <v>` | `ACK:PPR_ROTARY,<v>` | Set rotary PPR (RAM) |
+| `SAVE_PPR` | `ACK:SAVE_PPR` | Persist current PPR values to NVS flash |
 
 ## Python Visualiser
 
@@ -92,6 +101,14 @@ Z &= r \cdot \sin(\phi)
 \end{align*}
 $$
 
-## WiFi Dashboard (optional)
+## WiFi Dashboard
 
-Set `ENABLE_WIFI 1` in `firmware/src/SphericalSensor.h` to enable a WiFi access point named **EvkaPosition**. Connect and open `http://192.168.4.1` for a live web dashboard.
+`ENABLE_WIFI` defaults to `1`. The ESP32 creates a WiFi access point named **CMDCNC** (password `cmdcnc1234`). Connect and open `http://192.168.1.50`.
+
+- **Live view**: 3D trail, XY/XZ/YZ projections, session CSV export
+- **CALIBRATE tab**: multi-trial wire calibration with mean/spread stats, theta/phi calibration, endpoint world-transform point collection. PPR values can be applied to RAM or saved permanently to NVS flash (survives power cycles).
+
+## Integration Docs
+
+- CMD quick integration: `docs/CMD_SOFTWARE_INTEGRATION.md`
+- Detailed change history and rationale: `docs/CMD_INTEGRATION_CHANGELOG.md`

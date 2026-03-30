@@ -3,11 +3,13 @@
 import csv
 from collections import deque
 from threading import Lock
-from typing import Dict, Optional, TextIO
+from typing import Dict, Optional, TextIO, Tuple
 
+import numpy as np
 import serial  # type: ignore
 
 from .parser import ParsedFrame
+from .transform import apply_transform, cartesian_to_spherical
 
 
 class DataStore:
@@ -33,6 +35,8 @@ class DataStore:
         self._csv_file: Optional[TextIO] = None
         self._csv_writer: Optional[csv.writer] = None
 
+        self._transform: Optional[Tuple[np.ndarray, np.ndarray]] = None
+
         if csv_log_path:
             self._csv_file = open(csv_log_path, "a", newline="", encoding="utf-8")
             self._csv_writer = csv.writer(self._csv_file)
@@ -44,11 +48,28 @@ class DataStore:
                 self._csv_file.flush()
 
     # ------------------------------------------------------------------
+    # Calibration transform
+    # ------------------------------------------------------------------
+
+    def set_transform(self, R: np.ndarray, t: np.ndarray) -> None:
+        """Set the sensor→world rigid body transform (applied in push())."""
+        with self._lock:
+            self._transform = (R, t)
+
+    # ------------------------------------------------------------------
     # Called from serial reader thread
     # ------------------------------------------------------------------
 
     def push(self, frame: ParsedFrame) -> None:
         with self._lock:
+            if self._transform is not None:
+                R, t = self._transform
+                wx, wy, wz = apply_transform(frame.x_mm, frame.y_mm, frame.z_mm, R, t)
+                wr, wtheta, wphi = cartesian_to_spherical(wx, wy, wz)
+                frame = frame._replace(
+                    x_mm=wx, y_mm=wy, z_mm=wz,
+                    r_mm=wr, theta_deg=wtheta, phi_deg=wphi,
+                )
             self._buf.append(frame)
             if self._csv_writer is not None:
                 self._csv_writer.writerow(list(frame))

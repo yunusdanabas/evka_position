@@ -68,3 +68,53 @@ Run built-in tests:
 ```bash
 python -m unittest discover -s tools/position_checker/tests -v
 ```
+
+## Linux TCP CMD GUI
+
+Linux-native control panel equivalent of `firmware/src/CMD Soft/gui.cs`.
+It connects to ESP32 over Wi-Fi TCP and displays live `X,Y,Z` values.
+Quick integration notes: `docs/CMD_SOFTWARE_INTEGRATION.md`.
+
+### Run
+
+```bash
+# From repo root
+python -m tools.position_checker.cmd_main
+```
+
+Default endpoint is:
+- IP: `192.168.1.50`
+- Port: `8080`
+
+### Features
+
+- Connect / disconnect to ESP32 TCP server
+- Live `X,Y,Z` display from streamed telemetry line:
+  - `X12.34,Y-56.78,Z90.12`
+- Per-axis software zero (`X=0`, `Y=0`, `Z=0`)
+- All-axis software zero
+- Hardware encoder zero (`ZERO`)
+- Router IP query (`GET_IP` -> `STA_IP:*`)
+- Wi-Fi credential save/forget:
+  - Save: `WIFI_AYAR:ssid,password`
+  - Forget: `WIFI_AYAR:,`
+- Local settings persistence via `ayarlar.txt` in current working directory
+
+### TCP Protocol Quick Reference
+
+GUI -> ESP32 (newline-delimited ASCII):
+
+```text
+GET_IP
+ZERO
+WIFI_AYAR:<ssid>,<password>
+WIFI_AYAR:,
+```
+
+ESP32 -> GUI (newline-delimited ASCII):
+
+```text
+STA_IP:<ipv4>
+STA_IP:NOT_CONNECTED
+X<value>,Y<value>,Z<value>
+```

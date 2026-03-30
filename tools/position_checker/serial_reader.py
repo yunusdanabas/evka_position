@@ -1,8 +1,11 @@
 """serial_reader.py — daemon thread that reads the serial port and fills DataStore."""
 
+import logging
 import threading
 
 import serial  # type: ignore
+
+logger = logging.getLogger(__name__)
 
 from .data_store import DataStore
 from .parser import parse_info_line, parse_line
@@ -41,7 +44,7 @@ class SerialReader(threading.Thread):
                     self._store.set_connection(True, f"Connected: {self._port} @ {self._baud}")
                     self._store.set_error("")
                     backoff_s = base_retry_s
-                    print(f"[SerialReader] Connected to {self._port} @ {self._baud}")
+                    logger.info("Connected to %s @ %d", self._port, self._baud)
 
                     while not self._stop_event.is_set():
                         raw = ser.readline()
@@ -57,14 +60,14 @@ class SerialReader(threading.Thread):
                         info = parse_info_line(line)
                         if info is not None:
                             self._store.set_info(info)
-                            print(f"[SerialReader] {info}")
+                            logger.info("%s", info)
 
             except serial.SerialException as exc:
                 msg = f"Serial error: {exc}"
                 self._store.set_error(msg)
                 self._store.set_connection(False, msg)
                 self._store.set_serial(None)
-                print(f"[SerialReader] {msg}")
+                logger.warning("%s", msg)
 
                 if not self._reconnect or self._stop_event.is_set():
                     break

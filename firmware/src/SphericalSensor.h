@@ -21,9 +21,20 @@
 // Optional features
 #define ENABLE_BATTERY_MONITOR 0  // 0: disable battery ADC path (prototype on 5V adapter)
 #define ENABLE_WIFI            1  // 0: serial only, 1: serial + WiFi AP + web dashboard
-#define WIFI_AP_SSID           "EvkaPosition"
-#define WIFI_AP_PASSWORD       "evka1234"    // min 8 chars for WPA2
+#define ENABLE_CMD_TCP         1  // 0: disable CMD TCP server, 1: enable TCP on CMD_TCP_PORT
+#define WIFI_AP_SSID           "CMDCNC"
+#define WIFI_AP_PASSWORD       "cmdcnc1234"  // min 8 chars for WPA2
 #define WIFI_WEB_PORT          80
+#define CMD_TCP_PORT           8080
+
+// WiFi AP static IP (CMD protocol default: 192.168.1.50)
+#define WIFI_AP_IP_O1    192
+#define WIFI_AP_IP_O2    168
+#define WIFI_AP_IP_O3    1
+#define WIFI_AP_IP_O4    50
+
+// WiFi status LED
+#define PIN_WIFI_LED     2   // GPIO 2 = built-in LED on most ESP32 boards
 
 // Battery monitoring (ADC via 100k+100k voltage divider)
 #define PIN_BATTERY_ADC  36   // GPIO 36 (ADC1_CH0, input-only)
@@ -42,9 +53,9 @@
 // Mechanical Limits (safety constraints)
 #define THETA_MIN_DEG    -180.0   // Min azimuth angle
 #define THETA_MAX_DEG     180.0   // Max azimuth angle
-#define PHI_MIN_DEG      -90.0    // Min elevation angle (arm pointing down)
-#define PHI_MAX_DEG       90.0    // Max elevation angle (arm pointing up)
-#define RADIUS_MIN_MM    100.0    // Min extension (safety margin)
+#define PHI_MIN_DEG      -180.0   // Min elevation angle
+#define PHI_MAX_DEG       180.0   // Max elevation angle
+#define RADIUS_MIN_MM    50.0    // Min extension (safety margin)
 #define RADIUS_MAX_MM   3000.0    // Max extension — DWE3000 stroke limit
 
 // ============================================================================
@@ -105,7 +116,11 @@ private:
     
     // Filtering parameters
     float position_filter_alpha;
-    
+
+    // Runtime-adjustable calibration values (initialised from compile-time constants)
+    float _ppr_rotary;
+    float _ppr_wire;
+
     // System state
     SystemStatus system_state;
 
@@ -118,9 +133,19 @@ public:
     
     void begin();
     void setZeroPoint();
+    void zeroTheta();
+    void zeroPhi();
+    void zeroWire();
     void updatePosition();
-    
+
     void readRawEncoders(int32_t& theta_counts, int32_t& phi_counts, int32_t& radius_counts);
+
+    // Runtime PPR adjustment (RAM only — update SphericalSensor.h #defines to persist)
+    void setPPRRotary(float ppr);
+    void setPPRWire(float ppr);
+    void getConstants(char* buf, size_t buf_size);
+    void savePPRToNVS();
+    void loadPPRFromNVS();
 
     CartesianCoords getPosition();
     SphericalCoords getSphericalCoords();

@@ -1,22 +1,31 @@
 #!/usr/bin/env python3
 """main.py — entry point for the Spherical 3D Position Checker.
 
-Usage:
-    python -m position_checker.main --port /dev/ttyUSB0
-    python -m position_checker.main --port COM3 --baud 115200 --maxpoints 1000
-    python -m position_checker.main --replay-file /tmp/evka_frames.csv --fps 20
+Usage (from project root):
+    python -m tools.position_checker --port /dev/ttyUSB0
+    python -m tools.position_checker --port COM3 --baud 115200 --maxpoints 1000
+    python -m tools.position_checker --replay-file /tmp/evka_frames.csv --fps 20
 """
 
 import argparse
+import logging
+import os
 import sys
+
+logger = logging.getLogger(__name__)
 
 from .data_store import DataStore
 from .replay_reader import ReplayReader, load_replay_frames
 from .serial_reader import SerialReader
 from .gui import run_gui
+from .transform import load_calibration
 
 
 def main() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(name)s %(levelname)s %(message)s",
+    )
     parser = argparse.ArgumentParser(
         description="Real-time 3D position visualiser for evka_position firmware."
     )
@@ -58,18 +67,36 @@ def main() -> None:
         "--replay-file",
         help="Read frames from CSV/raw DATA file instead of serial port",
     )
+    _default_cal = os.path.join(
+        os.path.dirname(__file__), "..", "calibration", "calibration.json"
+    )
+    parser.add_argument(
+        "--calibration",
+        default=_default_cal,
+        help="Path to calibration.json (default: tools/calibration/calibration.json). "
+             "Pass 'none' to disable.",
+    )
     args = parser.parse_args()
 
     if args.replay_file is None and not args.port:
         parser.error("--port is required unless --replay-file is used")
 
     store = DataStore(maxpoints=args.maxpoints, csv_log_path=args.csv_log)
+
+    if args.calibration and args.calibration.lower() != "none":
+        cal = load_calibration(args.calibration)
+        if cal is not None:
+            R, t = cal
+            store.set_transform(R, t)
+            logger.info("Calibration loaded from: %s", args.calibration)
+        # if load fails, transform.py already printed a warning; run uncalibrated
+
     worker = None
 
     if args.replay_file:
         frames = load_replay_frames(args.replay_file)
         if not frames:
-            print(f"[main] No replay frames loaded from: {args.replay_file}")
+            logger.error("No replay frames loaded from: %s", args.replay_file)
             store.close()
             sys.exit(2)
         worker = ReplayReader(frames=frames, fps=args.fps, store=store, source_path=args.replay_file)
@@ -92,7 +119,7 @@ def main() -> None:
         worker.stop()
         worker.join(timeout=1.0)
         store.close()
-        print("[main] Exiting.")
+        logger.info("Exiting.")
 
 
 if __name__ == "__main__":
