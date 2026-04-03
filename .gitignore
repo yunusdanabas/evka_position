@@ -37,6 +37,10 @@ CLAUDE.md
 CODEX.md
 COPILOT.md
 
+# Local app settings (contains network credentials/config)
+settings.txt
+**/settings.txt
+
 # Research / exploration docs (not production)
 docs/MICROROS*.md
 docs/FreeRTOS*.md
