@@ -60,6 +60,9 @@ obj/
 *.deps.json
 *.runtimeconfig.json
 *.cache
+# Explicitly ignore legacy Windows GUI publish output in this repo
+firmware/src/CMD Soft/bin/
+firmware/src/CMD Soft/obj/
 
 # Root-level calibration folder (moved to firmware/tests/)
 calibration/
