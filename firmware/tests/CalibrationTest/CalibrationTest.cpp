@@ -195,7 +195,7 @@ static void runDiagnostic() {
     Serial.println("=== GPIO DIAGNOSTIC (all 6 encoder pins) ===");
 
     const int    pins[]  = {PIN_THETA_A, PIN_THETA_B, PIN_PHI_A, PIN_PHI_B, PIN_WIRE_A, PIN_WIRE_B};
-    const char* names[]  = {"THETA_A(32)", "THETA_B(35)", "PHI_A(14)", "PHI_B(12)", "WIRE_A(16)", "WIRE_B(17)"};
+    const char* names[]  = {"THETA_A(14)", "THETA_B(12)", "PHI_A(32)", "PHI_B(35)", "WIRE_A(16)", "WIRE_B(17)"};
 
     for (int i = 0; i < 6; i++) {
         Serial.print("  "); Serial.print(names[i]);

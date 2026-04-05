@@ -9,7 +9,20 @@ from typing import Optional
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
+from .cmd_main import (
+    ACK_PREFIX,
+    CMD_AP_FALLBACK_IP,
+    CMD_DEFAULT_PORT,
+    CMD_DEFAULT_STA_IP,
+    ERR_PREFIX,
+    SENSOR_PREFIX,
+    STA_IP_PREFIX,
+    SYSINFO_PREFIX,
+    XYZ_PREFIX,
+)
+from .parser import parse_sensor_line, parse_xyz_line
 from .tcp_client import TcpClient
+from .transform import cartesian_to_spherical
 
 
 class CmdControlWindow(QtWidgets.QWidget):
@@ -35,6 +48,7 @@ class CmdControlWindow(QtWidgets.QWidget):
         self._offset_y = 0.0
         self._offset_z = 0.0
         self._relative_zero_active = False
+        self._wifi_pending_action: Optional[str] = None  # "save" | "forget" | None
 
         # Min/Max
         self._min = {"x": math.inf, "y": math.inf, "z": math.inf}
@@ -58,8 +72,10 @@ class CmdControlWindow(QtWidgets.QWidget):
         # --- Connection ---
         conn_box = QtWidgets.QGroupBox("Device Connection")
         conn_layout = QtWidgets.QGridLayout(conn_box)
-        self.txt_ip = QtWidgets.QLineEdit("192.168.1.50")
-        self.txt_port = QtWidgets.QLineEdit("8080")
+        # Default to latest confirmed STA IP (ASMETAL example).
+        # AP fallback remains 192.168.1.50 when STA is unavailable.
+        self.txt_ip = QtWidgets.QLineEdit(CMD_DEFAULT_STA_IP)
+        self.txt_port = QtWidgets.QLineEdit(str(CMD_DEFAULT_PORT))
         self.btn_connect = QtWidgets.QPushButton("CONNECT")
         self.btn_disconnect = QtWidgets.QPushButton("DISCONNECT")
         conn_layout.addWidget(QtWidgets.QLabel("IP:"), 0, 0)
@@ -89,9 +105,9 @@ class CmdControlWindow(QtWidgets.QWidget):
         self.lbl_max_z = QtWidgets.QLabel("Max: --")
 
         for lbl, color in [
-            (self.lbl_x, "#2980b9"),
-            (self.lbl_y, "#27ae60"),
-            (self.lbl_z, "#c0392b"),
+            (self.lbl_x, "#ff4444"),
+            (self.lbl_y, "#44ff44"),
+            (self.lbl_z, "#4488ff"),
         ]:
             lbl.setFont(QtGui.QFont("Consolas", 22, QtGui.QFont.Bold))
             lbl.setStyleSheet(f"color: {color};")
@@ -350,11 +366,7 @@ class CmdControlWindow(QtWidgets.QWidget):
             )
             return
         if self._send_command(f"WIFI_SET:{ssid},{password}"):
-            QtWidgets.QMessageBox.information(
-                self, "Success",
-                "WiFi credentials sent to ESP32. Device will reboot.",
-            )
-            self._disconnect()
+            self._wifi_pending_action = "save"  # dialog shown on ACK:WIFI_SAVED receipt
 
     def _forget_wifi(self) -> None:
         answer = QtWidgets.QMessageBox.question(
@@ -365,11 +377,7 @@ class CmdControlWindow(QtWidgets.QWidget):
         if answer != QtWidgets.QMessageBox.Yes:
             return
         if self._send_command("WIFI_SET:,"):
-            QtWidgets.QMessageBox.information(
-                self, "Success",
-                "Credentials cleared. Device rebooting.\nConnect to CMDCNC WiFi.",
-            )
-            self._disconnect()
+            self._wifi_pending_action = "forget"  # dialog shown on ACK:WIFI_SAVED receipt
 
     def _drain_events(self) -> None:
         while True:
@@ -388,34 +396,36 @@ class CmdControlWindow(QtWidgets.QWidget):
             line = payload
 
             # Router IP response
-            if line.startswith("STA_IP:"):
-                ip = line[7:].strip()
+            if line.startswith(STA_IP_PREFIX):
+                ip = line[len(STA_IP_PREFIX):].strip()
                 display = "Not Connected" if ip == "NOT_CONNECTED" else ip
                 self.lbl_router_ip.setText(f"Router IP: {display}")
+                if ip != "NOT_CONNECTED" and ip:
+                    # Keep connect target in sync with latest router-assigned STA IP.
+                    self.txt_ip.setText(ip)
+                elif not self.txt_ip.text().strip():
+                    self.txt_ip.setText(CMD_AP_FALLBACK_IP)
                 continue
 
             # Sensor data
-            if line.startswith("SENSOR,"):
-                parts = line[7:].split(",")
-                if len(parts) >= 5:
-                    try:
-                        r = float(parts[0])
-                        theta = float(parts[1])
-                        phi = float(parts[2])
-                        valid = int(parts[3])
-                        frame = int(parts[4])
-                        self.lbl_r.setText(f"R: {r:8.2f} mm")
-                        self.lbl_theta.setText(f"\u03B8: {theta:8.3f}\u00B0")
-                        self.lbl_phi.setText(f"\u03C6: {phi:8.3f}\u00B0")
-                        self.lbl_valid.setText(f"Valid: {'YES' if valid else 'NO'}")
-                        self.lbl_frame.setText(f"Frame: {frame}")
-                    except ValueError:
-                        pass
+            if line.startswith(SENSOR_PREFIX):
+                sensor = parse_sensor_line(line)
+                if sensor is not None:
+                    # When software zero is active, R/theta/phi are re-derived
+                    # from display XYZ in the XYZ branch to stay in the same
+                    # reference frame. Only update from raw firmware SENSOR data
+                    # when zero is inactive.
+                    if not self._relative_zero_active:
+                        self.lbl_r.setText(f"R: {sensor.r_mm:8.2f} mm")
+                        self.lbl_theta.setText(f"\u03B8: {sensor.theta_deg:8.3f}\u00B0")
+                        self.lbl_phi.setText(f"\u03C6: {sensor.phi_deg:8.3f}\u00B0")
+                    self.lbl_valid.setText(f"Valid: {'YES' if sensor.is_valid else 'NO'}")
+                    self.lbl_frame.setText(f"Frame: {sensor.frame_count}")
                 continue
 
             # System info
-            if line.startswith("SYSINFO,"):
-                parts = line[8:].split(",")
+            if line.startswith(SYSINFO_PREFIX):
+                parts = line[len(SYSINFO_PREFIX):].split(",")
                 if len(parts) >= 4:
                     try:
                         rssi = int(parts[0])
@@ -430,24 +440,45 @@ class CmdControlWindow(QtWidgets.QWidget):
                 continue
 
             # ACK responses
-            if line.startswith("ACK:"):
+            if line.startswith(ACK_PREFIX):
                 self._set_status(f"Status: {line}", "#27ae60")
+                if "WIFI_SAVED" in line and self._wifi_pending_action is not None:
+                    action = self._wifi_pending_action
+                    self._wifi_pending_action = None
+                    if action == "save":
+                        QtWidgets.QMessageBox.information(
+                            self, "Success",
+                            "WiFi credentials sent to ESP32. Device will reboot.",
+                        )
+                    else:
+                        QtWidgets.QMessageBox.information(
+                            self, "Success",
+                            "Credentials cleared. Device rebooting.\nConnect to CMDCNC WiFi.",
+                        )
+                    self._disconnect()
+                continue
+
+            # ERR responses
+            if line.startswith(ERR_PREFIX):
+                self._set_status(f"Status: {line}", "#c0392b")
+                if "WIFI" in line and self._wifi_pending_action is not None:
+                    self._wifi_pending_action = None
+                    QtWidgets.QMessageBox.critical(
+                        self, "WiFi Error", f"Command rejected: {line}"
+                    )
                 continue
 
             # Position data (X,Y,Z)
-            if not line.startswith("X"):
+            if not line.startswith(XYZ_PREFIX):
                 continue
 
-            parts = [p.strip() for p in line.split(",")]
-            if len(parts) != 3:
+            xyz = parse_xyz_line(line)
+            if xyz is None:
                 continue
 
-            try:
-                raw_x = float(parts[0][1:])
-                raw_y = float(parts[1][1:])
-                raw_z = float(parts[2][1:])
-            except ValueError:
-                continue
+            raw_x = xyz.x_mm
+            raw_y = xyz.y_mm
+            raw_z = xyz.z_mm
 
             self._last_raw_x = raw_x
             self._last_raw_y = raw_y
@@ -473,6 +504,14 @@ class CmdControlWindow(QtWidgets.QWidget):
                 )
 
             self._update_xyz_labels(x, y, z)
+
+            # Recompute R/θ/φ from zeroed Cartesian so both panels stay in
+            # the same reference frame when software zero is active.
+            if self._relative_zero_active:
+                disp_r, disp_theta, disp_phi = cartesian_to_spherical(x, y, z)
+                self.lbl_r.setText(f"R: {disp_r:8.2f} mm")
+                self.lbl_theta.setText(f"\u03B8: {disp_theta:8.3f}\u00B0")
+                self.lbl_phi.setText(f"\u03C6: {disp_phi:8.3f}\u00B0")
 
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:  # noqa: N802
         self._save_settings()

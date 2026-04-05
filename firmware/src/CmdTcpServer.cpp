@@ -85,6 +85,14 @@ void CmdTcpServer::handleLine(uint8_t clientIdx, const String& line) {
         if (commaIdx != -1) {
             String ssid = payload.substring(0, commaIdx);
             String pass = payload.substring(commaIdx + 1);
+            if (ssid.length() == 0 || ssid.length() > 32) {
+                _clients[clientIdx].println("ERR:SSID_INVALID");
+                return;
+            }
+            if (pass.length() > 0 && pass.length() < 8) {
+                _clients[clientIdx].println("ERR:PASS_TOO_SHORT");
+                return;
+            }
 
             Preferences prefs;
             prefs.begin("wifi_cfg", false);
@@ -96,6 +104,8 @@ void CmdTcpServer::handleLine(uint8_t clientIdx, const String& line) {
             Serial.printf("[TCP] WiFi credentials saved (SSID: %s), rebooting...\n", ssid.c_str());
             delay(500);
             ESP.restart();
+        } else {
+            _clients[clientIdx].println("ERR:WIFI_INVALID");
         }
         return;
     }

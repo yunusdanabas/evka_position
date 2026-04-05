@@ -86,9 +86,10 @@ static String processCommand(const String& cmd) {
         int32_t tc, pc, wc;
         sensor.readRawEncoders(tc, pc, wc);
         if (wc == 0) return "ERR:CAL_W zero counts";
-        const float cur_mm_pp = DRUM_CIRCUM_MM / PPR_WIRE;  // use compile-time as base
+        const float cur_mm_pp = DRUM_CIRCUM_MM / sensor.getPPRWire();  // use runtime-calibrated value
         float measured_mm = (float)wc * cur_mm_pp;
         float factor = actual_mm / measured_mm;
+        if (factor < 0.1f || factor > 10.0f) return "ERR:CAL_W factor out of range";
         float new_mm_pp = cur_mm_pp * factor;
         float new_ppr_w = DRUM_CIRCUM_MM / new_mm_pp;
         char buf[96];
@@ -101,6 +102,7 @@ static String processCommand(const String& cmd) {
         if (n_turns <= 0) return "ERR:CAL_T bad turns";
         int32_t tc, pc, wc;
         sensor.readRawEncoders(tc, pc, wc);
+        if (abs(tc) < 100) return "ERR:CAL_T too few counts";
         float ppr = (float)abs(tc) / (float)n_turns;
         char buf[64];
         snprintf(buf, sizeof(buf), "CAL:THETA,%ld,%.2f", (long)tc, ppr);
@@ -112,6 +114,7 @@ static String processCommand(const String& cmd) {
         if (n_turns <= 0) return "ERR:CAL_P bad turns";
         int32_t tc, pc, wc;
         sensor.readRawEncoders(tc, pc, wc);
+        if (abs(pc) < 100) return "ERR:CAL_P too few counts";
         float ppr = (float)abs(pc) / (float)n_turns;
         char buf[64];
         snprintf(buf, sizeof(buf), "CAL:PHI,%ld,%.2f", (long)pc, ppr);
@@ -157,6 +160,8 @@ static String processCommand(const String& cmd) {
         if (commaIdx != -1) {
             String ssid = payload.substring(0, commaIdx);
             String pass = payload.substring(commaIdx + 1);
+            if (ssid.length() == 0 || ssid.length() > 32) return "ERR:SSID_INVALID";
+            if (pass.length() > 0 && pass.length() < 8) return "ERR:PASS_TOO_SHORT";
             Preferences prefs;
             prefs.begin("wifi_cfg", false);
             prefs.putString("ssid", ssid);
@@ -166,7 +171,7 @@ static String processCommand(const String& cmd) {
             delay(500);
             ESP.restart();
         }
-        return "ACK:WIFI_SAVED";
+        return "ERR:WIFI_INVALID";
 
     } else if (cmd == "SYSINFO") {
 #if ENABLE_WIFI
@@ -187,7 +192,8 @@ static String processCommand(const String& cmd) {
 #endif
     }
 
-    return "";
+    Serial.println("ERR:UNKNOWN_CMD");
+    return "ERR:UNKNOWN_CMD";
 }
 
 static void handleSerialCommands() {
@@ -201,6 +207,7 @@ static void handleSerialCommands() {
             serial_buffer = "";
         } else {
             serial_buffer += ch;
+            if (serial_buffer.length() > 128) { serial_buffer = ""; }
         }
     }
 }

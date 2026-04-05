@@ -52,7 +52,7 @@ $$
 \begin{align*}
 r &= \sqrt{X^2 + Y^2 + Z^2} \\
 \theta &= \text{atan2}(Y, X) \\
-\phi &= \text{acos}(Z / r)
+\phi &= \text{asin}(Z / r)
 \end{align*}
 $$
 
@@ -61,14 +61,14 @@ Theoretical accuracy at maximum range ($5m$):
 
 | Axis | Sensor | Resolution | Error Contribution (at 5m) |
 | :--- | :--- | :--- | :--- |
-| **$\theta$** | E40S6 Encoder | $0.018^\circ$ (360°/20000 PPR) | $\approx 1.57mm$ arc length |
-| **$\phi$** | E40S6 Encoder | $0.018^\circ$ (360°/20000 PPR) | $\approx 1.57mm$ arc length |
+| **$\theta$** | E30S6 Encoder | $0.018^\circ$ (360°/20000 PPR) | $\approx 1.57mm$ arc length |
+| **$\phi$** | E30S6 Encoder | $0.018^\circ$ (360°/20000 PPR) | $\approx 1.57mm$ arc length |
 | **$r$** | Draw-Wire | $\pm 0.025mm$ (MM\_PER\_PULSE) | $\pm 0.025mm$ linear |
 | **Total** | **Combined** | | **$\approx \pm 3.2mm$** (Worst Case) |
 
 ## Calibration Requirements
 1. **Zero Point ($\\theta=0, \\phi=0$):** Establish a mechanical home position.
-   - Typically: Boom pointing straight up ($\\phi=0$) and forward ($\\theta=0$).
+   - Typically: Boom pointing horizontally ($\\phi=0$) and forward ($\\theta=0$).
 2. **Scale Factors:**
    - Confirm pulses-per-degree for rotary axes.
    - Confirm mm-per-pulse for draw-wire.

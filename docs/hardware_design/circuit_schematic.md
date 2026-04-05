@@ -236,24 +236,24 @@
     ┌─────────────────────────────────────────────────────────────────────────────────────┐
     │                           SIGNAL CONDITIONING SECTION                                │
     │                                                                                     │
-    │   J1: THETA ENCODER (E40S6 #1)                                                     │
+    │   J1: THETA ENCODER (E30S6 #1)                                                     │
     │   ┌──────────────────────┐                                                          │
     │   │ Pin 1: +5V (Brown)   ├── FB1 (ferrite) ── 5V_RAIL ── 100nF ── GND              │
     │   │ Pin 2: GND  (Blue)   ├── GND                                                   │
     │   │ Pin 3: Ph.A (Black)  ├── 10k ──┬── 20k ── GND ──── TVS1 ── GND                │
-    │   │                      │         ├── 1nF ── GND                    → GPIO 32      │
+    │   │                      │         ├── 1nF ── GND                    → GPIO 14      │
     │   │ Pin 4: Ph.B (White)  ├── 10k ──┬── 20k ── GND ──── TVS2 ── GND                │
-    │   │                      │         ├── 1nF ── GND                    → GPIO 35      │
+    │   │                      │         ├── 1nF ── GND                    → GPIO 12      │
     │   └──────────────────────┘                                                          │
     │                                                                                     │
-    │   J2: PHI ENCODER (E40S6 #2)                                                       │
+    │   J2: PHI ENCODER (E30S6 #2)                                                       │
     │   ┌──────────────────────┐                                                          │
     │   │ Pin 1: +5V (Brown)   ├── FB2 (ferrite) ── 5V_RAIL ── 100nF ── GND              │
     │   │ Pin 2: GND  (Blue)   ├── GND                                                   │
     │   │ Pin 3: Ph.A (Black)  ├── 10k ──┬── 20k ── GND ──── TVS3 ── GND                │
-    │   │                      │         ├── 1nF ── GND                    → GPIO 14      │
+    │   │                      │         ├── 1nF ── GND                    → GPIO 32      │
     │   │ Pin 4: Ph.B (White)  ├── 10k ──┬── 20k ── GND ──── TVS4 ── GND                │
-    │   │                      │         ├── 1nF ── GND                    → GPIO 12      │
+    │   │                      │         ├── 1nF ── GND                    → GPIO 35      │
     │   └──────────────────────┘                                                          │
     │                                                                                     │
     │   J3: WIRE ENCODER (DWE3000)                                                       │
@@ -286,10 +286,10 @@
                     │   Onboard AMS1117-3.3  │  ← VIN→3.3V regulator
                     │   (VIN → 3.3V rail)    │     Dissipates ~0.25W (safe)
                     │                        │
-                    │   GPIO 32 ◄──── DIV1 (Theta A)
-                    │   GPIO 35 ◄──── DIV2 (Theta B)
-                    │   GPIO 14 ◄──── DIV3 (Phi A)
-                    │   GPIO 12 ◄──── DIV4 (Phi B)
+                    │   GPIO 14 ◄──── DIV1 (Theta A)
+                    │   GPIO 12 ◄──── DIV2 (Theta B)
+                    │   GPIO 32 ◄──── DIV3 (Phi A)
+                    │   GPIO 35 ◄──── DIV4 (Phi B)
                     │   GPIO 16 ◄──── DIV5 (Wire A)
                     │   GPIO 17 ◄──── DIV6 (Wire B)
                     │   GPIO 18 ◄──── DIV7 (Wire Z)
@@ -372,6 +372,8 @@
     5V_RAIL ── 1kΩ ──┤>── GND    (Green LED — power on)
 
     GPIO 25 ── 1kΩ ──┤>── GND    (Red LED — battery low, firmware-driven)
+
+    GPIO 2  ── 1kΩ ──┤>── GND    (Optional external WiFi status LED, active-high)
 ```
 
 ---

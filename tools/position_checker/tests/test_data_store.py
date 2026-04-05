@@ -1,6 +1,8 @@
 import threading
 import unittest
 
+import numpy as np
+
 from tools.position_checker.data_store import DataStore
 from tools.position_checker.parser import ParsedFrame
 
@@ -45,6 +47,29 @@ class DataStoreTests(unittest.TestCase):
         snap = store.snapshot()
         self.assertLessEqual(len(snap), 50)
         self.assertIsNotNone(store.latest())
+
+    def test_transform_preserves_firmware_spherical_values(self) -> None:
+        store = DataStore(maxpoints=5)
+        store.set_transform(np.eye(3, dtype=float), np.array([10.0, 0.0, 0.0], dtype=float))
+
+        frame = ParsedFrame(
+            x_mm=1.0,
+            y_mm=2.0,
+            z_mm=3.0,
+            r_mm=111.0,
+            theta_deg=22.0,
+            phi_deg=-33.0,
+            is_valid=1,
+            frame_count=1,
+            ts_ms=10,
+        )
+        store.push(frame)
+        latest = store.latest()
+        self.assertIsNotNone(latest)
+        self.assertAlmostEqual(latest.x_mm, 11.0)
+        self.assertAlmostEqual(latest.r_mm, 111.0)
+        self.assertAlmostEqual(latest.theta_deg, 22.0)
+        self.assertAlmostEqual(latest.phi_deg, -33.0)
 
 
 if __name__ == "__main__":

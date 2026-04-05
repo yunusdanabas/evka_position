@@ -13,6 +13,15 @@ namespace CMDScanner
 {
     public partial class Form1 : Form
     {
+        private const string DefaultStaIp = "192.168.1.84";
+        private const string ApFallbackIp = "192.168.1.50";
+        private const int DefaultCmdPort = 8080;
+        private const string PrefixStaIp = "STA_IP:";
+        private const string PrefixSensor = "SENSOR,";
+        private const string PrefixSysInfo = "SYSINFO,";
+        private const string PrefixAck = "ACK:";
+        private const string PrefixErr = "ERR:";
+        private const string PrefixXyz = "X";
         private TcpClient _tcpClient;
         private NetworkStream _stream;
         private StreamReader _reader;
@@ -85,7 +94,7 @@ namespace CMDScanner
             Label lblIp = new Label { Text = "IP:", Location = new Point(15, 33), AutoSize = true, Font = new Font("Segoe UI", 10), ForeColor = Color.Black };
             txtIp = new TextBox { Text = "192.168.1.50", Location = new Point(45, 30), Width = 115, Font = new Font("Segoe UI", 11), BorderStyle = BorderStyle.FixedSingle };
             Label lblPort = new Label { Text = "Port:", Location = new Point(175, 33), AutoSize = true, Font = new Font("Segoe UI", 10), ForeColor = Color.Black };
-            txtPort = new TextBox { Text = "8080", Location = new Point(215, 30), Width = 55, Font = new Font("Segoe UI", 11), BorderStyle = BorderStyle.FixedSingle };
+            txtPort = new TextBox { Text = DefaultCmdPort.ToString(CultureInfo.InvariantCulture), Location = new Point(215, 30), Width = 55, Font = new Font("Segoe UI", 11), BorderStyle = BorderStyle.FixedSingle };
 
             btnConnect = new Button { Text = "CONNECT", Location = new Point(285, 27), Size = new Size(70, 32), Cursor = Cursors.Hand, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(39, 174, 96), ForeColor = Color.White, Font = new Font("Segoe UI", 9, FontStyle.Bold) };
             btnConnect.FlatAppearance.BorderSize = 0;
@@ -105,10 +114,10 @@ namespace CMDScanner
             // --- Position Panel ---
             Panel pnlAxes = new Panel { Location = new Point(20, y), Size = new Size(445, 215), BorderStyle = BorderStyle.FixedSingle, BackColor = Color.White };
 
-            lblX = new Label { Text = "X:   0.00 mm", Location = new Point(15, 10), AutoSize = true, Font = new Font("Consolas", 22, FontStyle.Bold), ForeColor = Color.FromArgb(41, 128, 185) };
+            lblX = new Label { Text = "X:   0.00 mm", Location = new Point(15, 10), AutoSize = true, Font = new Font("Consolas", 22, FontStyle.Bold), ForeColor = Color.FromArgb(255, 68, 68) };
             lblMinX = new Label { Text = "Min: --", Location = new Point(15, 42), AutoSize = true, Font = new Font("Consolas", 9), ForeColor = Color.Gray };
             lblMaxX = new Label { Text = "Max: --", Location = new Point(130, 42), AutoSize = true, Font = new Font("Consolas", 9), ForeColor = Color.Gray };
-            btnZeroX = new Button { Text = "X=0", Location = new Point(360, 12), Size = new Size(65, 32), Cursor = Cursors.Hand, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(41, 128, 185), ForeColor = Color.White, Font = new Font("Segoe UI", 10, FontStyle.Bold), Enabled = false };
+            btnZeroX = new Button { Text = "X=0", Location = new Point(360, 12), Size = new Size(65, 32), Cursor = Cursors.Hand, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(255, 68, 68), ForeColor = Color.White, Font = new Font("Segoe UI", 10, FontStyle.Bold), Enabled = false };
             btnZeroX.FlatAppearance.BorderSize = 0;
             btnZeroX.Click += BtnZeroX_Click;
 
@@ -119,10 +128,10 @@ namespace CMDScanner
             btnZeroY.FlatAppearance.BorderSize = 0;
             btnZeroY.Click += BtnZeroY_Click;
 
-            lblZ = new Label { Text = "Z:   0.00 mm", Location = new Point(15, 110), AutoSize = true, Font = new Font("Consolas", 22, FontStyle.Bold), ForeColor = Color.FromArgb(192, 57, 43) };
+            lblZ = new Label { Text = "Z:   0.00 mm", Location = new Point(15, 110), AutoSize = true, Font = new Font("Consolas", 22, FontStyle.Bold), ForeColor = Color.FromArgb(68, 136, 255) };
             lblMinZ = new Label { Text = "Min: --", Location = new Point(15, 142), AutoSize = true, Font = new Font("Consolas", 9), ForeColor = Color.Gray };
             lblMaxZ = new Label { Text = "Max: --", Location = new Point(130, 142), AutoSize = true, Font = new Font("Consolas", 9), ForeColor = Color.Gray };
-            btnZeroZ = new Button { Text = "Z=0", Location = new Point(360, 112), Size = new Size(65, 32), Cursor = Cursors.Hand, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(192, 57, 43), ForeColor = Color.White, Font = new Font("Segoe UI", 10, FontStyle.Bold), Enabled = false };
+            btnZeroZ = new Button { Text = "Z=0", Location = new Point(360, 112), Size = new Size(65, 32), Cursor = Cursors.Hand, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(68, 136, 255), ForeColor = Color.White, Font = new Font("Segoe UI", 10, FontStyle.Bold), Enabled = false };
             btnZeroZ.FlatAppearance.BorderSize = 0;
             btnZeroZ.Click += BtnZeroZ_Click;
 
@@ -232,7 +241,7 @@ namespace CMDScanner
 
                     if (!string.IsNullOrEmpty(line))
                     {
-                        if (line.StartsWith("STA_IP:"))
+                        if (line.StartsWith(PrefixStaIp))
                         {
                             string ip = line.Substring(7).Trim();
                             this.Invoke(new Action(() =>
@@ -243,31 +252,32 @@ namespace CMDScanner
                                 lblRouterIpValue.Text = "Router IP: " + (notConnected ? "Not Connected" : ip);
                             }));
                         }
-                        else if (line.StartsWith("SENSOR,"))
+                        else if (line.StartsWith(PrefixSensor))
                         {
-                            string[] parts = line.Substring(7).Split(',');
-                            if (parts.Length >= 5)
+                            if (TryParseSensorLine(line, out float r, out float theta, out float phi, out int valid, out long frame))
                             {
-                                float r = float.Parse(parts[0], CultureInfo.InvariantCulture);
-                                float theta = float.Parse(parts[1], CultureInfo.InvariantCulture);
-                                float phi = float.Parse(parts[2], CultureInfo.InvariantCulture);
-                                int valid = int.Parse(parts[3]);
-                                long frame = long.Parse(parts[4]);
-
                                 _lastR = r; _lastTheta = theta; _lastPhi = phi;
                                 _lastValid = valid; _lastFrame = frame;
 
+                                // When software zero is active, R/theta/phi are
+                                // re-derived from display XYZ in the XYZ branch to
+                                // stay in the same reference frame. Only update from
+                                // raw firmware SENSOR data when zero is inactive.
+                                bool zeroing = _isRelativeZeroActive;
                                 this.Invoke(new Action(() =>
                                 {
-                                    lblR.Text = $"R: {r,8:F2} mm";
-                                    lblTheta.Text = $"\u03B8: {theta,8:F3}\u00B0";
-                                    lblPhi.Text = $"\u03C6: {phi,8:F3}\u00B0";
+                                    if (!zeroing)
+                                    {
+                                        lblR.Text     = $"R: {r,8:F2} mm";
+                                        lblTheta.Text = $"\u03B8: {theta,8:F3}\u00B0";
+                                        lblPhi.Text   = $"\u03C6: {phi,8:F3}\u00B0";
+                                    }
                                     lblValid.Text = $"Valid: {(valid == 1 ? "YES" : "NO")}";
                                     lblFrame.Text = $"Frame: {frame}";
                                 }));
                             }
                         }
-                        else if (line.StartsWith("SYSINFO,"))
+                        else if (line.StartsWith(PrefixSysInfo))
                         {
                             string[] parts = line.Substring(8).Split(',');
                             if (parts.Length >= 4)
@@ -286,15 +296,10 @@ namespace CMDScanner
                                 }));
                             }
                         }
-                        else if (line.StartsWith("X"))
+                        else if (line.StartsWith(PrefixXyz))
                         {
-                            string[] parts = line.Split(',');
-                            if (parts.Length == 3)
+                            if (TryParseXyzLine(line, out float rawX, out float rawY, out float rawZ))
                             {
-                                float rawX = float.Parse(parts[0].Substring(1), CultureInfo.InvariantCulture);
-                                float rawY = float.Parse(parts[1].Substring(1), CultureInfo.InvariantCulture);
-                                float rawZ = float.Parse(parts[2].Substring(1), CultureInfo.InvariantCulture);
-
                                 _lastRawX = rawX; _lastRawY = rawY; _lastRawZ = rawZ;
 
                                 float finalX = _isRelativeZeroActive ? (rawX - _offsetX) : rawX;
@@ -315,10 +320,22 @@ namespace CMDScanner
                                     lblMinX.Text = $"Min: {_minX:F1}";  lblMaxX.Text = $"Max: {_maxX:F1}";
                                     lblMinY.Text = $"Min: {_minY:F1}";  lblMaxY.Text = $"Max: {_maxY:F1}";
                                     lblMinZ.Text = $"Min: {_minZ:F1}";  lblMaxZ.Text = $"Max: {_maxZ:F1}";
+
+                                    // Recompute R/θ/φ from zeroed Cartesian so both
+                                    // panels share the same reference frame.
+                                    if (_isRelativeZeroActive)
+                                    {
+                                        float dr, dTheta, dPhi;
+                                        CartesianToSpherical(finalX, finalY, finalZ,
+                                                             out dr, out dTheta, out dPhi);
+                                        lblR.Text     = $"R: {dr,8:F2} mm";
+                                        lblTheta.Text = $"\u03B8: {dTheta,8:F3}\u00B0";
+                                        lblPhi.Text   = $"\u03C6: {dPhi,8:F3}\u00B0";
+                                    }
                                 }));
                             }
                         }
-                        else if (line.StartsWith("ACK:"))
+                        else if (line.StartsWith(PrefixAck))
                         {
                             this.Invoke(new Action(() =>
                             {
@@ -326,7 +343,7 @@ namespace CMDScanner
                                 lblStatus.ForeColor = Color.Green;
                             }));
                         }
-                        else if (line.StartsWith("ERR:"))
+                        else if (line.StartsWith(PrefixErr))
                         {
                             this.Invoke(new Action(() =>
                             {
@@ -350,6 +367,72 @@ namespace CMDScanner
                 byte[] data = Encoding.ASCII.GetBytes(command + "\n");
                 await _stream.WriteAsync(data, 0, data.Length);
             }
+        }
+
+        private static bool TryParseSensorLine(
+            string line,
+            out float r,
+            out float theta,
+            out float phi,
+            out int valid,
+            out long frame)
+        {
+            r = 0f; theta = 0f; phi = 0f; valid = 0; frame = 0;
+            if (!line.StartsWith(PrefixSensor))
+            {
+                return false;
+            }
+
+            string[] parts = line.Substring(PrefixSensor.Length).Split(',');
+            if (parts.Length < 5)
+            {
+                return false;
+            }
+
+            return
+                float.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out r) &&
+                float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out theta) &&
+                float.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out phi) &&
+                int.TryParse(parts[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out valid) &&
+                long.TryParse(parts[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out frame);
+        }
+
+        private static bool TryParseXyzLine(
+            string line,
+            out float x,
+            out float y,
+            out float z)
+        {
+            x = 0f; y = 0f; z = 0f;
+            if (!line.StartsWith(PrefixXyz))
+            {
+                return false;
+            }
+
+            string[] parts = line.Split(',');
+            if (parts.Length != 3 ||
+                parts[0].Length < 2 ||
+                parts[1].Length < 2 ||
+                parts[2].Length < 2)
+            {
+                return false;
+            }
+
+            return
+                float.TryParse(parts[0].Substring(1), NumberStyles.Float, CultureInfo.InvariantCulture, out x) &&
+                float.TryParse(parts[1].Substring(1), NumberStyles.Float, CultureInfo.InvariantCulture, out y) &&
+                float.TryParse(parts[2].Substring(1), NumberStyles.Float, CultureInfo.InvariantCulture, out z);
+        }
+
+        private static void CartesianToSpherical(
+            float x, float y, float z,
+            out float r, out float theta, out float phi)
+        {
+            r = (float)Math.Sqrt(x * x + y * y + z * z);
+            if (r < 1e-6f) { theta = 0f; phi = 0f; return; }
+            theta = (float)(Math.Atan2(y, x) * 180.0 / Math.PI);
+            phi   = (float)(Math.Asin(Math.Max(-1.0, Math.Min(1.0, z / r)))
+                            * 180.0 / Math.PI);
         }
         #endregion
 

@@ -23,6 +23,7 @@ Evka Position is a firmware project for the **ESP32 (Wemos D1 R32)** that calcul
 | 35  | Phi encoder B |
 | 16  | Draw-wire encoder A |
 | 17  | Draw-wire encoder B |
+| 2   | WiFi status LED output (active-high) |
 
 ## Directory Structure
 
@@ -61,7 +62,7 @@ On first boot, the firmware waits 2 seconds then calls `setZeroPoint()`. **Make 
 After boot the firmware prints `DATA` lines at 20 Hz:
 
 ```
-DATA,<r_mm>,<theta_deg>,<phi_deg>,<x_mm>,<y_mm>,<z_mm>
+DATA,<x_mm>,<y_mm>,<z_mm>,<r_mm>,<theta_deg>,<phi_deg>,<is_valid>,<frame_count>,<ts_ms>
 ```
 
 ### Serial Commands
@@ -73,11 +74,12 @@ DATA,<r_mm>,<theta_deg>,<phi_deg>,<x_mm>,<y_mm>,<z_mm>
 | `STATUS` | `STATUS,<valid>,<frame>,<ts_ms>,<r>,<theta>,<phi>,<x>,<y>,<z>` | Single status snapshot |
 | `CONSTANTS` | `CONSTANTS,<ppr_r>,<ppr_w>,<mm_pp>,<deg_pp>` | Current calibration constants |
 | `ZERO_T` / `ZERO_P` / `ZERO_W` | `ACK:ZERO_*` | Zero individual encoder |
-| `CAL_W <mm>` | `CAL:WIRE,<factor>,<mm_pp>,<ppr_w>` | Wire calibration trial |
-| `CAL_T <n>` / `CAL_P <n>` | `CAL:THETA/<PHI>,<counts>,<ppr>` | Rotary calibration (N full turns) |
+| `CAL_W <mm>` | `CAL:WIRE,<factor>,<mm_pp>,<ppr_w>` or `ERR:CAL_W …` | Wire calibration trial (factor must be 0.1–10×) |
+| `CAL_T <n>` / `CAL_P <n>` | `CAL:THETA/<PHI>,<counts>,<ppr>` or `ERR:CAL_* …` | Rotary calibration (N full turns; ≥100 encoder counts required) |
 | `SET_PPR_WIRE <v>` | `ACK:PPR_WIRE,<v>` | Set wire PPR (RAM) |
 | `SET_PPR_ROTARY <v>` | `ACK:PPR_ROTARY,<v>` | Set rotary PPR (RAM) |
 | `SAVE_PPR` | `ACK:SAVE_PPR` | Persist current PPR values to NVS flash |
+| *(any unknown)* | `ERR:UNKNOWN_CMD` | Unrecognized command |
 
 ## Python Visualiser
 
@@ -108,6 +110,31 @@ $$
 - **Live view**: 3D trail, XY/XZ/YZ projections, session CSV export
 - **CALIBRATE tab**: multi-trial wire calibration with mean/spread stats, theta/phi calibration, endpoint world-transform point collection. PPR values can be applied to RAM or saved permanently to NVS flash (survives power cycles).
 
+Router mode note (STA):
+- After saving router credentials, query `GET_IP` and use returned `STA_IP:<ip>` for TCP clients.
+- Latest confirmed ASMETAL example: `STA_IP:192.168.1.84` (TCP port remains `8080`).
+- Keep AP fallback `192.168.1.50` for direct CMDCNC connections.
+
+### WiFi Status LED (GPIO 2)
+
+WiFi status LED behavior is already implemented in firmware on `PIN_WIFI_LED` (`GPIO 2`) in `firmware/src/SphericalSensor.h` and driven in `firmware/src/EvkaPosition.cpp`.
+
+- `OFF`: no STA credentials configured
+- `BLINK (500 ms)`: STA configured but not connected yet
+- `SOLID ON`: `WiFi.status() == WL_CONNECTED`
+
+External LED connection (recommended):
+
+- `GPIO 2 -> 1k resistor -> LED anode (+)`
+- `LED cathode (-) -> GND`
+- Keep series resistor in the `680 ohm` to `1k ohm` range (`1k` preferred for lower current)
+
+Quick verification checklist:
+
+1. Boot with no saved STA credentials: LED stays `OFF`.
+2. Save STA credentials and reboot: LED should `BLINK` while trying to connect.
+3. After successful STA connection: LED should become `SOLID ON`.
+4. Power cycle or disconnect router: LED should return to `BLINK` (or `OFF` if STA config is cleared).
 ## Integration Docs
 
 - CMD quick integration: `docs/CMD_SOFTWARE_INTEGRATION.md`

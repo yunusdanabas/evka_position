@@ -95,7 +95,7 @@ SphericalCoords SphericalPositioningSensor::countsToSpherical(int32_t theta_coun
     const float mm_pp  = DRUM_CIRCUM_MM / _ppr_wire;
 
     sph.theta_deg = theta_counts * deg_pp;
-    sph.phi_deg   = -phi_counts  * deg_pp;  // Phi encoder counts positive when arm drops
+    sph.phi_deg   = -phi_counts * deg_pp;  // Phi encoder counts positive when arm drops
     sph.r_mm      = radius_counts * mm_pp;
 
     sph.theta_deg = normalizeAngle(sph.theta_deg);
@@ -144,7 +144,8 @@ SphericalCoords SphericalPositioningSensor::cartesianToSpherical(const Cartesian
     sph.theta_deg = atan2(cartesian.y_mm, cartesian.x_mm) * 180.0 / M_PI;
     
     if (sph.r_mm > 0.001) {
-        sph.phi_deg = asin(cartesian.z_mm / sph.r_mm) * 180.0 / M_PI;
+        float ratio = clamp(cartesian.z_mm / sph.r_mm, -1.0f, 1.0f);
+        sph.phi_deg = asin(ratio) * 180.0 / M_PI;
     } else {
         sph.phi_deg = 0.0;
     }
@@ -165,12 +166,16 @@ float SphericalPositioningSensor::clamp(float value, float min_val, float max_va
 }
 
 uint8_t SphericalPositioningSensor::validateLimits(const SphericalCoords& sph, const CartesianCoords& cart) {
-    if (sph.r_mm < RADIUS_MIN_MM || sph.r_mm > RADIUS_MAX_MM) return 0;
-    if (sph.phi_deg < PHI_MIN_DEG || sph.phi_deg > PHI_MAX_DEG) return 0;
-    
+    // Allow small startup/zero jitter so near-home noise does not flip validity.
+    const float radius_tol_mm = 2.0f;
+    const float angle_tol_deg = 1.0f;
+    if (sph.r_mm < (RADIUS_MIN_MM - radius_tol_mm) || sph.r_mm > (RADIUS_MAX_MM + radius_tol_mm)) return 0;
+    if (sph.phi_deg < (PHI_MIN_DEG - angle_tol_deg) || sph.phi_deg > (PHI_MAX_DEG + angle_tol_deg)) return 0;
+    if (sph.theta_deg < (THETA_MIN_DEG - angle_tol_deg) || sph.theta_deg > (THETA_MAX_DEG + angle_tol_deg)) return 0;
+
     if (isnan(cart.x_mm) || isnan(cart.y_mm) || isnan(cart.z_mm)) return 0;
     if (isinf(cart.x_mm) || isinf(cart.y_mm) || isinf(cart.z_mm)) return 0;
-    
+
     return 1;
 }
 
@@ -237,9 +242,13 @@ BatteryStatus SphericalPositioningSensor::readBattery() {
 }
 
 void SphericalPositioningSensor::printPosition() {
+    static uint32_t last_invalid_log_ms = 0;
     if (!system_state.is_valid) {
-        Serial.println("! INVALID POSITION (out of bounds)");
-        return;
+        uint32_t now = millis();
+        if ((now - last_invalid_log_ms) >= 1000) {
+            last_invalid_log_ms = now;
+            Serial.println("! INVALID POSITION (out of bounds)");
+        }
     }
 
     Serial.print("Cartesian: X="); Serial.print(system_state.position.x_mm, 1);

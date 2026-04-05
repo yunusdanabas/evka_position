@@ -5,6 +5,7 @@ import threading
 from pathlib import Path
 from typing import List
 
+from .cmd_main import DATA_PREFIX
 from .data_store import DataStore
 from .parser import ParsedFrame, parse_line
 
@@ -29,12 +30,13 @@ def load_replay_frames(path: str) -> List[ParsedFrame]:
     frames: List[ParsedFrame] = []
 
     try:
-        with file_path.open("r", encoding="utf-8") as handle:
+        with file_path.open("r", encoding="utf-8-sig") as handle:
             first_line = handle.readline()
             handle.seek(0)
 
             # Raw serial dump mode: one firmware DATA line per row.
-            if first_line.strip().startswith("DATA,"):
+            # utf-8-sig encoding strips BOM automatically; .strip() removes whitespace.
+            if first_line.strip().startswith(DATA_PREFIX):
                 for line in handle:
                     frame = parse_line(line)
                     if frame is not None:

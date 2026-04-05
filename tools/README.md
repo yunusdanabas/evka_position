@@ -5,7 +5,10 @@ Python utilities for the evka_position project.
 ## position_checker
 
 Real-time 3D position visualiser that reads the `DATA,` CSV stream from the
-firmware and renders a live OpenGL 3D trajectory (pyqtgraph GLViewWidget, 30-60+ FPS).
+firmware and renders a live 3D trajectory view.
+
+Single source of truth for visualizer protocol/format conventions:
+- `tools/position_checker/cmd_main.py`
 
 ### Install dependencies
 
@@ -42,9 +45,11 @@ python -m tools.position_checker.main --replay-file /path/to/frames.csv --fps 20
 
 ### GUI features
 
-- **3-D OpenGL view** — trajectory line + scatter trail; current position in red (pyqtgraph, interactive rotation/zoom while streaming).
+- **3-D view** — trajectory line + head marker; current position in red.
 - **Text panel** — X, Y, Z (mm), R, θ, φ, validity flag, frame counter,
   timestamp, total point count, and live connection/command status.
+- **Firmware-authoritative angles** — θ/φ values displayed from firmware stream
+  (phi sign is not recomputed in visualizer transforms).
 - **Zero button** — sends `ZERO\n` to the firmware; firmware responds
   with `ACK:ZERO` and resets the zero point.
 - **Ping button** — sends `PING\n`; firmware responds with `ACK:PONG`.
@@ -58,6 +63,9 @@ The firmware emits two lines per update cycle (plus optional status lines):
 Cartesian: X=123.4 Y=-56.7 Z=890.1 mm | Spherical: R=900.0 mm, Theta=25.00 deg, Phi=10.00 deg
 DATA,123.40,-56.70,890.10,900.00,25.000,10.000,1,42,12345
 ```
+
+The `DATA` field order is fixed as:
+`x_mm,y_mm,z_mm,r_mm,theta_deg,phi_deg,is_valid,frame_count,ts_ms`.
 
 The Python parser ignores all lines that do not begin with `DATA,`.
 
@@ -117,4 +125,8 @@ ESP32 -> GUI (newline-delimited ASCII):
 STA_IP:<ipv4>
 STA_IP:NOT_CONNECTED
 X<value>,Y<value>,Z<value>
+ACK:<cmd>
+ERR:<reason>
 ```
+
+WiFi credential validation: SSID must be 1–32 chars (`ERR:SSID_INVALID`); password must be empty or ≥8 chars (`ERR:PASS_TOO_SHORT`). Unrecognized commands return `ERR:UNKNOWN_CMD`.

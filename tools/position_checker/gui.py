@@ -6,6 +6,7 @@ import sys
 import numpy as np
 from PyQt5 import QtCore, QtGui, QtWidgets
 
+from .cmd_main import get_visualizer_conventions
 from .data_store import DataStore
 
 
@@ -131,6 +132,8 @@ def run_gui(store: DataStore, fps: float = 10.0) -> None:
     app = QtWidgets.QApplication.instance()
     if app is None:
         app = QtWidgets.QApplication(sys.argv)
+    conventions = get_visualizer_conventions()
+    pin_map = conventions.pin_map
 
     import pyqtgraph as pg  # noqa: PLC0415 — intentional late import
 
@@ -205,8 +208,8 @@ def run_gui(store: DataStore, fps: float = 10.0) -> None:
 
     readings_label = QtWidgets.QLabel(
         "Draw-wire  R =   \u2014\u2014 mm\n"
-        "Rotary-1   \u03b8 =  \u2014\u2014.\u2014\u00b0\n"
-        "Rotary-2   \u03c6 =  \u2014\u2014.\u2014\u00b0"
+        f"Theta({pin_map['theta_a']}/{pin_map['theta_b']}) \u03b8 =  \u2014\u2014.\u2014\u00b0\n"
+        f"Phi({pin_map['phi_a']}/{pin_map['phi_b']})   \u03c6 =  \u2014\u2014.\u2014\u00b0"
     )
     readings_label.setStyleSheet(
         "font-family: monospace; font-size: 13px; color: #7fffd4; padding: 4px 0px;"
@@ -269,8 +272,8 @@ def run_gui(store: DataStore, fps: float = 10.0) -> None:
         if latest is not None:
             readings_label.setText(
                 f"Draw-wire  R = {latest.r_mm:8.1f} mm\n"
-                f"Rotary-1   \u03b8 = {latest.theta_deg:+8.2f}\u00b0\n"
-                f"Rotary-2   \u03c6 = {latest.phi_deg:8.2f}\u00b0"
+                f"Theta({pin_map['theta_a']}/{pin_map['theta_b']}) \u03b8 = {latest.theta_deg:+8.2f}\u00b0\n"
+                f"Phi({pin_map['phi_a']}/{pin_map['phi_b']})   \u03c6 = {latest.phi_deg:+8.2f}\u00b0"
             )
             info_text = (
                 "Cartesian\n"
@@ -293,8 +296,8 @@ def run_gui(store: DataStore, fps: float = 10.0) -> None:
         else:
             readings_label.setText(
                 "Draw-wire  R =   \u2014\u2014 mm\n"
-                "Rotary-1   \u03b8 =  \u2014\u2014.\u2014\u00b0\n"
-                "Rotary-2   \u03c6 =  \u2014\u2014.\u2014\u00b0"
+                f"Theta({pin_map['theta_a']}/{pin_map['theta_b']}) \u03b8 =  \u2014\u2014.\u2014\u00b0\n"
+                f"Phi({pin_map['phi_a']}/{pin_map['phi_b']})   \u03c6 =  \u2014\u2014.\u2014\u00b0"
             )
             info_text = (
                 "Cartesian\n"

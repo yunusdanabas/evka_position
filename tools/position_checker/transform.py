@@ -1,4 +1,8 @@
-"""transform.py — Load and apply a sensor-to-world calibration transform."""
+"""transform.py — Load and apply a sensor-to-world calibration transform.
+
+When firmware-authoritative spherical display is enabled, only XYZ values are
+transformed during visualization; firmware R/theta/phi are preserved.
+"""
 
 import json
 import logging
@@ -51,3 +55,21 @@ def cartesian_to_spherical(x: float, y: float, z: float):
     theta = math.degrees(math.atan2(y, x))
     phi = math.degrees(math.asin(max(-1.0, min(1.0, z / r))))
     return r, theta, phi
+
+
+def spherical_to_cartesian(r: float, theta_deg: float, phi_deg: float):
+    """Convert (r_mm, theta_deg, phi_deg) → (x_mm, y_mm, z_mm).
+
+    Uses the same elevation-azimuth convention as the firmware:
+      x = r * cos(phi) * cos(theta)
+      y = r * cos(phi) * sin(theta)
+      z = r * sin(phi)
+    phi = -90° arm down, 0° horizontal, +90° arm up.
+    theta = azimuth from +X in XY-plane.
+    """
+    theta_rad = math.radians(theta_deg)
+    phi_rad = math.radians(phi_deg)
+    x = r * math.cos(phi_rad) * math.cos(theta_rad)
+    y = r * math.cos(phi_rad) * math.sin(theta_rad)
+    z = r * math.sin(phi_rad)
+    return x, y, z

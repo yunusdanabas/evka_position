@@ -37,6 +37,13 @@ WIFI_SET:<ssid>,<password>
 WIFI_AYAR:<ssid>,<password>
 ```
 
+Note: `WIFI_SET`/`WIFI_AYAR` over TCP are only enabled when
+`ENABLE_REMOTE_WIFI_CONFIG = 1`. With default settings they return
+`ERR:WIFI_CFG_DISABLED`.
+
+WiFi credential validation (applies to both TCP and serial paths):
+- SSID must be 1–32 characters → `ERR:SSID_INVALID` if empty or >32 chars
+- Password must be empty (open network) or ≥8 characters → `ERR:PASS_TOO_SHORT`
 ESP32 -> Client (newline-delimited):
 
 ```text
@@ -45,9 +52,16 @@ STA_IP:NOT_CONNECTED
 X<value>,Y<value>,Z<value>
 ACK:ZERO
 ACK:WIFI_SAVED
+ERR:WIFI_INVALID
+ERR:WIFI_CFG_DISABLED
+ERR:SSID_INVALID
+ERR:PASS_TOO_SHORT
+ERR:UNKNOWN_CMD
 ```
 
 Note: Firmware may also emit additional lines (`SENSOR,...`, `SYSINFO,...`) for enhanced tools. CMD clients that only parse `X...` and `STA_IP:...` continue to work.
+For enhanced clients parsing `SENSOR,...`, the field order is:
+`SENSOR,<r_mm>,<theta_deg>,<phi_deg>,<is_valid>,<frame_count>`.
 
 ## Linux CMD GUI (Included Tool)
 
@@ -56,6 +70,9 @@ Run the Linux CMD-compatible GUI from repo root:
 ```bash
 python -m tools.position_checker.cmd_main
 ```
+
+Visualizer protocol conventions (prefixes, field ordering, phi policy, and
+default endpoints) are centralized in `tools/position_checker/cmd_main.py`.
 
 Default target:
 

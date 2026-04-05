@@ -22,6 +22,7 @@
 #define ENABLE_BATTERY_MONITOR 0  // 0: disable battery ADC path (prototype on 5V adapter)
 #define ENABLE_WIFI            1  // 0: serial only, 1: serial + WiFi AP + web dashboard
 #define ENABLE_CMD_TCP         1  // 0: disable CMD TCP server, 1: enable TCP on CMD_TCP_PORT
+#define ENABLE_REMOTE_WIFI_CONFIG 0  // 0: block WIFI_SET/WIFI_AYAR over TCP, 1: allow remote WiFi config + reboot
 #define WIFI_AP_SSID           "CMDCNC"
 #define WIFI_AP_PASSWORD       "cmdcnc1234"  // min 8 chars for WPA2
 #define WIFI_WEB_PORT          80
@@ -55,7 +56,7 @@
 #define THETA_MAX_DEG     180.0   // Max azimuth angle
 #define PHI_MIN_DEG      -180.0   // Min elevation angle
 #define PHI_MAX_DEG       180.0   // Max elevation angle
-#define RADIUS_MIN_MM    50.0    // Min extension (safety margin)
+#define RADIUS_MIN_MM     0.0    // Min extension (home position = 0 mm)
 #define RADIUS_MAX_MM   3000.0    // Max extension — DWE3000 stroke limit
 
 // ============================================================================
@@ -143,6 +144,8 @@ public:
     // Runtime PPR adjustment (RAM only — update SphericalSensor.h #defines to persist)
     void setPPRRotary(float ppr);
     void setPPRWire(float ppr);
+    float getPPRWire() const { return _ppr_wire; }
+    float getPPRRotary() const { return _ppr_rotary; }
     void getConstants(char* buf, size_t buf_size);
     void savePPRToNVS();
     void loadPPRFromNVS();

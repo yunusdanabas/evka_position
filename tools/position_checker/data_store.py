@@ -8,6 +8,7 @@ from typing import Dict, Optional, TextIO, Tuple
 import numpy as np
 import serial  # type: ignore
 
+from .cmd_main import DATA_FIELDS, FIRMWARE_PHI_AUTHORITATIVE
 from .parser import ParsedFrame
 from .transform import apply_transform, cartesian_to_spherical
 
@@ -41,10 +42,7 @@ class DataStore:
             self._csv_file = open(csv_log_path, "a", newline="", encoding="utf-8")
             self._csv_writer = csv.writer(self._csv_file)
             if self._csv_file.tell() == 0:
-                self._csv_writer.writerow([
-                    "x_mm", "y_mm", "z_mm", "r_mm", "theta_deg", "phi_deg",
-                    "is_valid", "frame_count", "ts_ms",
-                ])
+                self._csv_writer.writerow(list(DATA_FIELDS))
                 self._csv_file.flush()
 
     # ------------------------------------------------------------------
@@ -61,15 +59,24 @@ class DataStore:
     # ------------------------------------------------------------------
 
     def push(self, frame: ParsedFrame) -> None:
+        # Drop invalid frames so the ring buffer and CSV log always hold good poses.
+        # The last valid pose is preserved; consumers never see fabricated boundary points.
+        if not frame.is_valid:
+            return
         with self._lock:
             if self._transform is not None:
                 R, t = self._transform
                 wx, wy, wz = apply_transform(frame.x_mm, frame.y_mm, frame.z_mm, R, t)
-                wr, wtheta, wphi = cartesian_to_spherical(wx, wy, wz)
-                frame = frame._replace(
-                    x_mm=wx, y_mm=wy, z_mm=wz,
-                    r_mm=wr, theta_deg=wtheta, phi_deg=wphi,
-                )
+                # FIRMWARE_PHI_AUTHORITATIVE=True: XYZ is world-frame, R/theta/phi
+                # remain firmware-frame. CSV logs are intentionally mixed-frame.
+                if FIRMWARE_PHI_AUTHORITATIVE:
+                    frame = frame._replace(x_mm=wx, y_mm=wy, z_mm=wz)
+                else:
+                    wr, wtheta, wphi = cartesian_to_spherical(wx, wy, wz)
+                    frame = frame._replace(
+                        x_mm=wx, y_mm=wy, z_mm=wz,
+                        r_mm=wr, theta_deg=wtheta, phi_deg=wphi,
+                    )
             self._buf.append(frame)
             if self._csv_writer is not None:
                 self._csv_writer.writerow(list(frame))

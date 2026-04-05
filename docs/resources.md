@@ -60,7 +60,7 @@ This document consolidates open-source projects, libraries, documentation, and a
 - **Documentation:** [cppreference.com/math](https://en.cppreference.com/w/cpp/header/cmath)
 - **Why Relevant:** Built-in trigonometric and vector operations for spherical math
 - **Relevant Functions:**
-  - `sin()`, `cos()`, `atan2()`, `acos()` for spherical conversions
+  - `sin()`, `cos()`, `atan2()`, `asin()` for spherical conversions (elevation convention)
   - `sqrt()` for Cartesian distance
 
 ---
@@ -163,11 +163,15 @@ This document consolidates open-source projects, libraries, documentation, and a
 - **Example:**
   ```python
   import numpy as np
-  
-  def spherical_to_cartesian(r, theta, phi):
-      x = r * np.sin(phi) * np.cos(theta)
-      y = r * np.sin(phi) * np.sin(theta)
-      z = r * np.cos(phi)
+
+  # Elevation-azimuth convention (matches firmware):
+  # phi=0 is horizontal, phi=+90 is up, phi=-90 is down
+  def spherical_to_cartesian(r, theta_deg, phi_deg):
+      theta = np.radians(theta_deg)
+      phi   = np.radians(phi_deg)
+      x = r * np.cos(phi) * np.cos(theta)
+      y = r * np.cos(phi) * np.sin(theta)
+      z = r * np.sin(phi)
       return np.array([x, y, z])
   ```
 
