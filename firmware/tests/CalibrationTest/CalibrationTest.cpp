@@ -39,7 +39,7 @@
 #define PIN_WIRE_B   17
 
 // --- Default calibration constants ---
-#define DEFAULT_PPR_ROTARY   20000.0f   // E30S6-5000 @ X4 quadrature (5000 PPR × 4)
+#define DEFAULT_PPR_ROTARY   20000.0f   // E40S6-5000 @ X4 quadrature (5000 PPR × 4)
 #define DEFAULT_PPR_WIRE      8020.0f   // Calibrated — OPKON DWE3000 @ X4 quadrature
 #define DRUM_CIRCUM_MM        200.0f    // mm per revolution
 #define MAX_CAL_TURNS         20

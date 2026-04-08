@@ -20,15 +20,27 @@
 
 // Optional features
 #define ENABLE_BATTERY_MONITOR 0  // 0: disable battery ADC path (prototype on 5V adapter)
+
+// 0 = 1S LiPo (100k+100k divider). 1 = 12V input PCB (120k+27k from V12_PROT to GPIO36).
+#define BATTERY_ADC_12V_INPUT 0
 #define ENABLE_WIFI            1  // 0: serial only, 1: serial + WiFi AP + web dashboard
 #define ENABLE_CMD_TCP         1  // 0: disable CMD TCP server, 1: enable TCP on CMD_TCP_PORT
 #define ENABLE_REMOTE_WIFI_CONFIG 0  // 0: block WIFI_SET/WIFI_AYAR over TCP, 1: allow remote WiFi config + reboot
-#define WIFI_AP_SSID           "CMDCNC"
+#define ENABLE_ESPNOW_REMOTE   0  // 0: disable ESP-NOW button remote, 1: enable wireless button pendant
+#define ESPNOW_CHANNEL         1  // WiFi channel for ESP-NOW (must match AP channel)
+#define WIFI_AP_SSID           "CMDCNC_EVKA"
 #define WIFI_AP_PASSWORD       "cmdcnc1234"  // min 8 chars for WPA2
+#define WIFI_STA_DEFAULT_SSID  "CMD-YAZILIM"   // compile-time default STA network
+#define WIFI_STA_DEFAULT_PASS  "cmd20165544"
+#define WIFI_CFG_VERSION       1               // increment this to reset STA creds on next flash
 #define WIFI_WEB_PORT          80
 #define CMD_TCP_PORT           8080
 
-// WiFi AP static IP (CMD protocol default: 192.168.1.50)
+// WiFi AP static IP — DO NOT CHANGE: CMD CNC software is hardcoded to 192.168.1.50:8080.
+// KNOWN SUBNET CONFLICT: 192.168.1.x collides with most home/office routers.
+// If the dashboard is unreachable after connecting to CMDCNC_EVKA, disconnect from
+// your home/office WiFi first — the OS may be routing 192.168.1.50 to the home
+// router instead of the ESP32.
 #define WIFI_AP_IP_O1    192
 #define WIFI_AP_IP_O2    168
 #define WIFI_AP_IP_O3    1
@@ -37,15 +49,21 @@
 // WiFi status LED
 #define PIN_WIFI_LED     2   // GPIO 2 = built-in LED on most ESP32 boards
 
-// Battery monitoring (ADC via 100k+100k voltage divider)
+// Battery / supply monitoring on GPIO36 (see docs/hardware_design/12v/circuit_schematic_12v.md)
 #define PIN_BATTERY_ADC  36   // GPIO 36 (ADC1_CH0, input-only)
-#define BATT_DIVIDER_RATIO 2.0  // 100k/(100k+100k) → multiply ADC voltage by 2
-#define BATT_FULL_V    4.2    // LiPo full charge voltage
-#define BATT_EMPTY_V   3.0    // LiPo empty voltage (safe cutoff)
-#define BATT_LOW_THRESHOLD 15 // Battery low warning (percent)
+#if BATTERY_ADC_12V_INPUT
+#define BATT_DIVIDER_RATIO (147.0f / 27.0f)  // (120k+27k)/27k → V12 at divider input
+#define BATT_FULL_V    15.0f   // STATUS % mapping: "high" side of 12V adapter window
+#define BATT_EMPTY_V   10.8f   // STATUS % mapping: "low" warning (~9V bus class)
+#else
+#define BATT_DIVIDER_RATIO 2.0f  // 100k/(100k+100k) → multiply ADC voltage by 2
+#define BATT_FULL_V    4.2f    // LiPo full charge voltage
+#define BATT_EMPTY_V   3.0f    // LiPo empty voltage (safe cutoff)
+#endif
+#define BATT_LOW_THRESHOLD 15 // Low warning when calculated percentage below this
 
 // Encoder Specifications
-#define PPR_ROTARY      20000.0  // E30S6-5000 @ X4 quadrature (5000 PPR × 4)
+#define PPR_ROTARY      20000.0  // E40S6-5000 @ X4 quadrature (5000 PPR × 4)
 #define PPR_WIRE        8020.0  // Calibrated — OPKON DWE3000 @ X4 quadrature (actual 400mm → firmware read 1604mm)
 #define DRUM_CIRCUM_MM   200.0  // Drum circumference in mm (200 mm/rev)
 #define DEG_PER_PULSE  (360.0 / PPR_ROTARY)          // ≈ 0.018 deg per pulse
@@ -117,6 +135,7 @@ private:
     
     // Filtering parameters
     float position_filter_alpha;
+    bool position_filter_primed;
 
     // Runtime-adjustable calibration values (initialised from compile-time constants)
     float _ppr_rotary;

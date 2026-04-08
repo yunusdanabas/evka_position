@@ -50,7 +50,7 @@ PIN_MAP: Dict[str, int] = {
 }
 
 # CMD/TCP defaults
-CMD_DEFAULT_STA_IP = "192.168.1.84"
+CMD_DEFAULT_STA_IP = "192.168.1.84"   # Example STA IP from CMD-YAZILIM network; update if DHCP differs
 CMD_AP_FALLBACK_IP = "192.168.1.50"
 CMD_DEFAULT_PORT = 8080
 

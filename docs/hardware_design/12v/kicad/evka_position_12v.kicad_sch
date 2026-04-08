@@ -1,0 +1,136 @@
+(kicad_sch
+	(version 20250114)
+	(generator "eeschema")
+	(generator_version "9.0")
+	(uuid "c4a10d7e-2f9b-4c91-a6d3-7e8f9a0b1c2d")
+	(paper "A3")
+	(title_block
+		(title "evka_position 12V carrier")
+		(date "2026-04-05")
+		(rev "0.1")
+		(company "evka_position")
+		(comment 1 "Hierarchical root — see docs/hardware_design/12v/circuit_schematic_12v.md")
+	)
+	(lib_symbols)
+	(sheet
+		(at 20.32 30.48)
+		(size 99.06 93.98)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(stroke
+			(width 0)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "c4a10d7e-2f9b-4c91-a6d3-7e8f9a0b1d10")
+		(property "Sheetname" "power_12v_input"
+			(at 20.32 29.7075 0)
+			(effects
+				(font
+					(size 1.524 1.524)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "power_input_12v.kicad_sch"
+			(at 20.32 124.46 0)
+			(effects
+				(font
+					(size 1.524 1.524)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "evka_position_12v"
+				(path "/c4a10d7e-2f9b-4c91-a6d3-7e8f9a0b1c2d"
+					(page "2")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 132.08 30.48)
+		(size 99.06 93.98)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(stroke
+			(width 0)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "c4a10d7e-2f9b-4c91-a6d3-7e8f9a0b1d11")
+		(property "Sheetname" "encoders_esp32"
+			(at 132.08 29.7075 0)
+			(effects
+				(font
+					(size 1.524 1.524)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "encoders_signal_12v.kicad_sch"
+			(at 132.08 124.46 0)
+			(effects
+				(font
+					(size 1.524 1.524)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "evka_position_12v"
+				(path "/c4a10d7e-2f9b-4c91-a6d3-7e8f9a0b1c2d"
+					(page "3")
+				)
+			)
+		)
+	)
+	(text "KiCad hierarchy is structural."
+		(exclude_from_sim no)
+		(at 20.32 139.7 0)
+		(effects
+			(font
+				(size 2.032 2.032)
+			)
+			(justify left bottom)
+		)
+		(uuid "c4a10d7e-2f9b-4c91-a6d3-7e8f9a0b1d20")
+	)
+	(text "Authoritative ASCII schematic + BOM:"
+		(exclude_from_sim no)
+		(at 20.32 144.78 0)
+		(effects
+			(font
+				(size 1.778 1.778)
+			)
+			(justify left bottom)
+		)
+		(uuid "c4a10d7e-2f9b-4c91-a6d3-7e8f9a0b1d21")
+	)
+	(text "docs/hardware_design/12v/circuit_schematic_12v.md"
+		(exclude_from_sim no)
+		(at 20.32 149.86 0)
+		(effects
+			(font
+				(size 1.778 1.778)
+			)
+			(justify left bottom)
+		)
+		(uuid "c4a10d7e-2f9b-4c91-a6d3-7e8f9a0b1d22")
+	)
+	(sheet_instances
+		(path "/"
+			(page "1")
+		)
+	)
+	(embedded_fonts no)
+)

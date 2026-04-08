@@ -2,7 +2,7 @@
 
 This document explains every change made to integrate the third-party CMD firmware/GUI protocol into the EvkaPosition system, and why each change was necessary.
 
-For a short operational guide, see `docs/CMD_SOFTWARE_INTEGRATION.md`.
+For a short operational guide, see `docs/integration/CMD_SOFTWARE_INTEGRATION.md`.
 
 ## Background
 
@@ -29,7 +29,7 @@ Our goal: make our hardware speak the same TCP protocol so the CMD GUI works wit
 |---|---|---|
 | `ENABLE_CMD_TCP` | `1` | Feature flag — compile TCP server in/out without touching other code |
 | `CMD_TCP_PORT` | `8080` | Must match CMD GUI's hardcoded port |
-| `WIFI_AP_SSID` | `"CMDCNC"` | Changed from `"EvkaPosition"` to match CMD protocol (their GUI connects to this SSID) |
+| `WIFI_AP_SSID` | `"CMDCNC_EVKA"` | Uses current project AP SSID while retaining CMD TCP/IP compatibility (`192.168.1.50:8080`) |
 | `WIFI_AP_PASSWORD` | `"cmdcnc1234"` | Changed from `"evka1234"` to match CMD protocol |
 | `WIFI_AP_IP_O1..O4` | `192.168.1.50` | CMD firmware uses `192.168.1.50` (we used `192.168.4.1`). Their GUI hardcodes this IP |
 | `PIN_WIFI_LED` | `2` | GPIO 2 = built-in LED on most ESP32 boards, used for WiFi status indication |
@@ -184,7 +184,7 @@ A Linux-native PyQt5 equivalent of the C# GUI, since the C# GUI only runs on Win
 
 | Feature | CMD Original | Our Firmware | Notes |
 |---|---|---|---|
-| AP SSID/Password | `CMDCNC` / `cmdcnc1234` | `CMDCNC` / `cmdcnc1234` | Matched |
+| AP SSID/Password | `CMDCNC` / `cmdcnc1234` | `CMDCNC_EVKA` / `cmdcnc1234` | Password and IP/port are compatible; SSID string differs by project naming |
 | AP IP | `192.168.1.50` | `192.168.1.50` | Matched |
 | TCP Port | `8080` | `8080` | Matched |
 | Data format | `X<v>,Y<v>,Z<v>\n` | `X<v>,Y<v>,Z<v>\n` | Identical |

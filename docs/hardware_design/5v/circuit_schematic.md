@@ -236,7 +236,7 @@
     ┌─────────────────────────────────────────────────────────────────────────────────────┐
     │                           SIGNAL CONDITIONING SECTION                                │
     │                                                                                     │
-    │   J1: THETA ENCODER (E30S6 #1)                                                     │
+    │   J1: THETA ENCODER (E40S6 #1)                                                     │
     │   ┌──────────────────────┐                                                          │
     │   │ Pin 1: +5V (Brown)   ├── FB1 (ferrite) ── 5V_RAIL ── 100nF ── GND              │
     │   │ Pin 2: GND  (Blue)   ├── GND                                                   │
@@ -246,7 +246,7 @@
     │   │                      │         ├── 1nF ── GND                    → GPIO 12      │
     │   └──────────────────────┘                                                          │
     │                                                                                     │
-    │   J2: PHI ENCODER (E30S6 #2)                                                       │
+    │   J2: PHI ENCODER (E40S6 #2)                                                       │
     │   ┌──────────────────────┐                                                          │
     │   │ Pin 1: +5V (Brown)   ├── FB2 (ferrite) ── 5V_RAIL ── 100nF ── GND              │
     │   │ Pin 2: GND  (Blue)   ├── GND                                                   │

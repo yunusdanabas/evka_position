@@ -2,10 +2,10 @@
 
 #if ENABLE_WIFI && ENABLE_CMD_TCP
 
-#include <Preferences.h>
-
 CmdTcpServer::CmdTcpServer()
-    : _server(CMD_TCP_PORT) {}
+    : _server(CMD_TCP_PORT) {
+    for (uint8_t i = 0; i < MAX_CLIENTS; i++) _rxOverflow[i] = false;
+}
 
 void CmdTcpServer::begin() {
     _server.begin();
@@ -24,6 +24,7 @@ void CmdTcpServer::poll() {
                 _clients[i] = newClient;
                 _clients[i].setNoDelay(true);
                 _rxBuffers[i] = "";
+                _rxOverflow[i] = false;
                 Serial.printf("[TCP] Client #%u connected\n", i);
                 accepted = true;
                 break;
@@ -42,6 +43,7 @@ void CmdTcpServer::poll() {
             if (_clients[i]) {
                 _clients[i].stop();
                 _rxBuffers[i] = "";
+                _rxOverflow[i] = false;
             }
             continue;
         }
@@ -49,16 +51,20 @@ void CmdTcpServer::poll() {
         while (_clients[i].available()) {
             char ch = (char)_clients[i].read();
             if (ch == '\n' || ch == '\r') {
-                _rxBuffers[i].trim();
-                if (_rxBuffers[i].length() > 0) {
-                    handleLine(i, _rxBuffers[i]);
+                if (!_rxOverflow[i]) {
+                    _rxBuffers[i].trim();
+                    if (_rxBuffers[i].length() > 0) {
+                        handleLine(i, _rxBuffers[i]);
+                    }
                 }
                 _rxBuffers[i] = "";
+                _rxOverflow[i] = false;
             } else {
                 _rxBuffers[i] += ch;
-                // Prevent buffer overflow from misbehaving clients
                 if (_rxBuffers[i].length() > CMD_RX_BUF_MAX) {
+                    _clients[i].println("ERR:CMD_TOO_LONG");
                     _rxBuffers[i] = "";
+                    _rxOverflow[i] = true;
                 }
             }
         }
@@ -77,41 +83,12 @@ void CmdTcpServer::handleLine(uint8_t clientIdx, const String& line) {
         return;
     }
 
-    if (line.startsWith("WIFI_SET:") || line.startsWith("WIFI_AYAR:")) {
-        // Accept both English and CMD-legacy command names
-        int colonIdx = line.indexOf(':');
-        String payload = line.substring(colonIdx + 1);
-        int commaIdx = payload.indexOf(',');
-        if (commaIdx != -1) {
-            String ssid = payload.substring(0, commaIdx);
-            String pass = payload.substring(commaIdx + 1);
-            if (ssid.length() == 0 || ssid.length() > 32) {
-                _clients[clientIdx].println("ERR:SSID_INVALID");
-                return;
-            }
-            if (pass.length() > 0 && pass.length() < 8) {
-                _clients[clientIdx].println("ERR:PASS_TOO_SHORT");
-                return;
-            }
-
-            Preferences prefs;
-            prefs.begin("wifi_cfg", false);
-            prefs.putString("ssid", ssid);
-            prefs.putString("pass", pass);
-            prefs.end();
-
-            _clients[clientIdx].println("ACK:WIFI_SAVED");
-            Serial.printf("[TCP] WiFi credentials saved (SSID: %s), rebooting...\n", ssid.c_str());
-            delay(500);
-            ESP.restart();
-        } else {
-            _clients[clientIdx].println("ERR:WIFI_INVALID");
-        }
-        return;
+    // Forward all other commands to main loop via queue.
+    // This centralizes command policy (including WIFI_SET/WIFI_AYAR gating)
+    // in processCommand().
+    if (!enqueueCommand(line)) {
+        _clients[clientIdx].println("ERR:CMD_QUEUE_FULL");
     }
-
-    // Forward all other commands to main loop via pendingCmd
-    _pendingCmd = line;
 }
 
 void CmdTcpServer::broadcastPosition(float x, float y, float z) {
@@ -144,9 +121,23 @@ void CmdTcpServer::sendToAllClients(const char* msg) {
     }
 }
 
+bool CmdTcpServer::enqueueCommand(const String& line) {
+    if (_cmdCount >= CMD_QUEUE_SIZE) return false;
+    size_t copyLen = line.length();
+    if (copyLen > CMD_MAX_LEN) copyLen = CMD_MAX_LEN;
+    memcpy(_cmdQueue[_cmdTail], line.c_str(), copyLen);
+    _cmdQueue[_cmdTail][copyLen] = '\0';
+    _cmdTail = (uint8_t)((_cmdTail + 1) % CMD_QUEUE_SIZE);
+    _cmdCount++;
+    return true;
+}
+
 String CmdTcpServer::takePendingCommand() {
-    String cmd = _pendingCmd;
-    _pendingCmd = "";
+    if (_cmdCount == 0) return String();
+    String cmd(_cmdQueue[_cmdHead]);
+    _cmdQueue[_cmdHead][0] = '\0';
+    _cmdHead = (uint8_t)((_cmdHead + 1) % CMD_QUEUE_SIZE);
+    _cmdCount--;
     return cmd;
 }
 

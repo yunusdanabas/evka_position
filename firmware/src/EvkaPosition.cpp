@@ -12,18 +12,54 @@ WebDashboard dashboard;
 CmdTcpServer cmdTcp;
 #endif
 
+#if ENABLE_WIFI && ENABLE_ESPNOW_REMOTE
+#include <esp_now.h>
+
+// ---- ESP-NOW wireless button remote receiver ----
+static volatile int8_t espnow_pending_button = -1;
+
+static const char* const REMOTE_BUTTON_CMD[] = {
+    "SAVE_POINT",       // Button 0 — Green
+    "ZERO",             // Button 1 — Red
+    "RECORD_TOGGLE",    // Button 2 — Blue
+    "ZERO_T",           // Button 3 — Yellow
+    "ZERO_W"            // Button 4 — White
+};
+static constexpr uint8_t REMOTE_BUTTON_COUNT = 5;
+
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+static void onEspNowRecv(const esp_now_recv_info_t* info, const uint8_t* data, int len) {
+#else
+static void onEspNowRecv(const uint8_t* mac, const uint8_t* data, int len) {
+#endif
+    if (len >= 1 && data[0] < REMOTE_BUTTON_COUNT) {
+        espnow_pending_button = (int8_t)data[0];
+    }
+}
+
+static void initEspNow() {
+    if (esp_now_init() != ESP_OK) {
+        Serial.println("[ESP-NOW] Init FAILED");
+        return;
+    }
+    esp_now_register_recv_cb(onEspNowRecv);
+    Serial.println("[ESP-NOW] Remote receiver ready");
+}
+#endif // ENABLE_WIFI && ENABLE_ESPNOW_REMOTE
+
 // ============================================================================
 // ESP32 PLATFORMIO ENTRY POINT
 // ============================================================================
 
 SphericalPositioningSensor sensor;
+static bool recording_active = false;
 
 // Update Frequency
 #define UPDATE_PERIOD_MS  50  // 20 Hz position update rate
 
 static String serial_buffer;
 
-static void printStatusLine() {
+static String buildStatusLine() {
     SystemStatus st = sensor.getStatus();
     char buf[128];
     snprintf(buf, sizeof(buf),
@@ -31,7 +67,12 @@ static void printStatusLine() {
         st.is_valid, (unsigned long)st.frame_count, (unsigned long)st.last_update_ms,
         st.spherical.r_mm, st.spherical.theta_deg, st.spherical.phi_deg,
         st.position.x_mm, st.position.y_mm, st.position.z_mm);
-    Serial.println(buf);
+    return String(buf);
+}
+
+static String printStatusLine() {
+    String statusLine = buildStatusLine();
+    Serial.println(statusLine);
 
 #if ENABLE_BATTERY_MONITOR
     BatteryStatus bat = sensor.readBattery();
@@ -42,6 +83,7 @@ static void printStatusLine() {
     Serial.print(",");
     Serial.println(bat.is_low ? 1 : 0);
 #endif
+    return statusLine;
 }
 
 // Returns the reply line (also printed to Serial). Empty string = no reply needed.
@@ -56,8 +98,7 @@ static String processCommand(const String& cmd) {
         return "ACK:PONG";
 
     } else if (cmd == "STATUS") {
-        printStatusLine();
-        return "";
+        return printStatusLine();
 
     } else if (cmd == "ZERO_T") {
         sensor.zeroTheta();
@@ -144,7 +185,26 @@ static String processCommand(const String& cmd) {
         Serial.println("ACK:SAVE_PPR");
         return "ACK:SAVE_PPR";
 
+    } else if (cmd == "SAVE_POINT") {
+        SystemStatus st = sensor.getStatus();
+        static uint16_t pt_idx = 0;
+        char buf[128];
+        snprintf(buf, sizeof(buf),
+            "POINT,%u,%.2f,%.2f,%.2f,%.2f,%.3f,%.3f",
+            pt_idx++,
+            st.position.x_mm, st.position.y_mm, st.position.z_mm,
+            st.spherical.r_mm, st.spherical.theta_deg, st.spherical.phi_deg);
+        Serial.println(buf);
+        return String(buf);
+
+    } else if (cmd == "RECORD_TOGGLE") {
+        recording_active = !recording_active;
+        const char* reply = recording_active ? "ACK:RECORD_ON" : "ACK:RECORD_OFF";
+        Serial.println(reply);
+        return String(reply);
+
     } else if (cmd == "GET_IP") {
+#if ENABLE_WIFI
         String reply;
         if (WiFi.status() == WL_CONNECTED) {
             reply = "STA_IP:" + WiFi.localIP().toString();
@@ -153,25 +213,37 @@ static String processCommand(const String& cmd) {
         }
         Serial.println(reply);
         return reply;
+#else
+        return "ERR:WIFI_DISABLED";
+#endif
 
-    } else if (cmd.startsWith("WIFI_SET:")) {
-        String payload = cmd.substring(9);
+    } else if (cmd.startsWith("WIFI_SET:") || cmd.startsWith("WIFI_AYAR:")) {
+#if !ENABLE_REMOTE_WIFI_CONFIG
+        return "ERR:WIFI_CFG_DISABLED";
+#else
+        int colonIdx = cmd.indexOf(':');
+        String payload = cmd.substring(colonIdx + 1);
         int commaIdx = payload.indexOf(',');
-        if (commaIdx != -1) {
-            String ssid = payload.substring(0, commaIdx);
-            String pass = payload.substring(commaIdx + 1);
-            if (ssid.length() == 0 || ssid.length() > 32) return "ERR:SSID_INVALID";
-            if (pass.length() > 0 && pass.length() < 8) return "ERR:PASS_TOO_SHORT";
-            Preferences prefs;
-            prefs.begin("wifi_cfg", false);
-            prefs.putString("ssid", ssid);
-            prefs.putString("pass", pass);
-            prefs.end();
-            Serial.println("ACK:WIFI_SAVED");
-            delay(500);
-            ESP.restart();
+        if (commaIdx == -1) {
+            return "ERR:WIFI_INVALID";
         }
-        return "ERR:WIFI_INVALID";
+
+        String ssid = payload.substring(0, commaIdx);
+        String pass = payload.substring(commaIdx + 1);
+        // Allow explicit clear request: WIFI_SET:, (empty SSID + empty password)
+        bool clear_request = (ssid.length() == 0 && pass.length() == 0);
+        if (!clear_request && (ssid.length() == 0 || ssid.length() > 32)) return "ERR:SSID_INVALID";
+        if (pass.length() > 0 && pass.length() < 8) return "ERR:PASS_TOO_SHORT";
+        Preferences prefs;
+        prefs.begin("wifi_cfg", false);
+        prefs.putString("ssid", ssid);
+        prefs.putString("pass", pass);
+        prefs.end();
+        Serial.println("ACK:WIFI_SAVED");
+        delay(500);
+        ESP.restart();
+        return "ACK:WIFI_SAVED";
+#endif
 
     } else if (cmd == "SYSINFO") {
 #if ENABLE_WIFI
@@ -197,17 +269,25 @@ static String processCommand(const String& cmd) {
 }
 
 static void handleSerialCommands() {
+    static bool serial_overflow = false;
     while (Serial.available() > 0) {
         const char ch = (char)Serial.read();
         if (ch == '\n' || ch == '\r') {
-            serial_buffer.trim();
-            if (serial_buffer.length() > 0) {
-                processCommand(serial_buffer);
+            if (!serial_overflow) {
+                serial_buffer.trim();
+                if (serial_buffer.length() > 0) {
+                    processCommand(serial_buffer);
+                }
             }
             serial_buffer = "";
+            serial_overflow = false;
         } else {
             serial_buffer += ch;
-            if (serial_buffer.length() > 128) { serial_buffer = ""; }
+            if (serial_buffer.length() > 128) {
+                Serial.println("ERR:CMD_TOO_LONG");
+                serial_buffer = "";
+                serial_overflow = true;
+            }
         }
     }
 }
@@ -229,6 +309,9 @@ void setup() {
     dashboard.begin();
 #if ENABLE_CMD_TCP
     cmdTcp.begin();
+#endif
+#if ENABLE_ESPNOW_REMOTE
+    initEspNow();
 #endif
     // WiFi status LED
     pinMode(PIN_WIFI_LED, OUTPUT);
@@ -253,6 +336,18 @@ void loop() {
     handleSerialCommands();
 
 #if ENABLE_WIFI
+    // ESP-NOW remote button handler
+#if ENABLE_ESPNOW_REMOTE
+    if (espnow_pending_button >= 0) {
+        int8_t btn = espnow_pending_button;
+        espnow_pending_button = -1;
+        if (btn < REMOTE_BUTTON_COUNT) {
+            Serial.printf("[ESP-NOW] Button %d -> %s\n", btn, REMOTE_BUTTON_CMD[btn]);
+            String reply = processCommand(String(REMOTE_BUTTON_CMD[btn]));
+            if (reply.length() > 0) dashboard.broadcast(reply.c_str());
+        }
+    }
+#endif
     // WebSocket command handler
     {
         String wsCmd = dashboard.takePendingCommand();

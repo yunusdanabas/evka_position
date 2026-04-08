@@ -13,6 +13,7 @@ DisconnectCallback = Callable[[str], None]
 
 class TcpClient:
     """Small threaded TCP client with line-based receive loop."""
+    IO_TIMEOUT_S = 30.0
 
     def __init__(self) -> None:
         self._sock: Optional[socket.socket] = None
@@ -22,6 +23,7 @@ class TcpClient:
         self._running = False
         self._on_line: Optional[LineCallback] = None
         self._on_disconnect: Optional[DisconnectCallback] = None
+        self._io_timeout_s = self.IO_TIMEOUT_S
 
     def set_callbacks(
         self,
@@ -35,11 +37,19 @@ class TcpClient:
         with self._lock:
             return self._sock is not None and self._running
 
-    def connect(self, host: str, port: int, timeout_s: float = 5.0) -> tuple[bool, str]:
+    def connect(
+        self,
+        host: str,
+        port: int,
+        timeout_s: float = 5.0,
+        io_timeout_s: float = IO_TIMEOUT_S,
+    ) -> tuple[bool, str]:
         self.close(emit_disconnect=False)
         try:
             sock = socket.create_connection((host, port), timeout=timeout_s)
+            sock.settimeout(io_timeout_s)
             sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
             reader = sock.makefile("r", encoding="ascii", newline="\n")
         except Exception as exc:
             return False, str(exc)
@@ -48,6 +58,7 @@ class TcpClient:
             self._sock = sock
             self._reader = reader
             self._running = True
+            self._io_timeout_s = io_timeout_s
             self._thread = threading.Thread(target=self._read_loop, daemon=True)
             self._thread.start()
         return True, "connected"
@@ -64,6 +75,8 @@ class TcpClient:
         try:
             sock.sendall(payload)
             return True, "sent"
+        except socket.timeout:
+            return False, "send timeout"
         except Exception as exc:
             return False, str(exc)
 
@@ -99,7 +112,7 @@ class TcpClient:
             pass
 
         if thread is not None and thread.is_alive() and thread is not threading.current_thread():
-            thread.join(timeout=0.2)
+            thread.join(timeout=max(1.0, self._io_timeout_s + 0.5))
 
         if emit_disconnect and self._on_disconnect is not None:
             self._on_disconnect(reason)
@@ -121,6 +134,10 @@ class TcpClient:
                 line = line.strip()
                 if line and self._on_line is not None:
                     self._on_line(line)
+        except socket.timeout:
+            reason = "Receive timeout"
+        except OSError as exc:
+            reason = f"Receive error: {exc}"
         except Exception as exc:
             reason = f"Receive error: {exc}"
         finally:

@@ -8,6 +8,8 @@ ESP32 firmware for the Spherical 3D Positioning System.
     *   `EvkaPosition.cpp`: Entry point (`setup()` / `loop()`).
     *   `SphericalSensor.h`: Configuration defines, structs, class declaration.
     *   `SphericalSensor.cpp`: Coordinate math, filtering, validation.
+    *   `WebDashboard.h` / `WebDashboard.cpp`: WiFi AP, HTTP dashboard, WebSocket server.
+    *   `CmdTcpServer.h` / `CmdTcpServer.cpp`: Raw TCP server on port 8080 (CMD protocol).
 *   `tests/`: Standalone test sketches, each compiled independently.
     *   `DrawWireTest/`: Standalone test for the OPKON DWE3000 draw-wire encoder.
     *   `RotaryEncoderTest/`: Standalone test for the Autonics E40S6 rotary encoder (theta + phi).
@@ -22,7 +24,9 @@ ESP32 firmware for the Spherical 3D Positioning System.
 
 Supported workflow policy: use PlatformIO on ESP32 only. Arduino IDE and `arduino-cli` are not part of this firmware workflow.
 
-See [`docs/setup_test_guide.md`](../docs/setup_test_guide.md) for full toolchain setup and step-by-step instructions.
+See [`docs/integration/setup_test_guide.md`](../docs/integration/setup_test_guide.md) for full toolchain setup and step-by-step instructions.
+
+For the WiFi/TCP/WebSocket user guide (Turkish): [`README_TR.md`](../README_TR.md)
 
 Quick compile check:
 ```bash

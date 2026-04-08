@@ -3,6 +3,7 @@
 #if ENABLE_WIFI
 
 #include <Preferences.h>
+#include <string.h>
 
 // ============================================================================
 // Embedded HTML dashboard (PROGMEM)
@@ -355,7 +356,7 @@ let rotX=-30,rotY=45,zoom=1.0;
 let activePointers=new Map();
 let frozen=false,showAxes=true;
 let origin=null,savedPts=[],lastPos={x:0,y:0,z:0},_saveBusy=false;
-let _dirty2d=false,_last2d=0;
+let _dirty2d=false,_last2d=0,_dirty3d=false;
 
 // Software zero offsets
 let szOff={x:0,y:0,z:0},szActive=false;
@@ -381,6 +382,8 @@ setInterval(()=>setText("hdr-ts",new Date().toLocaleTimeString()),1000);
 function resize(){
  cv.width=cv.clientWidth;cv.height=cv.clientHeight;
  [cv_xy,cv_xz,cv_yz].forEach(c=>{if(c.clientWidth>0&&c.clientHeight>0){c.width=c.clientWidth;c.height=c.clientHeight;}});
+ _dirty3d=true;
+ _dirty2d=true;
 }
 window.addEventListener("resize",resize);resize();
 
@@ -431,7 +434,9 @@ function drawRangeRing(r,color){
 
 // 3D render loop (continuous rAF)
 function drawScene(){
- ctx.clearRect(0,0,cv.width,cv.height);
+ if(_dirty3d||activePointers.size>0){
+  _dirty3d=false;
+  ctx.clearRect(0,0,cv.width,cv.height);
  // Axes
  if(showAxes){
   const al=400;
@@ -486,6 +491,7 @@ function drawScene(){
   ctx.fillStyle="#00ffff";ctx.beginPath();ctx.arc(hp[0],hp[1],10,0,Math.PI*2);ctx.fill();
   ctx.fillStyle="#003333";ctx.beginPath();ctx.arc(hp[0],hp[1],4,0,Math.PI*2);ctx.fill();
  }
+ } // end dirty3d guard
  requestAnimationFrame(drawScene);
 }
 drawScene();
@@ -609,6 +615,7 @@ function onWsMessage(e){
    setText("cl-y",y.toFixed(1));
    setText("cl-z",z.toFixed(1));
    _dirty2d=true;
+   _dirty3d=true;
   }
  } else if(line.startsWith("ACK:")){
   setStatus(line);
@@ -664,10 +671,11 @@ function toggleFreeze(){
 function toggleAxes(){
  showAxes=!showAxes;
  document.getElementById("btn-axes").classList.toggle("active",showAxes);
+ _dirty3d=true;
 }
 
 // Clear trail
-function clearTrail(){trail=[];_dirty2d=true;}
+function clearTrail(){trail=[];_dirty2d=true;_dirty3d=true;}
 
 // Software zero
 function softZero(axis){szOff[axis]=lastPos[axis];szActive=true;resetMinMax();}
@@ -733,6 +741,7 @@ function saveOrigin(){
  document.getElementById("btn-export").disabled=false;
  setText("origin_label",origin.x.toFixed(0)+","+origin.y.toFixed(0)+","+origin.z.toFixed(0));
  setText("sessionInfo","Session active");
+ _dirty3d=true;
  if(navigator.vibrate)navigator.vibrate([30,50,30]);
 }
 
@@ -746,6 +755,7 @@ function savePoint(){
  document.getElementById("savedList").innerHTML+="#"+n+": "+lastPos.x.toFixed(1)+","+lastPos.y.toFixed(1)+","+lastPos.z.toFixed(1)+" mm<br>";
  document.getElementById("savedList").scrollTop=99999;
  updateSessionStats();
+ _dirty3d=true;
  if(navigator.vibrate)navigator.vibrate(60);
 }
 
@@ -774,6 +784,7 @@ function endSession(){
  setText("v_dist_pp","--");setText("v_dist_origin","--");
  setText("sessionInfo","No session active");
  if(navigator.vibrate)navigator.vibrate([30,50,30,50,30]);
+ _dirty3d=true;_dirty2d=true;
 }
 
 // ---- Calibration tab ----
@@ -789,6 +800,8 @@ function toggleCal(){
  document.getElementById("panel").style.display=calActive?"none":"";
  document.getElementById("cal-view").style.display=calActive?"block":"none";
  if(calActive)sendCmd("CONSTANTS");
+ _dirty3d=true;
+ _dirty2d=true;
 }
 function showCalStage(stage){
  calStage=stage;
@@ -942,22 +955,37 @@ void WebDashboard::begin() {
     IPAddress apGW(WIFI_AP_IP_O1, WIFI_AP_IP_O2, WIFI_AP_IP_O3, 1);
     IPAddress apSubnet(255, 255, 255, 0);
     WiFi.softAPConfig(apIP, apGW, apSubnet);
-    WiFi.softAP(WIFI_AP_SSID, WIFI_AP_PASSWORD);
+    WiFi.softAP(WIFI_AP_SSID, WIFI_AP_PASSWORD, ESPNOW_CHANNEL);
+    // CRITICAL: disable modem sleep. Default WIFI_PS_MIN_MODEM powers down the radio
+    // between DTIM beacons (~100 ms gaps) causing AP clients to miss beacons,
+    // drop WebSocket connections, and experience bursty/sluggish data delivery.
+    WiFi.setSleep(WIFI_PS_NONE);
 
     Serial.print("[WiFi] AP started: ");
     Serial.print(WIFI_AP_SSID);
     Serial.print(" @ ");
     Serial.println(WiFi.softAPIP());
 
-    // Load STA credentials from NVS and connect if available
+    // Load STA credentials from NVS; migrate to compile-time defaults on new firmware version
     {
         Preferences prefs;
-        prefs.begin("wifi_cfg", true);  // read-only
-        String staSsid = prefs.getString("ssid", "");
-        String staPass = prefs.getString("pass", "");
+        prefs.begin("wifi_cfg", false);
+        if (prefs.getInt("ver", 0) < WIFI_CFG_VERSION) {
+            prefs.putString("ssid", WIFI_STA_DEFAULT_SSID);
+            prefs.putString("pass", WIFI_STA_DEFAULT_PASS);
+            prefs.putInt("ver", WIFI_CFG_VERSION);
+        }
+        String staSsid = prefs.getString("ssid", WIFI_STA_DEFAULT_SSID);
+        String staPass = prefs.getString("pass", WIFI_STA_DEFAULT_PASS);
         prefs.end();
 
         if (staSsid.length() > 0) {
+            // WIFI_FAST_SCAN: stop scanning as soon as the target SSID is found on
+            // any channel instead of exhaustively scanning all 13 channels.
+            // Reduces background radio activity that interferes with the pinned AP channel.
+            WiFi.setScanMethod(WIFI_FAST_SCAN);
+            WiFi.setSortMethod(WIFI_CONNECT_AP_BY_SIGNAL);
+            WiFi.setAutoReconnect(true);
             WiFi.begin(staSsid.c_str(), staPass.c_str());
             Serial.printf("[WiFi] STA connecting to '%s'...\n", staSsid.c_str());
         } else {
@@ -983,34 +1011,72 @@ void WebDashboard::broadcast(const char* dataLine) {
     }
 }
 
+bool WebDashboard::enqueueCommand(const uint8_t* data, size_t len) {
+    if (len == 0) {
+        return false;
+    }
+
+    size_t n = (len < CMD_MAX_LEN) ? len : CMD_MAX_LEN;
+    char localBuf[CMD_MAX_LEN + 1];
+    memcpy(localBuf, data, n);
+    localBuf[n] = '\0';
+    String cmd(localBuf);
+    cmd.trim();
+    if (cmd.length() == 0) {
+        return false;
+    }
+
+    bool queued = false;
+    portENTER_CRITICAL(&_cmdMux);
+    if (_cmdCount < CMD_QUEUE_SIZE) {
+        size_t copyLen = cmd.length();
+        if (copyLen > CMD_MAX_LEN) copyLen = CMD_MAX_LEN;
+        memcpy(_cmdQueue[_cmdTail], cmd.c_str(), copyLen);
+        _cmdQueue[_cmdTail][copyLen] = '\0';
+        _cmdTail = (uint8_t)((_cmdTail + 1) % CMD_QUEUE_SIZE);
+        _cmdCount++;
+        queued = true;
+    }
+    portEXIT_CRITICAL(&_cmdMux);
+    return queued;
+}
+
 void WebDashboard::onWsEvent(AsyncWebSocket* server, AsyncWebSocketClient* client,
                               AwsEventType type, void* arg, uint8_t* data, size_t len) {
     if (type == WS_EVT_CONNECT) {
         Serial.printf("[WiFi] Client #%u connected\n", client->id());
+        _ws.cleanupClients();  // evict stale slots to make room for new client
     } else if (type == WS_EVT_DISCONNECT) {
         Serial.printf("[WiFi] Client #%u disconnected\n", client->id());
+        _ws.cleanupClients();  // free slot immediately
     } else if (type == WS_EVT_DATA) {
         // Client can send commands (e.g. ZERO, PING) — forward to serial handler
         AwsFrameInfo* info = (AwsFrameInfo*)arg;
-        if (info->opcode == WS_TEXT && len > 0) {
-            char cmd[32];
-            size_t n = (len < sizeof(cmd) - 1) ? len : sizeof(cmd) - 1;
-            memcpy(cmd, data, n);
-            cmd[n] = '\0';
-
-            String cmdStr(cmd);
-            cmdStr.trim();
-            // Store for main loop to process (Serial TX ≠ Serial RX on ESP32)
-            _pendingCmd = cmdStr;
+        if (info->opcode == WS_TEXT && info->final && info->index == 0 && info->len == len && len > 0) {
+            if (!enqueueCommand(data, len)) {
+                Serial.println("[WiFi] WS command dropped (queue full/empty)");
+            }
         }
+        // cleanupClients() intentionally NOT called here: DATA events fire at
+        // 20 Hz × N clients. Calling it here wastes CPU iterating the client list
+        // on every data frame. Cleanup only needed at connect/disconnect.
     }
-    _ws.cleanupClients();
 }
 
 String WebDashboard::takePendingCommand() {
-    String cmd = _pendingCmd;
-    _pendingCmd = "";
-    return cmd;
+    char localBuf[CMD_MAX_LEN + 1] = {0};
+    bool hasCmd = false;
+    portENTER_CRITICAL(&_cmdMux);
+    if (_cmdCount > 0) {
+        strncpy(localBuf, _cmdQueue[_cmdHead], CMD_MAX_LEN);
+        localBuf[CMD_MAX_LEN] = '\0';
+        _cmdQueue[_cmdHead][0] = '\0';
+        _cmdHead = (uint8_t)((_cmdHead + 1) % CMD_QUEUE_SIZE);
+        _cmdCount--;
+        hasCmd = true;
+    }
+    portEXIT_CRITICAL(&_cmdMux);
+    return hasCmd ? String(localBuf) : String();
 }
 
 void WebDashboard::serveIndex(AsyncWebServerRequest* request) {

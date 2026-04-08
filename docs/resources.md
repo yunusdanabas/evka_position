@@ -1,6 +1,6 @@
 # Research Resources: Spherical 3D Positioning Systems
 
-> Workflow note: this file is a broad reference catalog across ecosystems. Project build/flash operations are PlatformIO on ESP32 only (see `platformio.ini` and `docs/setup_test_guide.md`).
+> Workflow note: this file is a broad reference catalog across ecosystems. Project build/flash operations are PlatformIO on ESP32 only (see `platformio.ini` and `docs/integration/setup_test_guide.md`).
 
 This document consolidates open-source projects, libraries, documentation, and academic resources relevant to spherical coordinate positioning systems using rotary and linear encoders.
 
@@ -78,7 +78,7 @@ This document consolidates open-source projects, libraries, documentation, and a
 - **Status:** Widely adopted in robotics community
 
 ### **Arduino-Robotics-Examples**
-- **URL:** https://github.com/Automatic-Addison/arduino-robotics
+- **URL:** *(link removed — repo no longer available)*
 - **Language:** C++ (Arduino)
 - **Why Relevant:** Practical examples of encoder-based position tracking
 - **Content:** PWM motor control, PID loops, sensor fusion
@@ -194,7 +194,7 @@ This document consolidates open-source projects, libraries, documentation, and a
 - **Best For:** Hardware integration beginners
 
 ### **Arduino Serial Communication Guide**
-- **URL:** https://docs.arduino.cc/tutorials/communication/serial-communication
+- **URL:** https://docs.arduino.cc/language-reference/en/functions/communication/serial/
 - **Why Relevant:** Transmit position data to PC/dashboard
 - **Protocols:** Serial (USB), I2C, SPI variants
 
@@ -209,7 +209,7 @@ This document consolidates open-source projects, libraries, documentation, and a
 
 | Platform | URL | Best For |
 |----------|-----|----------|
-| **Arduino Forum** | https://forum.arduino.cc/c/using-arduino/sensors | Encoder troubleshooting, interrupt issues |
+| **Arduino Forum** | https://forum.arduino.cc/c/hardware/sensors | Encoder troubleshooting, interrupt issues |
 | **Reddit: r/Arduino** | https://reddit.com/r/Arduino | Community advice, project showcase |
 | **Reddit: r/Robotics** | https://reddit.com/r/Robotics | Kinematics theory, design feedback |
 | **GitHub Discussions** | Various repos | Library-specific issues |
@@ -236,7 +236,7 @@ This document consolidates open-source projects, libraries, documentation, and a
 ## 10. Recommended Learning Path
 
 1. **Fundamentals** (Week 1-2)
-   - Read: CLAUDE.md & System_Architecture.md (this project)
+   - Read: `CLAUDE.md` and `docs/hardware_design/system_architecture.md` (this project)
    - Watch: 3Blue1Brown Linear Algebra series
    - Code: Basic quadrature decoder on Wokwi
 

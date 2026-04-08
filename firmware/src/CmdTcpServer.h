@@ -25,8 +25,15 @@ private:
     WiFiServer _server;
     WiFiClient _clients[MAX_CLIENTS];
     String     _rxBuffers[MAX_CLIENTS];
-    String     _pendingCmd;
+    bool       _rxOverflow[MAX_CLIENTS];
+    static const uint8_t CMD_QUEUE_SIZE = 4;
+    static const size_t  CMD_MAX_LEN    = 128;
+    char    _cmdQueue[CMD_QUEUE_SIZE][CMD_MAX_LEN + 1];
+    uint8_t _cmdHead  = 0;
+    uint8_t _cmdTail  = 0;
+    uint8_t _cmdCount = 0;
 
+    bool enqueueCommand(const String& line);
     void handleLine(uint8_t clientIdx, const String& line);
 };
 

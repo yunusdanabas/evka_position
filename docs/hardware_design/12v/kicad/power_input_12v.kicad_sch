@@ -1,0 +1,109 @@
+(kicad_sch
+	(version 20250114)
+	(generator "eeschema")
+	(generator_version "9.0")
+	(uuid "c4a10d7e-2f9b-4c91-a6d3-7e8f9a0b1c3d")
+	(paper "A4")
+	(title_block
+		(title "12V input, fuse, TVS, RPP, buck, USB OR")
+		(date "2026-04-05")
+		(rev "0.1")
+		(company "evka_position")
+		(comment 1 "Implement with symbols from KiCad libraries; see markdown doc")
+	)
+	(lib_symbols)
+	(text "Blocks (left to right):"
+		(exclude_from_sim no)
+		(at 25.4 25.4 0)
+		(effects
+			(font
+				(size 1.524 1.524)
+			)
+			(justify left bottom)
+		)
+		(uuid "c4a10d7e-2f9b-4c91-a6d3-7e8f9a0b2a01")
+	)
+	(text "J12V+ / GND  ->  FUSE  ->  TVS (SMBJ18A)  ->  P-FET RPP or SS36"
+		(exclude_from_sim no)
+		(at 25.4 31.75 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "c4a10d7e-2f9b-4c91-a6d3-7e8f9a0b2a02")
+	)
+	(text "V12_PROT  ->  Cin 47-100uF/25V  ->  Buck 12V->5V (MP1584 module or IC)"
+		(exclude_from_sim no)
+		(at 25.4 38.1 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "c4a10d7e-2f9b-4c91-a6d3-7e8f9a0b2a03")
+	)
+	(text "5V_BUCK + 5V_USB (SS34 from USB)  ->  Schottky OR (SS34 x2)  ->  5V_RAIL"
+		(exclude_from_sim no)
+		(at 25.4 44.45 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "c4a10d7e-2f9b-4c91-a6d3-7e8f9a0b2a04")
+	)
+	(text "ADC: V12_PROT -- 120k -- GPIO36 tap -- 27k -- GND"
+		(exclude_from_sim no)
+		(at 25.4 50.8 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "c4a10d7e-2f9b-4c91-a6d3-7e8f9a0b2a05")
+	)
+	(text "Full ASCII schematic + BOM:"
+		(exclude_from_sim no)
+		(at 25.4 63.5 0)
+		(effects
+			(font
+				(size 1.524 1.524)
+			)
+			(justify left bottom)
+		)
+		(uuid "c4a10d7e-2f9b-4c91-a6d3-7e8f9a0b2a06")
+	)
+	(text "docs/hardware_design/12v/circuit_schematic_12v.md"
+		(exclude_from_sim no)
+		(at 25.4 69.85 0)
+		(effects
+			(font
+				(size 1.524 1.524)
+			)
+			(justify left bottom)
+		)
+		(uuid "c4a10d7e-2f9b-4c91-a6d3-7e8f9a0b2a07")
+	)
+	(text "docs/hardware_design/12v/bill_of_materials_12v.md"
+		(exclude_from_sim no)
+		(at 25.4 76.2 0)
+		(effects
+			(font
+				(size 1.524 1.524)
+			)
+			(justify left bottom)
+		)
+		(uuid "c4a10d7e-2f9b-4c91-a6d3-7e8f9a0b2a08")
+	)
+	(sheet_instances
+		(path "/c4a10d7e-2f9b-4c91-a6d3-7e8f9a0b1c3d"
+			(page "2")
+		)
+	)
+	(embedded_fonts no)
+)

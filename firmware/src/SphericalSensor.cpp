@@ -10,6 +10,7 @@ SphericalPositioningSensor::SphericalPositioningSensor()
       phi_offset(0),
       radius_offset(0),
       position_filter_alpha(0.2),
+      position_filter_primed(false),
       _ppr_rotary(PPR_ROTARY),
       _ppr_wire(PPR_WIRE)
 {
@@ -67,18 +68,22 @@ void SphericalPositioningSensor::setZeroPoint() {
     Serial.print(phi_offset);
     Serial.print(" R:");
     Serial.println(radius_offset);
+    position_filter_primed = false;
 }
 
 void SphericalPositioningSensor::zeroTheta() {
     theta_offset = thetaEncoder->read();
+    position_filter_primed = false;
 }
 
 void SphericalPositioningSensor::zeroPhi() {
     phi_offset = phiEncoder->read();
+    position_filter_primed = false;
 }
 
 void SphericalPositioningSensor::zeroWire() {
     radius_offset = wireEncoder->read();
+    position_filter_primed = false;
 }
 
 void SphericalPositioningSensor::readRawEncoders(int32_t& theta_counts, int32_t& phi_counts, int32_t& radius_counts) {
@@ -183,26 +188,29 @@ void SphericalPositioningSensor::updatePosition() {
     int32_t theta_raw, phi_raw, radius_raw;
     readRawEncoders(theta_raw, phi_raw, radius_raw);
 
-    // Keep a raw spherical reading for diagnostics, and clamp for downstream
-    // conversion/validation in the zero-referenced coordinate frame.
-    SphericalCoords sph_raw = countsToSpherical(theta_raw, phi_raw, radius_raw);
-    SphericalCoords sph_limited = sph_raw;
-    sph_limited.phi_deg = clamp(sph_limited.phi_deg, PHI_MIN_DEG, PHI_MAX_DEG);
-    sph_limited.r_mm = clamp(sph_limited.r_mm, RADIUS_MIN_MM, RADIUS_MAX_MM);
+    // Use one consistent state for reporting, validity checks, and Cartesian
+    // conversion. Out-of-limit values remain visible to tooling via is_valid=0.
+    SphericalCoords sph = countsToSpherical(theta_raw, phi_raw, radius_raw);
+    CartesianCoords cart_raw = sphericalToCartesian(sph);
+    uint8_t is_valid = validateLimits(sph, cart_raw);
 
-    CartesianCoords cart = sphericalToCartesian(sph_limited);
-    
-    // Low-pass filter
-    if (system_state.frame_count > 0) {
-        cart.x_mm = position_filter_alpha * cart.x_mm + (1.0 - position_filter_alpha) * system_state.position.x_mm;
-        cart.y_mm = position_filter_alpha * cart.y_mm + (1.0 - position_filter_alpha) * system_state.position.y_mm;
-        cart.z_mm = position_filter_alpha * cart.z_mm + (1.0 - position_filter_alpha) * system_state.position.z_mm;
+    CartesianCoords cart = cart_raw;
+    // Low-pass filter only while valid. Invalid frames bypass EMA and reset
+    // filter priming so recovery to home does not drag stale values.
+    if (is_valid) {
+        if (position_filter_primed) {
+            cart.x_mm = position_filter_alpha * cart_raw.x_mm + (1.0 - position_filter_alpha) * system_state.position.x_mm;
+            cart.y_mm = position_filter_alpha * cart_raw.y_mm + (1.0 - position_filter_alpha) * system_state.position.y_mm;
+            cart.z_mm = position_filter_alpha * cart_raw.z_mm + (1.0 - position_filter_alpha) * system_state.position.z_mm;
+        } else {
+            position_filter_primed = true;
+        }
+    } else {
+        position_filter_primed = false;
     }
     
-    uint8_t is_valid = validateLimits(sph_raw, cart);
-    
     system_state.position = cart;
-    system_state.spherical = sph_limited;
+    system_state.spherical = sph;
     system_state.is_valid = is_valid;
     system_state.frame_count++;
     system_state.last_update_ms = millis();

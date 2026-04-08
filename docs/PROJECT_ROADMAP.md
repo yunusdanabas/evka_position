@@ -3,7 +3,7 @@
 ## Completed
 - [x] Phase 1: DWE3000 quadrature rework (GPIO 16/17/18)
 - [x] Phase 2: Individual hardware tests — draw-wire verified
-- [x] Phase 3: Pin remap (Theta→GPIO 32/35, Phi→GPIO 14/12)
+- [x] Phase 3: Pin remap (Theta→GPIO 14/12, Phi→GPIO 32/35)
 - [x] Phase 4: PlatformIO migration (.ino→.cpp), PPR correction (1480→20000 X4), test suite
 - [x] Phase 6 (software): Python visualization update
   - [x] Serial auto-reconnect with status routing
@@ -11,6 +11,23 @@
   - [x] Optional CSV logger and expanded CLI flags
   - [x] In-place plot updates (no per-frame axis clear)
   - [x] `unittest` coverage for parser/store/reconnect path
+- [x] Extensive code & documentation audit + remediation (2026-04-08)
+  - [x] Three-pass audit: Claude (all source files), Codex (read-only + build verify), Cursor (first-pass fixes)
+  - [x] Thread safety: WebSocket pending-command String race → `portMUX_TYPE` 4-slot queue; CmdTcpServer single-slot → 4-slot queue
+  - [x] Protocol: `ENABLE_REMOTE_WIFI_CONFIG` enforced centrally; `STATUS` replies to TCP/WS; `GET_IP` guarded for `ENABLE_WIFI=0`; `CAL_W` negative-count error improved; overflow discard state (serial + TCP); WS fragment guard
+  - [x] Math: EMA filter primed reset on all zero operations; consistent sph/cart validation
+  - [x] Docs: E30S6 → E40S6 across all files; dead links in `docs/resources.md` fixed
+  - [x] Build: `espressif32@6.12.0` pinned; exact library versions; library caret ranges removed
+  - [x] Full findings log: `docs/EXTENSIVE_AUDIT_2026-04-08.md`
+- [x] WiFi performance & stability hardening (2026-04-08)
+  - [x] Disabled modem sleep (`WiFi.setSleep(WIFI_PS_NONE)`) — primary cause of sluggishness in AP+STA mode
+  - [x] Pinned AP to channel 1 (`WiFi.softAP(..., ESPNOW_CHANNEL)`) — prevents channel drift during STA scans
+  - [x] Added `WIFI_FAST_SCAN` for STA — reduces radio contention on shared AP channel
+  - [x] Fixed WebSocket command buffer truncation (32 → 128 bytes) — `WIFI_SET` commands were silently corrupted
+  - [x] Moved `cleanupClients()` to connect/disconnect only — was firing 60×/sec on DATA events
+  - [x] Added JS `_dirty3d` dirty flag — 3D canvas now only repaints on new data or gesture, not 60 Hz unconditional
+  - [x] Documented 192.168.1.x subnet conflict in `SphericalSensor.h` and `README.md`
+  - [x] Full diagnostic log: `docs/WIFI_PERFORMANCE_ISSUES_LOG.md`
 
 ## In Progress
 - [ ] Phase 5: Full 3-encoder integration test
@@ -23,9 +40,9 @@
   - [ ] Log sample DATA CSV output for visualization testing
 
 - [ ] Phase 5b: Circuit board design & fabrication
-  - [x] ASCII circuit schematic (`docs/hardware_design/circuit_schematic.md`)
-  - [x] Bill of materials (`docs/hardware_design/bill_of_materials.md`)
-  - [x] PCB layout guide (`docs/hardware_design/pcb_layout_guide.md`)
+  - [x] ASCII circuit schematic (`docs/hardware_design/5v/circuit_schematic.md`)
+  - [x] Bill of materials (`docs/hardware_design/5v/bill_of_materials.md`)
+  - [x] PCB layout guide (`docs/hardware_design/5v/pcb_layout_guide.md`)
   - [x] Visual diagram (removed — superseded by ASCII schematic)
   - [x] Battery monitoring firmware (GPIO 36 ADC, `readBattery()`)
   - [ ] Solder Phase 1 — power section (D1, D2, caps, TP4056, MT3608, connectors)
@@ -43,9 +60,9 @@
   - PPR discrepancy resolved: X4 quadrature accounts for 5000×4=20000; wire calibrated to 8020
   - Document final calibration procedure
   - Run calibration pack and store finalized record in `docs/calibration/`
-  - Run software-assisted checklist in `docs/final_integration_validation.md`
+  - Run software-assisted checklist in `docs/integration/final_integration_validation.md`
 
 - [ ] Phase 8: System validation & documentation freeze
   - End-to-end accuracy test at known positions
-  - Update System_Architecture.md with final measured accuracy
+  - Update `docs/hardware_design/system_architecture.md` with final measured accuracy
   - Tag release version

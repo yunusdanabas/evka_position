@@ -28,7 +28,7 @@
 #define PIN_PHI_A    32
 #define PIN_PHI_B    35
 
-// Runtime calibration values — E30S6-5000 @ X4 quadrature = 20000 counts/rev
+// Runtime calibration values — E40S6-5000 @ X4 quadrature = 20000 counts/rev
 float ppr_theta       = 20000.0f;
 float ppr_phi         = 20000.0f;
 float deg_per_pulse_t = 360.0f / 20000.0f;

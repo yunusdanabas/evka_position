@@ -33,17 +33,17 @@ Given the sensor readings converted to standard units (radians and meters):
 
 $$
 \begin{align*}
-X &= r \cdot \sin(\phi) \cdot \cos(\theta) \\
-Y &= r \cdot \sin(\phi) \cdot \sin(\theta) \\
-Z &= r \cdot \cos(\phi)
+X &= r \cdot \cos(\phi) \cdot \cos(\theta) \\
+Y &= r \cdot \cos(\phi) \cdot \sin(\theta) \\
+Z &= r \cdot \sin(\phi)
 \end{align*}
 $$
 
-> **Note on Coordinate Convention:**
-> - **Z-axis:** Vertical (Up/Down). $\phi=0$ is typically "Up" (aligned with Z).
-> - **X-axis:** Forward. $\theta=0$ aligns with X.
-> - **Y-axis:** Right/Left.
-> *Adjust formulas if your mechanical zero positions differ (e.g., if $\phi=0$ is horizontal).*
+> **Note on Coordinate Convention (firmware):**
+> - **Elevation-azimuth convention**: $\phi=0$ is horizontal, $\phi=+90^\circ$ is up, $\phi=-90^\circ$ is down.
+> - **X-axis:** $\theta=0$ aligns with +X.
+> - **Y-axis:** $\theta=+90^\circ$ aligns with +Y.
+> - This matches `SphericalSensor.cpp` conversion logic.
 
 ### Inverse Kinematics (Cartesian → Spherical)
 To find the required sensor values for a target point $(X, Y, Z)$:
@@ -61,8 +61,8 @@ Theoretical accuracy at maximum range ($5m$):
 
 | Axis | Sensor | Resolution | Error Contribution (at 5m) |
 | :--- | :--- | :--- | :--- |
-| **$\theta$** | E30S6 Encoder | $0.018^\circ$ (360°/20000 PPR) | $\approx 1.57mm$ arc length |
-| **$\phi$** | E30S6 Encoder | $0.018^\circ$ (360°/20000 PPR) | $\approx 1.57mm$ arc length |
+| **$\theta$** | E40S6 Encoder | $0.018^\circ$ (360°/20000 PPR) | $\approx 1.57mm$ arc length |
+| **$\phi$** | E40S6 Encoder | $0.018^\circ$ (360°/20000 PPR) | $\approx 1.57mm$ arc length |
 | **$r$** | Draw-Wire | $\pm 0.025mm$ (MM\_PER\_PULSE) | $\pm 0.025mm$ linear |
 | **Total** | **Combined** | | **$\approx \pm 3.2mm$** (Worst Case) |
 

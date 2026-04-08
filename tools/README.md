@@ -81,7 +81,9 @@ python -m unittest discover -s tools/position_checker/tests -v
 
 Linux-native control panel equivalent of `firmware/src/CMD Soft/gui.cs`.
 It connects to ESP32 over Wi-Fi TCP and displays live `X,Y,Z` values.
-Quick integration notes: `docs/CMD_SOFTWARE_INTEGRATION.md`.
+Quick integration notes: `docs/integration/CMD_SOFTWARE_INTEGRATION.md`.
+
+For a Turkish WiFi connection guide: [`README_TR.md`](../README_TR.md)
 
 ### Run
 
@@ -91,8 +93,10 @@ python -m tools.position_checker.cmd_main
 ```
 
 Default endpoint is:
-- IP: `192.168.1.50`
+- IP: `192.168.1.84` (example STA target)
 - Port: `8080`
+
+AP fallback remains `192.168.1.50` when connected directly to `CMDCNC_EVKA`.
 
 ### Features
 
@@ -106,7 +110,7 @@ Default endpoint is:
 - Wi-Fi credential save/forget:
   - Save: `WIFI_AYAR:ssid,password`
   - Forget: `WIFI_AYAR:,`
-- Local settings persistence via `ayarlar.txt` in current working directory
+- Local settings persistence via `settings.txt` in current working directory
 
 ### TCP Protocol Quick Reference
 

@@ -24,7 +24,7 @@
 #define PIN_ENC_A  32
 #define PIN_ENC_B  35
 
-// Runtime calibration values — E30S6-5000 @ X4 quadrature = 20000 counts/rev
+// Runtime calibration values — E40S6-5000 @ X4 quadrature = 20000 counts/rev
 float ppr           = 20000.0f;
 float deg_per_pulse = 360.0f / 20000.0f;
 
