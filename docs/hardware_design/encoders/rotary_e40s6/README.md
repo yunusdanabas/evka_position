@@ -70,8 +70,8 @@ Shield       --> GND (at MCU end only)
 ```
 
 Current pin assignments in `SphericalSensor.h`:
-- **Theta axis**: A = GPIO 32, B = GPIO 35
-- **Phi axis**: A = GPIO 14, B = GPIO 12
+- **Theta axis**: A = GPIO 14, B = GPIO 12
+- **Phi axis**: A = GPIO 32, B = GPIO 35
 
 **Power**: Use an external regulated 5V supply for all encoders (~50 mA each). Share GND with ESP32 but do not power encoders from ESP32.
 

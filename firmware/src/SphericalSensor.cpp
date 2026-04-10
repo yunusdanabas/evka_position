@@ -45,6 +45,14 @@ void SphericalPositioningSensor::loadPPRFromNVS() {
     _ppr_rotary = prefs.getFloat("ppr_rotary", PPR_ROTARY);
     _ppr_wire   = prefs.getFloat("ppr_wire",   PPR_WIRE);
     prefs.end();
+    if (!isfinite(_ppr_rotary) || _ppr_rotary < 100.0f || _ppr_rotary > 500000.0f) {
+        Serial.println("[Cal] NVS: bad PPR_ROTARY, reset to default");
+        _ppr_rotary = PPR_ROTARY;
+    }
+    if (!isfinite(_ppr_wire) || _ppr_wire < 100.0f || _ppr_wire > 500000.0f) {
+        Serial.println("[Cal] NVS: bad PPR_WIRE, reset to default");
+        _ppr_wire = PPR_WIRE;
+    }
     Serial.printf("[Cal] NVS load: PPR_R=%.2f PPR_W=%.2f\n", _ppr_rotary, _ppr_wire);
 }
 
@@ -124,44 +132,46 @@ void SphericalPositioningSensor::getConstants(char* buf, size_t n) {
 }
 
 CartesianCoords SphericalPositioningSensor::sphericalToCartesian(const SphericalCoords& spherical) {
-    float theta_rad = spherical.theta_deg * M_PI / 180.0;
-    float phi_rad   = spherical.phi_deg * M_PI / 180.0;
-    
-    float sin_phi = sin(phi_rad);
-    float cos_phi = cos(phi_rad);
-    float sin_theta = sin(theta_rad);
-    float cos_theta = cos(theta_rad);
-    
+    float theta_rad = spherical.theta_deg * ((float)M_PI / 180.0f);
+    float phi_rad   = spherical.phi_deg   * ((float)M_PI / 180.0f);
+
+    float sin_phi   = sinf(phi_rad);
+    float cos_phi   = cosf(phi_rad);
+    float sin_theta = sinf(theta_rad);
+    float cos_theta = cosf(theta_rad);
+
     CartesianCoords cart;
     cart.x_mm = spherical.r_mm * cos_phi * cos_theta;
     cart.y_mm = spherical.r_mm * cos_phi * sin_theta;
     cart.z_mm = spherical.r_mm * sin_phi;
-    
+
     return cart;
 }
 
 SphericalCoords SphericalPositioningSensor::cartesianToSpherical(const CartesianCoords& cartesian) {
     SphericalCoords sph;
-    sph.r_mm = sqrt(cartesian.x_mm * cartesian.x_mm +
-                    cartesian.y_mm * cartesian.y_mm +
-                    cartesian.z_mm * cartesian.z_mm);
+    sph.r_mm = sqrtf(cartesian.x_mm * cartesian.x_mm +
+                     cartesian.y_mm * cartesian.y_mm +
+                     cartesian.z_mm * cartesian.z_mm);
     
-    sph.theta_deg = atan2(cartesian.y_mm, cartesian.x_mm) * 180.0 / M_PI;
-    
-    if (sph.r_mm > 0.001) {
+    sph.theta_deg = atan2f(cartesian.y_mm, cartesian.x_mm) * (180.0f / (float)M_PI);
+
+    if (sph.r_mm > 0.001f) {
         float ratio = clamp(cartesian.z_mm / sph.r_mm, -1.0f, 1.0f);
-        sph.phi_deg = asin(ratio) * 180.0 / M_PI;
+        sph.phi_deg = asinf(ratio) * (180.0f / (float)M_PI);
     } else {
-        sph.phi_deg = 0.0;
+        sph.phi_deg = 0.0f;
     }
     
     return sph;
 }
 
 float SphericalPositioningSensor::normalizeAngle(float angle_deg) {
-    while (angle_deg > 180.0) angle_deg -= 360.0;
-    while (angle_deg < -180.0) angle_deg += 360.0;
-    return angle_deg;
+    // O(1) — fmodf handles any magnitude without looping
+    float a = fmodf(angle_deg, 360.0f);
+    if (a > 180.0f)  a -= 360.0f;
+    if (a < -180.0f) a += 360.0f;
+    return a;
 }
 
 float SphericalPositioningSensor::clamp(float value, float min_val, float max_val) {
@@ -171,6 +181,10 @@ float SphericalPositioningSensor::clamp(float value, float min_val, float max_va
 }
 
 uint8_t SphericalPositioningSensor::validateLimits(const SphericalCoords& sph, const CartesianCoords& cart) {
+    // Reject NaN/Inf in spherical coords first (e.g. from zero-PPR NVS corruption)
+    if (isnan(sph.r_mm) || isnan(sph.theta_deg) || isnan(sph.phi_deg)) return 0;
+    if (isinf(sph.r_mm) || isinf(sph.theta_deg) || isinf(sph.phi_deg)) return 0;
+
     // Allow small startup/zero jitter so near-home noise does not flip validity.
     const float radius_tol_mm = 2.0f;
     const float angle_tol_deg = 1.0f;
@@ -199,9 +213,9 @@ void SphericalPositioningSensor::updatePosition() {
     // filter priming so recovery to home does not drag stale values.
     if (is_valid) {
         if (position_filter_primed) {
-            cart.x_mm = position_filter_alpha * cart_raw.x_mm + (1.0 - position_filter_alpha) * system_state.position.x_mm;
-            cart.y_mm = position_filter_alpha * cart_raw.y_mm + (1.0 - position_filter_alpha) * system_state.position.y_mm;
-            cart.z_mm = position_filter_alpha * cart_raw.z_mm + (1.0 - position_filter_alpha) * system_state.position.z_mm;
+            cart.x_mm = position_filter_alpha * cart_raw.x_mm + (1.0f - position_filter_alpha) * system_state.position.x_mm;
+            cart.y_mm = position_filter_alpha * cart_raw.y_mm + (1.0f - position_filter_alpha) * system_state.position.y_mm;
+            cart.z_mm = position_filter_alpha * cart_raw.z_mm + (1.0f - position_filter_alpha) * system_state.position.z_mm;
         } else {
             position_filter_primed = true;
         }
@@ -259,23 +273,14 @@ void SphericalPositioningSensor::printPosition() {
         }
     }
 
-    Serial.print("Cartesian: X="); Serial.print(system_state.position.x_mm, 1);
-    Serial.print(" Y="); Serial.print(system_state.position.y_mm, 1);
-    Serial.print(" Z="); Serial.print(system_state.position.z_mm, 1);
-    Serial.print(" mm | Spherical: R="); Serial.print(system_state.spherical.r_mm, 1);
-    Serial.print(" mm, Theta="); Serial.print(system_state.spherical.theta_deg, 2);
-    Serial.print(" deg, Phi="); Serial.print(system_state.spherical.phi_deg, 2);
-    Serial.println(" deg");
-
-    // Machine-readable CSV line for Python parser
-    // Format: DATA,<x>,<y>,<z>,<r>,<theta>,<phi>,<is_valid>,<frame_count>,<ts_ms>
+    // Human-readable debug line
     char buf[128];
     snprintf(buf, sizeof(buf),
-        "DATA,%.2f,%.2f,%.2f,%.2f,%.3f,%.3f,%u,%lu,%lu",
+        "X=%.1f Y=%.1f Z=%.1f mm | R=%.1f mm Th=%.2f Ph=%.2f deg",
         system_state.position.x_mm, system_state.position.y_mm, system_state.position.z_mm,
         system_state.spherical.r_mm, system_state.spherical.theta_deg,
-        system_state.spherical.phi_deg,
-        system_state.is_valid, (unsigned long)system_state.frame_count,
-        (unsigned long)system_state.last_update_ms);
+        system_state.spherical.phi_deg);
     Serial.println(buf);
+    // DATA line (machine-readable) is formatted once in loop() and goes to both
+    // serial and WebSocket — no second snprintf needed here.
 }

@@ -25,13 +25,29 @@
 #define BATTERY_ADC_12V_INPUT 0
 #define ENABLE_WIFI            1  // 0: serial only, 1: serial + WiFi AP + web dashboard
 #define ENABLE_CMD_TCP         1  // 0: disable CMD TCP server, 1: enable TCP on CMD_TCP_PORT
-#define ENABLE_REMOTE_WIFI_CONFIG 0  // 0: block WIFI_SET/WIFI_AYAR over TCP, 1: allow remote WiFi config + reboot
-#define ENABLE_ESPNOW_REMOTE   0  // 0: disable ESP-NOW button remote, 1: enable wireless button pendant
+#define ENABLE_REMOTE_WIFI_CONFIG 1  // 0: block WIFI_SET/WIFI_AYAR over TCP, 1: allow remote WiFi config + reboot
+#define ENABLE_ESPNOW_REMOTE   1  // 0: disable ESP-NOW button remote, 1: enable wireless button pendant
 #define ESPNOW_CHANNEL         1  // WiFi channel for ESP-NOW (must match AP channel)
 #define WIFI_AP_SSID           "CMDCNC_EVKA"
 #define WIFI_AP_PASSWORD       "cmdcnc1234"  // min 8 chars for WPA2
-#define WIFI_STA_DEFAULT_SSID  "Yunusa"   // compile-time default STA network
-#define WIFI_STA_DEFAULT_PASS  "yunusa265"
+#define WIFI_STA_DEFAULT_SSID  "CMD_FUAR"   // compile-time default STA network
+#define WIFI_STA_DEFAULT_PASS  "cmd20165544"
+#define WIFI_STA_STATIC_IP_O1  192
+#define WIFI_STA_STATIC_IP_O2  168
+#define WIFI_STA_STATIC_IP_O3  0
+#define WIFI_STA_STATIC_IP_O4  84
+#define WIFI_STA_GW_O1         192
+#define WIFI_STA_GW_O2         168
+#define WIFI_STA_GW_O3         0
+#define WIFI_STA_GW_O4         1
+#define WIFI_STA_SN_O1         255
+#define WIFI_STA_SN_O2         255
+#define WIFI_STA_SN_O3         255
+#define WIFI_STA_SN_O4         0
+#define WIFI_STA_DNS_O1        8
+#define WIFI_STA_DNS_O2        8
+#define WIFI_STA_DNS_O3        8
+#define WIFI_STA_DNS_O4        8
 #define WIFI_CFG_VERSION       2               // increment this to reset STA creds on next flash
 #define WIFI_WEB_PORT          80
 #define CMD_TCP_PORT           8080

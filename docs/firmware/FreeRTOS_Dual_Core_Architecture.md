@@ -514,8 +514,8 @@ For guaranteed sub-microsecond edge capture when software interrupts are insuffi
 
 void setupPCNT_Theta() {
     pcnt_config_t pcnt_config = {
-        .pulse_gpio_num = PIN_THETA_A,     // GPIO 32
-        .ctrl_gpio_num = PIN_THETA_B,      // GPIO 35
+        .pulse_gpio_num = PIN_THETA_A,     // GPIO 14
+        .ctrl_gpio_num = PIN_THETA_B,      // GPIO 12
         .lctrl_mode = PCNT_MODE_REVERSE,   // Quadrature decode
         .hctrl_mode = PCNT_MODE_KEEP,
         .pos_mode = PCNT_COUNT_INC,        // Count up on rising edge

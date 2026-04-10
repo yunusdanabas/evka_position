@@ -56,7 +56,7 @@
 ### ESP32 Mount & Headers
 | Mistake | Consequence | Fix |
 |---------|-------------|-----|
-| **ESP32 header pins soldered wrong order** | GPIO numbering incorrect; all encoders fail or intermix | Verify header orientation: GPIO 32/35/14/12/16/17/18 match silk-screen labels; test with `pio device monitor` and check boot messages |
+| **ESP32 header pins soldered wrong order** | GPIO numbering incorrect; all encoders fail or intermix | Verify header orientation: GPIO 14/12/32/35/16/17/18 match silk-screen labels; test with `pio device monitor` and check boot messages |
 | **VIN/GND swapped on ESP32** | No power to ESP32 or backwards polarity | Probe VIN pad with multimeter: should be 5V ±0.2V; GND should be 0V; if backwards, LED1 won't light |
 | **USB cable too short or damaged** | Serial upload fails; cannot debug | Use proper USB micro-B cable; test with known-good cable first; if upload times out, hold BOOT → RESET → release BOOT, retry |
 
@@ -189,7 +189,7 @@ If COUNT = 0 always:
 # Rotate encoder one full turn CW: THETA_counts → +20000, THETA_deg → +360
 
 If THETA_counts = 0:
-  □ Verify GPIO 32/35 toggling with multimeter (should see 0V/3.3V alternating)
+  □ Verify GPIO 14/12 toggling with multimeter (should see 0V/3.3V alternating)
   □ Check ferrite FB1 is not broken
   □ Confirm R1/R2 divider resistors are soldered
 ```
@@ -271,10 +271,10 @@ Expected:
 | **16** (Wire A) | Draw-wire A line | Multimeter to GPIO 16 while pulling wire | Toggle 0V ↔ 3.3V |
 | **17** (Wire B) | Draw-wire B line | Multimeter to GPIO 17 while pulling wire | Toggle 0V ↔ 3.3V (opposite phase to GPIO 16) |
 | **18** (Wire Z) | Draw-wire index | GPIO 18 should pulse ~1 per 200 mm | Count in firmware increments Z_ticks |
-| **32** (Theta A) | Rotary A | GPIO 32 during rotation | Smooth quadrature pattern (1, 0 alternating) |
-| **35** (Theta B) | Rotary B | GPIO 35 during rotation | 90° out of phase with GPIO 32 |
-| **14** (Phi A) | Rotary A | GPIO 14 during rotation | Smooth quadrature pattern |
-| **12** (Phi B) | Rotary B | GPIO 12 during rotation | 90° out of phase with GPIO 14 |
+| **14** (Theta A) | Rotary A | GPIO 14 during rotation | Smooth quadrature pattern (1, 0 alternating) |
+| **12** (Theta B) | Rotary B | GPIO 12 during rotation | 90° out of phase with GPIO 14 |
+| **32** (Phi A) | Rotary A | GPIO 32 during rotation | Smooth quadrature pattern |
+| **35** (Phi B) | Rotary B | GPIO 35 during rotation | 90° out of phase with GPIO 32 |
 
 **If GPIO not toggling:**
 1. Check encoder is powered (measure encoder +5V)
@@ -309,7 +309,7 @@ Expected:
 
 | Scenario | Likely Cause | Fix |
 |----------|--------------|-----|
-| **Theta works, Phi doesn't** | Wrong GPIO or divider not soldered | Verify GPIO 14/12 are receiving correct voltage (multimeter); check R3/R10 and R4/R11 soldered |
+| **Theta works, Phi doesn't** | Wrong GPIO or divider not soldered | Verify GPIO 32/35 are receiving correct voltage (multimeter); check R3/R10 and R4/R11 soldered |
 | **Wire works, both rotary encoders fail** | GPIOs 32/35/14/12 not connected or miswired | Re-check ESP32 header pins match silk-screen; use `DIAG` command to read raw GPIO state |
 | **Only one channel of rotary works** | One quadrature line missing | Verify both A and B wires are connected to J connector; measure both GPIO outputs |
 

@@ -14,16 +14,18 @@ CmdTcpServer cmdTcp;
 
 #if ENABLE_WIFI && ENABLE_ESPNOW_REMOTE
 #include <esp_now.h>
+#include <esp_wifi.h>
 
 // ---- ESP-NOW wireless button remote receiver ----
-static volatile int8_t espnow_pending_button = -1;
+static volatile int8_t espnow_pending_button    = -1;
+static volatile bool   espnow_pending_heartbeat = false;
 
 static const char* const REMOTE_BUTTON_CMD[] = {
-    "SAVE_POINT",       // Button 0 — Green
-    "ZERO",             // Button 1 — Red
-    "RECORD_TOGGLE",    // Button 2 — Blue
-    "ZERO_T",           // Button 3 — Yellow
-    "ZERO_W"            // Button 4 — White
+    "ZERO",         // Button 0 — Red   — GPIO 4
+    "SAVE_POINT",   // Button 1 — Green — GPIO 5
+    nullptr,        // Button 2 — GPIO 0 — unassigned
+    nullptr,        // Button 3 — GPIO 1 — unassigned
+    nullptr,        // Button 4 — GPIO 3 — unassigned
 };
 static constexpr uint8_t REMOTE_BUTTON_COUNT = 5;
 
@@ -32,12 +34,22 @@ static void onEspNowRecv(const esp_now_recv_info_t* info, const uint8_t* data, i
 #else
 static void onEspNowRecv(const uint8_t* mac, const uint8_t* data, int len) {
 #endif
-    if (len >= 1 && data[0] < REMOTE_BUTTON_COUNT) {
-        espnow_pending_button = (int8_t)data[0];
+    if (len >= 1) {
+        if (data[0] == 0xFE) {
+            espnow_pending_heartbeat = true;
+        } else if (data[0] < REMOTE_BUTTON_COUNT) {
+            espnow_pending_button = (int8_t)data[0];
+        }
     }
 }
 
 static void initEspNow() {
+    // Print the channel the AP is actually on so we can verify it matches
+    // the remote's ESPNOW_CHANNEL define.
+    uint8_t primary; wifi_second_chan_t second;
+    esp_wifi_get_channel(&primary, &second);
+    Serial.printf("[ESP-NOW] AP channel: %u (remote must match)\n", primary);
+
     if (esp_now_init() != ESP_OK) {
         Serial.println("[ESP-NOW] Init FAILED");
         return;
@@ -52,7 +64,6 @@ static void initEspNow() {
 // ============================================================================
 
 SphericalPositioningSensor sensor;
-static bool recording_active = false;
 
 // Update Frequency
 #define UPDATE_PERIOD_MS  50  // 20 Hz position update rate
@@ -187,7 +198,7 @@ static String processCommand(const String& cmd) {
 
     } else if (cmd == "SAVE_POINT") {
         SystemStatus st = sensor.getStatus();
-        static uint16_t pt_idx = 0;
+        static uint32_t pt_idx = 0;
         char buf[128];
         snprintf(buf, sizeof(buf),
             "POINT,%u,%.2f,%.2f,%.2f,%.2f,%.3f,%.3f",
@@ -196,12 +207,6 @@ static String processCommand(const String& cmd) {
             st.spherical.r_mm, st.spherical.theta_deg, st.spherical.phi_deg);
         Serial.println(buf);
         return String(buf);
-
-    } else if (cmd == "RECORD_TOGGLE") {
-        recording_active = !recording_active;
-        const char* reply = recording_active ? "ACK:RECORD_ON" : "ACK:RECORD_OFF";
-        Serial.println(reply);
-        return String(reply);
 
     } else if (cmd == "GET_IP") {
 #if ENABLE_WIFI
@@ -240,9 +245,15 @@ static String processCommand(const String& cmd) {
         prefs.putString("pass", pass);
         prefs.end();
         Serial.println("ACK:WIFI_SAVED");
-        delay(500);
+#if ENABLE_WIFI
+        dashboard.broadcast("ACK:WIFI_SAVED");
+#if ENABLE_CMD_TCP
+        cmdTcp.sendToAllClients("ACK:WIFI_SAVED");
+#endif
+#endif
+        delay(500);  // allow async sends to flush before restart
         ESP.restart();
-        return "ACK:WIFI_SAVED";
+        return "ACK:WIFI_SAVED";  // unreachable
 #endif
 
     } else if (cmd == "SYSINFO") {
@@ -307,6 +318,7 @@ void setup() {
 
 #if ENABLE_WIFI
     dashboard.begin();
+    delay(200);  // let AP come fully up before ESP-NOW init
 #if ENABLE_CMD_TCP
     cmdTcp.begin();
 #endif
@@ -342,12 +354,34 @@ void loop() {
         int8_t btn = espnow_pending_button;
         espnow_pending_button = -1;
         if (btn < REMOTE_BUTTON_COUNT) {
-            Serial.printf("[ESP-NOW] Button %d -> %s\n", btn, REMOTE_BUTTON_CMD[btn]);
-            String reply = processCommand(String(REMOTE_BUTTON_CMD[btn]));
+            // Broadcast button event for web UI and TCP indicator
+            char btn_msg[24];
+            snprintf(btn_msg, sizeof(btn_msg), "REMOTE_BTN:%d", btn);
+            dashboard.broadcast(btn_msg);
+#if ENABLE_CMD_TCP
+            cmdTcp.sendToAllClients(btn_msg);
+#endif
+
+            const char* cmd = REMOTE_BUTTON_CMD[btn];
+            if (cmd == nullptr) return;  // unassigned button — ignore silently
+            Serial.printf("[ESP-NOW] Button %d -> %s\n", btn, cmd);
+            String reply = processCommand(String(cmd));
             if (reply.length() > 0) dashboard.broadcast(reply.c_str());
         }
     }
+    // Heartbeat — rebroadcast to WebSocket and TCP so GUIs can track link status
+    if (espnow_pending_heartbeat) {
+        espnow_pending_heartbeat = false;
+        dashboard.broadcast("REMOTE_HB");
+#if ENABLE_CMD_TCP
+        cmdTcp.sendToAllClients("REMOTE_HB");
 #endif
+    }
+#endif
+    // Non-blocking WiFi maintenance:
+    // keep AP available and schedule controlled STA retries after disconnects.
+    dashboard.tick();
+
     // WebSocket command handler
     {
         String wsCmd = dashboard.takePendingCommand();
@@ -374,10 +408,7 @@ void loop() {
         // Check if STA credentials are configured (only once)
         static bool sta_checked = false;
         if (!sta_checked) {
-            Preferences prefs;
-            prefs.begin("wifi_cfg", true);
-            sta_configured = prefs.getString("ssid", "").length() > 0;
-            prefs.end();
+            sta_configured = dashboard.isStaConfigured();
             sta_checked = true;
         }
 
@@ -402,13 +433,11 @@ void loop() {
 
         // Calculate new position from current sensor readings
         sensor.updatePosition();
-        sensor.printPosition();
+        sensor.printPosition();  // human-readable debug line to serial
 
-#if ENABLE_WIFI
+        // Format DATA once; send to serial + WiFi (avoids duplicate snprintf)
         {
             SystemStatus st = sensor.getStatus();
-
-            // Broadcast DATA line to WebSocket clients
             char buf[128];
             snprintf(buf, sizeof(buf),
                      "DATA,%.2f,%.2f,%.2f,%.2f,%.3f,%.3f,%u,%lu,%lu",
@@ -416,10 +445,13 @@ void loop() {
                      st.spherical.r_mm, st.spherical.theta_deg, st.spherical.phi_deg,
                      st.is_valid, (unsigned long)st.frame_count,
                      (unsigned long)st.last_update_ms);
-            dashboard.broadcast(buf);
+            Serial.println(buf);
 
-#if ENABLE_CMD_TCP
-            // Broadcast CMD format to TCP clients
+#if ENABLE_WIFI
+            dashboard.broadcast(buf);
+#endif
+
+#if ENABLE_WIFI && ENABLE_CMD_TCP
             cmdTcp.broadcastPosition(
                 st.position.x_mm, st.position.y_mm, st.position.z_mm);
             cmdTcp.broadcastSensorData(
@@ -427,6 +459,5 @@ void loop() {
                 st.spherical.phi_deg, st.is_valid, st.frame_count);
 #endif
         }
-#endif
     }
 }

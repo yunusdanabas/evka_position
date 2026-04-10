@@ -15,6 +15,8 @@ from .cmd_main import (
     CMD_DEFAULT_PORT,
     CMD_DEFAULT_STA_IP,
     ERR_PREFIX,
+    REMOTE_BTN_PREFIX,
+    REMOTE_HB_PREFIX,
     SENSOR_PREFIX,
     STA_IP_PREFIX,
     SYSINFO_PREFIX,
@@ -49,6 +51,12 @@ class CmdControlWindow(QtWidgets.QWidget):
         self._offset_z = 0.0
         self._relative_zero_active = False
         self._wifi_pending_action: Optional[str] = None  # "save" | "forget" | None
+        self._remote_last_ms: float = 0.0  # epoch ms of last REMOTE_HB or REMOTE_BTN
+
+        # Periodic remote link status updater
+        self._link_timer = QtCore.QTimer(self)
+        self._link_timer.timeout.connect(self._update_remote_link)
+        self._link_timer.start(2000)
 
         # Min/Max
         self._min = {"x": math.inf, "y": math.inf, "z": math.inf}
@@ -208,6 +216,38 @@ class CmdControlWindow(QtWidgets.QWidget):
         sys_layout.addWidget(self.lbl_uptime)
         main.addWidget(sys_box)
 
+        # --- Remote Buttons ---
+        remote_box = QtWidgets.QGroupBox("Remote Buttons")
+        remote_layout = QtWidgets.QHBoxLayout(remote_box)
+        remote_layout.setSpacing(16)
+
+        # BTN0 — Red — ZERO
+        btn0_col = QtWidgets.QVBoxLayout()
+        btn0_col.setAlignment(QtCore.Qt.AlignHCenter)
+        self.rled0 = QtWidgets.QLabel()
+        self.rled0.setFixedSize(24, 24)
+        self._set_rled(0, False)
+        btn0_col.addWidget(self.rled0, alignment=QtCore.Qt.AlignHCenter)
+        btn0_col.addWidget(QtWidgets.QLabel("BTN0  ZERO"), alignment=QtCore.Qt.AlignHCenter)
+        remote_layout.addLayout(btn0_col)
+
+        # BTN1 — Green — SAVE POINT
+        btn1_col = QtWidgets.QVBoxLayout()
+        btn1_col.setAlignment(QtCore.Qt.AlignHCenter)
+        self.rled1 = QtWidgets.QLabel()
+        self.rled1.setFixedSize(24, 24)
+        self._set_rled(1, False)
+        btn1_col.addWidget(self.rled1, alignment=QtCore.Qt.AlignHCenter)
+        btn1_col.addWidget(QtWidgets.QLabel("BTN1  SAVE"), alignment=QtCore.Qt.AlignHCenter)
+        remote_layout.addLayout(btn1_col)
+
+        remote_layout.addStretch(1)
+        self.lbl_rbtn_status = QtWidgets.QLabel("No signal")
+        self.lbl_rbtn_status.setFont(QtGui.QFont("Consolas", 9))
+        self.lbl_rbtn_status.setStyleSheet("color: #888;")
+        remote_layout.addWidget(self.lbl_rbtn_status)
+        main.addWidget(remote_box)
+
         main.addStretch(1)
 
         # Connections
@@ -255,6 +295,39 @@ class CmdControlWindow(QtWidgets.QWidget):
         self.btn_reset_minmax.setEnabled(connected)
         self.btn_wifi_save.setEnabled(connected)
         self.btn_wifi_forget.setEnabled(connected)
+
+    # ---- Remote LED helpers ----
+    _RLED_IDLE = [
+        "border-radius:12px;border:2px solid #662222;background:#1a1a1a;",
+        "border-radius:12px;border:2px solid #226622;background:#1a1a1a;",
+    ]
+    _RLED_ON = [
+        "border-radius:12px;border:2px solid #ff6666;background:#ff3333;",
+        "border-radius:12px;border:2px solid #66ff66;background:#33cc33;",
+    ]
+
+    def _set_rled(self, idx: int, active: bool) -> None:
+        lbl = self.rled0 if idx == 0 else self.rled1
+        lbl.setStyleSheet(self._RLED_ON[idx] if active else self._RLED_IDLE[idx])
+
+    def _flash_rled(self, idx: int) -> None:
+        names = ["ZERO", "SAVE POINT"]
+        self._set_rled(idx, True)
+        QtCore.QTimer.singleShot(400, lambda i=idx: self._set_rled(i, False))
+
+    def _update_remote_link(self) -> None:
+        import time
+        if self._remote_last_ms == 0.0:
+            self.lbl_rbtn_status.setText("LINK: NO SIGNAL")
+            self.lbl_rbtn_status.setStyleSheet("color: #888;")
+            return
+        age = int(time.time() * 1000 - self._remote_last_ms) // 1000
+        if age < 15:
+            self.lbl_rbtn_status.setText(f"LINK: OK ({age}s ago)")
+            self.lbl_rbtn_status.setStyleSheet("color: #00cc66;")
+        else:
+            self.lbl_rbtn_status.setText(f"LINK: TIMEOUT ({age}s ago)")
+            self.lbl_rbtn_status.setStyleSheet("color: #ff4444;")
 
     def _set_status(self, text: str, color: str) -> None:
         self.lbl_status.setText(text)
@@ -437,6 +510,24 @@ class CmdControlWindow(QtWidgets.QWidget):
                         self.lbl_uptime.setText(f"Uptime: {h:02d}:{m:02d}:{s:02d}")
                     except ValueError:
                         pass
+                continue
+
+            # Remote heartbeat — update link status without flashing LEDs
+            if line.startswith(REMOTE_HB_PREFIX):
+                import time
+                self._remote_last_ms = time.time() * 1000
+                continue
+
+            # Remote button indicator
+            if line.startswith(REMOTE_BTN_PREFIX):
+                import time
+                self._remote_last_ms = time.time() * 1000
+                try:
+                    idx = int(line[len(REMOTE_BTN_PREFIX):].strip())
+                    if idx in (0, 1):
+                        self._flash_rled(idx)
+                except ValueError:
+                    pass
                 continue
 
             # ACK responses

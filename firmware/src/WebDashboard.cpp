@@ -108,6 +108,18 @@ button:disabled{opacity:0.35;pointer-events:none}
 .sz-btn:active{background:#00ffff;color:#000}
 .minmax-row{display:flex;gap:4px;font-size:10px;margin-top:2px;padding-top:2px;border-top:1px solid #1a2540}
 .minmax-row .lbl{color:#556677}.minmax-row .val{color:#aabbcc;font-variant-numeric:tabular-nums}
+.rbtn-row{display:flex;gap:14px;margin-top:4px}
+.rbtn-item{display:flex;flex-direction:column;align-items:center;gap:3px}
+.rbtn-led{width:22px;height:22px;border-radius:50%;border:2px solid #333;background:#1a1a1a;transition:background 0.1s,box-shadow 0.1s}
+.rbtn-led.r{border-color:#662222}
+.rbtn-led.g{border-color:#226622}
+.rbtn-led.r.on{background:#ff3333;border-color:#ff6666;box-shadow:0 0 10px #ff3333}
+.rbtn-led.g.on{background:#33ff33;border-color:#66ff66;box-shadow:0 0 10px #33ff33}
+.rbtn-lbl{font-size:9px;color:#556677;font-family:monospace;text-align:center}
+.rbtn-link{font-size:10px;margin-top:4px;padding:2px 6px;border-radius:3px;display:inline-block}
+.rbtn-link.ok{color:#00ff88;border:1px solid #00ff88}
+.rbtn-link.timeout{color:#ff4444;border:1px solid #ff4444}
+.rbtn-link.waiting{color:#8899aa;border:1px solid #445566}
 </style>
 </head>
 <body>
@@ -182,6 +194,22 @@ button:disabled{opacity:0.35;pointer-events:none}
  <div class="btn-row">
   <button onclick="resetMinMax()" class="btn-amber">RESET MIN/MAX</button>
   <button onclick="sendCmd('PING')">PING</button>
+ </div>
+ <div class="sep"></div>
+ <div class="section-lbl">REMOTE BUTTONS</div>
+ <div class="rbtn-row">
+  <div class="rbtn-item">
+   <div class="rbtn-led r" id="rled0"></div>
+   <div class="rbtn-lbl">BTN0 ZERO</div>
+  </div>
+  <div class="rbtn-item">
+   <div class="rbtn-led g" id="rled1"></div>
+   <div class="rbtn-lbl">BTN1 SAVE</div>
+  </div>
+ </div>
+ <div style="margin-top:4px;display:flex;align-items:center;gap:8px">
+  <span id="rbtn-link" class="rbtn-link waiting">NO SIGNAL</span>
+  <span id="rbtn-status" style="font-size:10px;color:#8899aa"></span>
  </div>
  <div class="sep"></div>
  <div class="section-lbl">SNAPSHOTS</div>
@@ -607,6 +635,10 @@ function onWsMessage(e){
    setText("vv",v?"YES":"NO");
    const cardX=document.getElementById("card-x");
    if(cardX)cardX.classList.toggle("invalid",!v);
+   const cardY=document.getElementById("card-y");
+   if(cardY)cardY.classList.toggle("invalid",!v);
+   const cardZ=document.getElementById("card-z");
+   if(cardZ)cardZ.classList.toggle("invalid",!v);
    setText("vf",fr);
    setText("cl-r",r.toFixed(1));
    setText("cl-t",(th>=0?"+":"")+th.toFixed(2));
@@ -656,6 +688,16 @@ function onWsMessage(e){
    setText("v-uptime",(h<10?"0":"")+h+":"+(m<10?"0":"")+m+":"+(s<10?"0":"")+s);
    setText("v-tcp",tcp);
   }
+ } else if(line.startsWith("ERR:")){
+  setStatus(line);
+ } else if(line==="REMOTE_HB"){
+  _remoteLastMs=Date.now();
+  _updateRemoteLink();
+ } else if(line.startsWith("REMOTE_BTN:")){
+  _remoteLastMs=Date.now();
+  _updateRemoteLink();
+  var idx=parseInt(line.substring(11));
+  if(idx===0||idx===1)flashRemoteBtn(idx);
  }
 }
 connect();
@@ -676,6 +718,31 @@ function toggleAxes(){
 
 // Clear trail
 function clearTrail(){trail=[];_dirty2d=true;_dirty3d=true;}
+
+// Remote button LED indicators + link-status tracker
+var _rledT=[null,null];
+var _remoteLastMs=0;
+function _updateRemoteLink(){
+ var el=document.getElementById("rbtn-link");
+ if(!el)return;
+ if(_remoteLastMs===0){el.className="rbtn-link waiting";el.textContent="NO SIGNAL";return;}
+ var age=Math.floor((Date.now()-_remoteLastMs)/1000);
+ if(age<15){el.className="rbtn-link ok";el.textContent="LINK OK ("+age+"s)";}
+ else{el.className="rbtn-link timeout";el.textContent="TIMEOUT ("+age+"s)";}
+}
+setInterval(_updateRemoteLink,2000);
+function flashRemoteBtn(idx){
+ var led=document.getElementById("rled"+idx);
+ if(!led)return;
+ led.classList.add("on");
+ var names=["ZERO","SAVE POINT"];
+ setText("rbtn-status","BTN"+idx+" ("+names[idx]+") active");
+ clearTimeout(_rledT[idx]);
+ _rledT[idx]=setTimeout(function(){
+  led.classList.remove("on");
+  setText("rbtn-status","No signal");
+ },400);
+}
 
 // Software zero
 function softZero(axis){szOff[axis]=lastPos[axis];szActive=true;resetMinMax();}
@@ -722,11 +789,11 @@ function saveWifi(){
  const pass=document.getElementById("wifi-pass").value;
  if(!ssid||pass.length<8){setStatus("SSID required, password min 8 chars");return;}
  sendCmd("WIFI_SET:"+ssid+","+pass);
- setStatus("WiFi credentials sent. Device will reboot...");
+ setStatus("WiFi credentials sent. Waiting for device response...");
 }
 function forgetWifi(){
  sendCmd("WIFI_SET:,");
- setStatus("WiFi credentials cleared. Device will reboot...");
+ setStatus("Sending forget request...");
 }
 
 // Request system info periodically
@@ -947,25 +1014,98 @@ function updateSessionStats(){
 WebDashboard::WebDashboard()
     : _server(WIFI_WEB_PORT), _ws("/ws") {}
 
-void WebDashboard::begin() {
-    // AP+STA mode: AP config BEFORE STA to avoid DHCP conflict
-    WiFi.mode(WIFI_AP_STA);
+void WebDashboard::startStaConnectAttempt() {
+    if (!_staConfigured || _staSsid.length() == 0) {
+        return;
+    }
+    IPAddress staIp(WIFI_STA_STATIC_IP_O1, WIFI_STA_STATIC_IP_O2, WIFI_STA_STATIC_IP_O3, WIFI_STA_STATIC_IP_O4);
+    IPAddress staGw(WIFI_STA_GW_O1, WIFI_STA_GW_O2, WIFI_STA_GW_O3, WIFI_STA_GW_O4);
+    IPAddress staSn(WIFI_STA_SN_O1, WIFI_STA_SN_O2, WIFI_STA_SN_O3, WIFI_STA_SN_O4);
+    IPAddress staDns(WIFI_STA_DNS_O1, WIFI_STA_DNS_O2, WIFI_STA_DNS_O3, WIFI_STA_DNS_O4);
+    if (!WiFi.config(staIp, staGw, staSn, staDns)) {
+        Serial.println("[WiFi] STA static IP config failed");
+    }
+    _staLostIpMs = 0;
+    // An explicit connect attempt is now in flight; re-arm only on disconnect/watchdog.
+    _staRetryPending = false;
+    // Record attempt timestamp for the connect-attempt watchdog in tick().
+    _staConnectAttemptMs = millis();
+    // Start a deliberate STA retry attempt; AP is kept active in parallel.
+    WiFi.setScanMethod(WIFI_FAST_SCAN);
+    WiFi.setSortMethod(WIFI_CONNECT_AP_BY_SIGNAL);
+    WiFi.begin(_staSsid.c_str(), _staPass.c_str());
+    Serial.printf("[WiFi] STA connect attempt -> '%s'\n", _staSsid.c_str());
+}
+
+void WebDashboard::ensureApUp(bool forceRestart) {
+    const bool modeHasAp = (WiFi.getMode() & WIFI_AP) != 0;
+    const bool apIpValid = WiFi.softAPIP() != IPAddress((uint32_t)0);
+    if (!forceRestart && modeHasAp && apIpValid && _apStarted) {
+        _needApReassert = false;  // AP is healthy; clear flag to avoid spurious restarts
+        return;
+    }
+
+    const wifi_mode_t targetMode = _staConfigured ? WIFI_AP_STA : WIFI_AP;
+    if (WiFi.getMode() != targetMode) {
+        WiFi.mode(targetMode);
+    }
 
     IPAddress apIP(WIFI_AP_IP_O1, WIFI_AP_IP_O2, WIFI_AP_IP_O3, WIFI_AP_IP_O4);
     IPAddress apGW(WIFI_AP_IP_O1, WIFI_AP_IP_O2, WIFI_AP_IP_O3, 1);
     IPAddress apSubnet(255, 255, 255, 0);
     WiFi.softAPConfig(apIP, apGW, apSubnet);
-    WiFi.softAP(WIFI_AP_SSID, WIFI_AP_PASSWORD, ESPNOW_CHANNEL);
-    // CRITICAL: disable modem sleep. Default WIFI_PS_MIN_MODEM powers down the radio
-    // between DTIM beacons (~100 ms gaps) causing AP clients to miss beacons,
-    // drop WebSocket connections, and experience bursty/sluggish data delivery.
+    _apStarted = WiFi.softAP(WIFI_AP_SSID, WIFI_AP_PASSWORD, ESPNOW_CHANNEL);
     WiFi.setSleep(WIFI_PS_NONE);
+    _needApReassert = false;
 
-    Serial.print("[WiFi] AP started: ");
-    Serial.print(WIFI_AP_SSID);
-    Serial.print(" @ ");
-    Serial.println(WiFi.softAPIP());
+    Serial.printf("[WiFi] AP %s: %s @ %s\n",
+                  forceRestart ? "restarted" : "verified",
+                  _apStarted ? "OK" : "FAIL",
+                  WiFi.softAPIP().toString().c_str());
+}
 
+void WebDashboard::onWiFiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
+    if (event == ARDUINO_EVENT_WIFI_STA_CONNECTED) {
+        _staAssociated = true;
+        _staRetryPending = false;
+        _staConnectAttemptMs = 0;  // association succeeded; do not watchdog slow DHCP
+        Serial.println("[WiFi] STA connected");
+    } else if (event == ARDUINO_EVENT_WIFI_STA_GOT_IP) {
+        _staConnected = true;
+        _staLostIpMs = 0;
+        _staRetryPending = false;
+        _staDisconnectCount = 0;
+        _nextStaRetryMs = 0;
+        _staConnectAttemptMs = 0;  // disarm watchdog — connection succeeded
+        Serial.printf("[WiFi] STA IP: %s\n", WiFi.localIP().toString().c_str());
+    } else if (event == ARDUINO_EVENT_WIFI_STA_LOST_IP) {
+        _staConnected = false;
+        if (_staLostIpMs == 0) {
+            _staLostIpMs = millis();
+        }
+        Serial.println("[WiFi] STA lost IP; waiting for DHCP recovery");
+    } else if (event == ARDUINO_EVENT_WIFI_STA_DISCONNECTED) {
+        _staAssociated = false;
+        _staConnected = false;
+        _staLostIpMs = 0;
+        _needApReassert = true;
+        _staRetryPending = _staConfigured;
+        if (_staDisconnectCount < 0xFF) {
+            _staDisconnectCount++;
+        }
+
+        uint8_t backoffShift = _staDisconnectCount > 5 ? 5 : (_staDisconnectCount > 0 ? _staDisconnectCount - 1 : 0);
+        uint32_t retryDelay = STA_RETRY_BASE_MS << backoffShift;
+        if (retryDelay > STA_RETRY_MAX_MS) retryDelay = STA_RETRY_MAX_MS;
+        _nextStaRetryMs = millis() + retryDelay;
+
+        Serial.printf("[WiFi] STA disconnected (reason=%u), retry in %lu ms\n",
+                      (unsigned int)info.wifi_sta_disconnected.reason,
+                      (unsigned long)retryDelay);
+    }
+}
+
+void WebDashboard::begin() {
     // Load STA credentials from NVS; migrate to compile-time defaults on new firmware version
     {
         Preferences prefs;
@@ -975,23 +1115,14 @@ void WebDashboard::begin() {
             prefs.putString("pass", WIFI_STA_DEFAULT_PASS);
             prefs.putInt("ver", WIFI_CFG_VERSION);
         }
-        String staSsid = prefs.getString("ssid", WIFI_STA_DEFAULT_SSID);
-        String staPass = prefs.getString("pass", WIFI_STA_DEFAULT_PASS);
+        _staSsid = prefs.getString("ssid", WIFI_STA_DEFAULT_SSID);
+        _staPass = prefs.getString("pass", WIFI_STA_DEFAULT_PASS);
         prefs.end();
-
-        if (staSsid.length() > 0) {
-            // WIFI_FAST_SCAN: stop scanning as soon as the target SSID is found on
-            // any channel instead of exhaustively scanning all 13 channels.
-            // Reduces background radio activity that interferes with the pinned AP channel.
-            WiFi.setScanMethod(WIFI_FAST_SCAN);
-            WiFi.setSortMethod(WIFI_CONNECT_AP_BY_SIGNAL);
-            WiFi.setAutoReconnect(true);
-            WiFi.begin(staSsid.c_str(), staPass.c_str());
-            Serial.printf("[WiFi] STA connecting to '%s'...\n", staSsid.c_str());
-        } else {
-            Serial.println("[WiFi] No STA credentials stored");
-        }
     }
+    _staConfigured = _staSsid.length() > 0;
+    WiFi.mode(_staConfigured ? WIFI_AP_STA : WIFI_AP);
+    WiFi.setAutoReconnect(false);  // Disable IDF auto-retry; we own the backoff schedule
+    ensureApUp(true);
 
     _ws.onEvent([this](AsyncWebSocket* s, AsyncWebSocketClient* c,
                        AwsEventType t, void* a, uint8_t* d, size_t l) {
@@ -1000,9 +1131,58 @@ void WebDashboard::begin() {
     _server.addHandler(&_ws);
 
     _server.on("/", HTTP_GET, serveIndex);
-
     _server.begin();
     Serial.println("[WiFi] Web server started");
+
+    WiFi.onEvent([this](WiFiEvent_t event, WiFiEventInfo_t info) {
+        onWiFiEvent(event, info);
+    });
+
+    if (_staConfigured) {
+        _staRetryPending = false;
+        _nextStaRetryMs = 0;
+        startStaConnectAttempt();
+    } else {
+        Serial.println("[WiFi] No STA credentials stored");
+    }
+}
+
+void WebDashboard::tick() {
+    const uint32_t now = millis();
+    if (_needApReassert || (now - _lastApHealthCheckMs >= AP_HEALTH_CHECK_MS)) {
+        _lastApHealthCheckMs = now;
+        // STA loss should verify AP health, not force a SoftAP/DHCP restart for healthy AP clients.
+        ensureApUp(false);
+    }
+
+    if (_staConfigured && !_staAssociated && _staRetryPending &&
+        (int32_t)(now - _nextStaRetryMs) >= 0) {
+        ensureApUp(false);
+        startStaConnectAttempt();
+    }
+
+    // Connect-attempt watchdog: if IDF fails to fire DISCONNECTED after a connect attempt
+    // (known IDF edge case), _staRetryPending stays false forever. Detect and recover.
+    if (_staConfigured && !_staAssociated && !_staRetryPending && _staConnectAttemptMs != 0 &&
+        (int32_t)(now - _staConnectAttemptMs) >= (int32_t)STA_CONNECT_TIMEOUT_MS) {
+        Serial.println("[WiFi] STA connect watchdog: no event received, re-arming retry");
+        _staConnectAttemptMs = 0;
+        _staRetryPending = true;
+        _nextStaRetryMs = now;
+    }
+
+    // DHCP watchdog: recover from prolonged associated-but-no-IP stalls without
+    // reintroducing the slow-DHCP reconnect loop (W7). We only act after a long
+    // LOST_IP window and then reuse the existing retry scheduler/backoff path.
+    if (_staConfigured && _staAssociated && !_staConnected && _staLostIpMs != 0 &&
+        (int32_t)(now - _staLostIpMs) >= (int32_t)STA_LOST_IP_RECOVERY_MS) {
+        Serial.println("[WiFi] STA DHCP watchdog timeout; forcing reconnect");
+        _staLostIpMs = 0;
+        _staAssociated = false;
+        _staRetryPending = true;
+        _nextStaRetryMs = now;
+        WiFi.disconnect(false, false);
+    }
 }
 
 void WebDashboard::broadcast(const char* dataLine) {

@@ -27,8 +27,8 @@ subsystems used by `evka_position`.
 
 ## Current Pin Map (source of truth: `SphericalSensor.h`)
 
-- Theta A/B: GPIO `32` / `35`
-- Phi A/B: GPIO `14` / `12`
+- Theta A/B: GPIO `14` / `12`
+- Phi A/B: GPIO `32` / `35`
 - Draw-wire A/B/Z: GPIO `16` / `17` / `18`
 
 ## Current Working Constants (before recalibration)

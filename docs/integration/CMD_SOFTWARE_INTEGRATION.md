@@ -21,10 +21,12 @@ These values are currently defined in `firmware/src/SphericalSensor.h`:
 
 - `ENABLE_WIFI = 1`
 - `ENABLE_CMD_TCP = 1`
+- `ENABLE_REMOTE_WIFI_CONFIG = 1`
 - `CMD_TCP_PORT = 8080`
 - `WIFI_AP_SSID = "CMDCNC_EVKA"`
 - `WIFI_AP_PASSWORD = "cmdcnc1234"`
 - AP IP = `192.168.1.50`
+- `WIFI_STA_DEFAULT_SSID = "CMD-YAZILIM"` (compile-time default; runtime credentials stored in NVS)
 
 ## TCP Protocol Quick Reference
 
@@ -37,9 +39,10 @@ WIFI_SET:<ssid>,<password>
 WIFI_AYAR:<ssid>,<password>
 ```
 
-Note: `WIFI_SET`/`WIFI_AYAR` are accepted only when
-`ENABLE_REMOTE_WIFI_CONFIG = 1`. With default settings (`0`) they return
-`ERR:WIFI_CFG_DISABLED` on serial, TCP, and WebSocket command paths.
+Note: `WIFI_SET`/`WIFI_AYAR` are active (`ENABLE_REMOTE_WIFI_CONFIG = 1`).
+On success the device saves credentials to NVS and reboots, sending `ACK:WIFI_SAVED`
+to all connected clients (serial, TCP, WebSocket) before restarting.
+If the flag is ever disabled (`0`), TCP and WebSocket paths return `ERR:WIFI_CFG_DISABLED`.
 
 WiFi credential validation (applies to both TCP and serial paths):
 - SSID must be 1–32 characters → `ERR:SSID_INVALID` if empty or >32 chars
@@ -82,6 +85,11 @@ Default target:
 - Port: `8080`
 - AP fallback IP: `192.168.1.50`
 
+AP/STA resilience update:
+- Firmware keeps AP fallback reachable when STA loses upstream WiFi by using event-driven AP reassertion and controlled STA reconnect backoff.
+- If `192.168.1.50` is unreachable, first rule out OS routing conflict (disable home/office WiFi on the client and reconnect to `CMDCNC_EVKA` only).
+- Deep diagnostics: `docs/WIFI_PERFORMANCE_ISSUES_LOG.md` (Issue 8).
+
 ## Related Files
 
 - `firmware/src/CmdTcpServer.cpp`
@@ -90,3 +98,4 @@ Default target:
 - `tools/position_checker/cmd_gui.py`
 - `tools/position_checker/tcp_client.py`
 - `README_TR.md` — Turkish WiFi connection guide for end users
+- `docs/WIFI_PERFORMANCE_ISSUES_LOG.md` — WiFi diagnostics and AP resilience notes

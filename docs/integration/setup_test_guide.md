@@ -136,7 +136,7 @@ Zero errors = firmware compiles correctly. Proceed to Phase 3 to flash.
 
 ## 5. Phase 3 — Full System (all encoders connected)
 
-`PIN_THETA_A = 32`, `PIN_THETA_B = 35`, `PIN_PHI_A = 14`, `PIN_PHI_B = 12`
+`PIN_THETA_A = 14`, `PIN_THETA_B = 12`, `PIN_PHI_A = 32`, `PIN_PHI_B = 35`
 
 Compile and flash:
 
@@ -146,7 +146,7 @@ pio run -e wemos_d1_r32 --target upload
 
 Boot the ESP32 with robot at **mechanical home** (wire fully retracted, angles at zero).
 Firmware waits 2 s then auto-calls `setZeroPoint()`.
-After that, serial prints `DATA,x,y,z,...` lines at 2 Hz.
+After that, serial prints `DATA,x,y,z,...` lines at 20 Hz.
 
 To re-zero without reflashing, send `ZERO\n` over serial.
 
@@ -165,4 +165,4 @@ To re-zero without reflashing, send `ZERO\n` over serial.
 | Upload timeout | Board not entering bootloader | Hold BOOT → RESET → release BOOT → retry |
 | `Encoder` not found on compile | Library missing | PlatformIO auto-installs from `platformio.ini`; run `pio lib install` if needed |
 | Port permission denied | User not in dialout | `sudo usermod -aG dialout $USER && newgrp dialout` |
-| False phi counts after main firmware flash | PHI_A wired to wrong GPIO | Verify phi A wire goes to GPIO 14 divider |
+| False phi counts after main firmware flash | PHI_A wired to wrong GPIO | Verify phi A wire goes to GPIO 32 divider |

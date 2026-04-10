@@ -142,7 +142,10 @@ Use the same 10k/20k divider circuit as Option A above. The E40S6 shield wire (b
 
 ## Phase 3 & 4 Complete
 
-`PIN_PHI_A` remapped to GPIO 14, `PIN_PHI_B` remapped to GPIO 12. `PIN_THETA_A` = GPIO 32, `PIN_THETA_B` = GPIO 35.
-UART0 RX conflict resolved. PPR_ROTARY corrected from datasheet 5000 to 20000 (X4 quadrature).
+Current firmware pin map (source of truth: `firmware/src/SphericalSensor.h`):
+`PIN_THETA_A` = GPIO 14, `PIN_THETA_B` = GPIO 12, `PIN_PHI_A` = GPIO 32,
+`PIN_PHI_B` = GPIO 35. UART0 RX conflict remains resolved, and the final
+rotary mapping is the one above.
+PPR_ROTARY corrected from datasheet 5000 to 20000 (X4 quadrature).
 Phase 5 (2026-03-11): PPR_ROTARY further corrected to 20000 (X4 quadrature); PPR_WIRE calibrated to 8020 (400 mm / 1604 mm reading).
 Full system testing can proceed.

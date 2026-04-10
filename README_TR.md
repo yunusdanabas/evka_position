@@ -124,7 +124,26 @@ Tüm komutlar serial (115200 baud), TCP ve WebSocket üzerinde çalışır. Komu
 
 ---
 
-## 7. Router Modunda Kullanım (STA)
+## 7. Kablosuz Uzaktan Kumanda (ESP-NOW)
+
+2 düğmeli ESP32-C3 SuperMini kolye, ana ESP32 ile ESP-NOW protokolü üzerinden iletişim kurar. Eşleştirme gerekmez — AP ile aynı WiFi kanalında yayın yapar.
+
+| Düğme | GPIO | Renk | Komut | İşlev |
+|-------|------|------|-------|-------|
+| 0 | 4 | Kırmızı | `ZERO` | Tüm encoder'ları sıfırla |
+| 1 | 5 | Yeşil | `SAVE_POINT` | Mevcut konumu kaydet |
+
+**Uzaktan kumanda firmware'ini derle ve yükle:**
+```bash
+pio run -e button_remote --target upload
+```
+
+Donanım: ESP32-C3 SuperMini + genişletme kartı (LiPo 500 mAh, USB-C şarj). Pil ömrü ~14 ay.
+Şema, BOM ve kart teknik özellikleri: `docs/hardware_design/remote/`
+
+---
+
+## 8. Router Modunda Kullanım (STA)
 
 ESP32, kendi AP'si ile aynı anda bir WiFi yönlendiricisine de bağlanabilir (AP+STA modu).
 
@@ -133,12 +152,31 @@ ESP32, kendi AP'si ile aynı anda bir WiFi yönlendiricisine de bağlanabilir (A
 3. Bu IP üzerinden TCP port `8080` ile bağlanabilirsiniz
 4. Doğrudan bağlantı için `192.168.1.50` hâlâ çalışır
 
+Not: Firmware, STA bağlantısı koptuğunda AP erişilebilirliğini korumak için olay-tabanlı WiFi toparlanması kullanır (AP yeniden doğrulama + kontrollü STA yeniden deneme bekleme süresi).
+
 ---
 
-## 8. Sorun Giderme
+## 9. Sorun Giderme
 
 - **Panele ulaşamıyorum:** Cihazınızda başka bir WiFi bağlantısı aktif olabilir; ev/ofis WiFi'nizi devre dışı bırakın.
 - **Veri gelmiyor:** `PING` komutu gönderin; `ACK:PONG` yanıtı geliyorsa bağlantı sağlıklıdır.
 - **Veriler 0,0,0:** Sistem henüz sıfır noktasını almamış olabilir; `ZERO` komutunu gönderin (cihaz mekanik ev konumundayken).
 - **TCP bağlantısı düşüyor:** Maksimum 3 eş zamanlı istemci desteklenir; fazlası `ERR:MAX_CLIENTS` hatası alır.
 - **LED yanmıyor:** `ENABLE_WIFI=0` ile derlenmiş olabilir; `SphericalSensor.h` dosyasını kontrol edin.
+
+Ayrıntılı WiFi teşhis kaydı: `docs/WIFI_PERFORMANCE_ISSUES_LOG.md`  
+CMD yazılım entegrasyonu: `docs/integration/CMD_SOFTWARE_INTEGRATION.md`
+
+---
+
+## 10. Firmware Güvenilirlik Durumu (2026-04-09)
+
+2026-04-09 tarihinde Gemini + Copilot ile tam kod incelemesi yapıldı, bu oturumda tespit edilen kod sorunları giderildi:
+
+- **`normalizeAngle()` O(1) hale getirildi** — while döngüleri `fmodf` ile değiştirildi
+- **STA bağlantı watchdog eklendi** — IDF DISCONNECTED olayını kaçırırsa 15 s sonra otomatik kurtarma
+- **Küresel koordinatlar için NaN/Inf koruması** — `validateLimits()` içine eklendi
+- **Float aritmetik optimize edildi** — tüm trigonometri ve EMA filtresi double yerine float kullanıyor (`sinf/cosf/sqrtf`); ESP32'de double için donanım FPU yok
+- **6 WiFi kurtarma hatası** düzeltildi (volatile bayraklar, millis() taşma, backoff tekrarı, vb.)
+
+Tam değişiklik günlüğü ve bekleyen fiziksel doğrulama adımları: `docs/WIFI_PERFORMANCE_ISSUES_LOG.md` (2026-04-09 bölümü + Open Items)

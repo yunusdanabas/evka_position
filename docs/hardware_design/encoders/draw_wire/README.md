@@ -86,7 +86,7 @@ From the encoder nameplate. Use **V** (Brown) and **0 V** (White) for power; **A
 | **Pins (ESP32)** | PIN_WIRE_CLK = 6, PIN_WIRE_DIR = 7 | PIN_WIRE_A = 16, PIN_WIRE_B = 17 |
 | **Why 6/7 changed** | GPIO 6–11 are reserved for SPI flash on ESP32-WROOM-32 (Wemos D1 R32) — must not be used as I/O | 16/17 are safe GPIOs with full I/O |
 | **Voltage** | Encoder 5 V outputs; direct connect risks ESP32 (3.3 V max) | Use 10 kΩ / 20 kΩ divider on A, B, Z before ESP32 |
-| **Phi encoder** | PIN_PHI_A = 3 (was UART0 RX — serial injected false counts) | Remapped to GPIO 14 (PHI_B to GPIO 12) — conflict resolved |
+| **Rotary encoder final map** | Earlier intermediate remaps were part of bring-up | Final firmware map is Theta = GPIO 14/12, Phi = GPIO 32/35; see `firmware/src/SphericalSensor.h` |
 
 Current firmware uses the **Encoder** library (quadrature) for the draw-wire; legacy used a single ISR on the clock pin and read direction from the other pin.
 

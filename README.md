@@ -27,6 +27,10 @@ Evka Position is a firmware project for the **ESP32 (Wemos D1 R32)** that calcul
 | 17  | Draw-wire encoder B |
 | 2   | WiFi status LED (active-high) |
 
+Current compile-time pins, PPR values, battery options, and WiFi feature
+flags are defined in `firmware/src/SphericalSensor.h`. If a doc disagrees with
+that header, the header is the source of truth.
+
 ## Directory Structure
 
 ```
@@ -103,6 +107,8 @@ Dashboard tabs:
 - **CALIBRATE**: multi-trial wire calibration, theta/phi calibration, endpoint point collection; PPR values can be applied to RAM or saved permanently to NVS flash
 
 > **Subnet conflict warning**: `192.168.1.50` is in the range used by most home/office routers. If the dashboard is unreachable, disconnect your device from the home/office WiFi first — your OS may route `192.168.1.50` to the home router. This IP cannot be changed: CMD CNC software is hardcoded to `192.168.1.50:8080`.
+>
+> **AP resilience note**: Firmware includes event-driven AP recovery for STA disconnects (AP health reassertion + controlled STA retry backoff). If upstream WiFi drops, `CMDCNC_EVKA` should remain reachable. See `docs/WIFI_PERFORMANCE_ISSUES_LOG.md` (Issue 8) for diagnostics and validation steps.
 
 ### WiFi Status LED (GPIO 2)
 
@@ -116,7 +122,27 @@ Wiring: `GPIO 2 → 1 kΩ resistor → LED anode → LED cathode → GND`
 
 ### Router Mode (STA)
 
-After saving router credentials via the WiFi Settings panel (or `WIFI_SET:<ssid>,<pass>` command when `ENABLE_REMOTE_WIFI_CONFIG=1`), send `GET_IP` to get the router-assigned IP. TCP port remains `8080`. The AP fallback `192.168.1.50` stays active.
+Save router credentials via the WiFi Settings panel (web dashboard) or `WIFI_SET:<ssid>,<pass>` command. `ENABLE_REMOTE_WIFI_CONFIG=1` is the current default — credentials are accepted over TCP and WebSocket, saved to NVS, and the device reboots. STA uses a hardcoded static profile (`192.168.0.84 / 255.255.255.0`, gateway `192.168.0.1`, DNS `8.8.8.8`), so `GET_IP` reports that fixed address when connected. The AP fallback `192.168.1.50` stays active.
+
+For CMD software connection details and fallback behavior, see `docs/integration/CMD_SOFTWARE_INTEGRATION.md`.
+
+## Wireless Button Remote (ESP-NOW)
+
+A 2-button ESP32-C3 SuperMini pendant communicates with the main ESP32 via ESP-NOW.
+No pairing required — broadcasts on the same WiFi channel as the AP.
+
+| Button | GPIO | Color | Command | Action |
+|--------|------|-------|---------|--------|
+| 0 | 4 | Red | `ZERO` | Re-zero all encoders |
+| 1 | 5 | Green | `SAVE_POINT` | Save current position snapshot |
+
+**Build & flash remote firmware:**
+```bash
+pio run -e button_remote --target upload
+```
+
+Hardware: ESP32-C3 SuperMini + expansion board (LiPo 500 mAh, USB-C charging). Battery life ~14 months.
+See `docs/hardware_design/remote/` for schematic, BOM, and board specs.
 
 ## TCP Raw Data (Port 8080)
 
@@ -147,24 +173,70 @@ Send any command from the table above as a WebSocket text frame.
 
 ## Python Visualiser Tools
 
+### Install dependencies
+
+```bash
+pip install -r tools/position_checker/requirements.txt
+# or via pyproject.toml:
+pip install numpy PyQt5 pyqtgraph pyserial
+```
+
 ### 1. Real-time 3D Visualiser (`tools/position_checker`)
 
 ```bash
-cd tools/position_checker && pip install -r requirements.txt
+# Live serial (Linux)
+python -m tools.position_checker --port /dev/ttyUSB0
 
-python -m tools.position_checker --port /dev/ttyUSB0             # live serial
-python -m tools.position_checker --replay-file frames.csv --fps 20  # replay
+# Live serial (Windows)
+python -m tools.position_checker --port COM3
+
+# Custom baud + point history + GUI refresh rate
+python -m tools.position_checker --port /dev/ttyUSB0 --baud 115200 --maxpoints 1000 --fps 20
+
+# Log parsed DATA frames to CSV while running
+python -m tools.position_checker --port /dev/ttyUSB0 --csv-log session.csv
+
+# Replay from a previously saved CSV (no hardware needed)
+python -m tools.position_checker --replay-file session.csv --fps 20
+
+# Disable calibration transform (raw encoder coordinates)
+python -m tools.position_checker --port /dev/ttyUSB0 --calibration none
+
+# Disable serial auto-reconnect
+python -m tools.position_checker --port /dev/ttyUSB0 --no-reconnect
 ```
 
-Key flags: `--port`, `--baud 115200`, `--maxpoints 500`, `--fps 10`, `--csv-log out.csv`
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--port` | *(required)* | Serial port (`/dev/ttyUSB0`, `COM3`, etc.) |
+| `--baud` | `115200` | Baud rate |
+| `--maxpoints` | `500` | Point history kept in memory |
+| `--fps` | `10` | GUI refresh rate and replay playback speed |
+| `--csv-log` | *(off)* | Output CSV path for parsed DATA frames |
+| `--replay-file` | *(off)* | Read frames from CSV instead of serial port |
+| `--calibration` | `tools/calibration/calibration.json` | Path to calibration JSON; pass `none` to disable |
+| `--reconnect` | `true` | Auto-reconnect serial on disconnect |
+| `--no-reconnect` | — | Disable serial auto-reconnect |
+| `--reconnect-interval` | `1.0` | Initial reconnect delay (seconds) |
 
 ### 2. CMD TCP GUI (`tools/position_checker/cmd_main.py`)
 
-Linux control panel equivalent of `firmware/src/CMD Soft/gui.cs`. Connects to ESP32 over WiFi TCP.
+Linux control panel equivalent of the Windows CMD CNC GUI. Connects to the ESP32 over WiFi TCP (port 8080). Displays live X/Y/Z, R/θ/φ, min/max tracking, system info, and WiFi settings.
 
 ```bash
 python -m tools.position_checker.cmd_main
 ```
+
+#### Known IP addresses
+
+| Address | When to use |
+|---------|-------------|
+| `192.168.1.50` | **AP fallback** — always reachable on the `CMDCNC_EVKA` access point |
+| `192.168.0.84` | **STA static IP** — router mode with hardcoded profile (`GW 192.168.0.1`, mask `255.255.255.0`, DNS `8.8.8.8`) |
+
+> After connecting to a router, send `GET_IP` from the GUI (or serial) to confirm STA connectivity. The GUI auto-updates the IP field from the `STA_IP:` response.
+
+Port is always **8080** regardless of AP or STA mode.
 
 ## Mathematical Model
 
@@ -175,6 +247,21 @@ X = r * cos(phi) * cos(theta)
 Y = r * cos(phi) * sin(theta)
 Z = r * sin(phi)
 ```
+
+## Firmware Reliability Status (2026-04-09)
+
+A full code-review pass (Gemini + Copilot) was run after the 2026-04-08 WiFi recovery implementation. All code findings from that session were fixed. Build: **SUCCESS**, Flash −260 bytes.
+
+Key fixes:
+- **`normalizeAngle()` was O(N)** — while-loops replaced with `fmodf` (O(1) regardless of encoder count)
+- **STA retry watchdog** — if IDF misses a DISCONNECTED event, retry self-recovers after 15 s
+- **NaN/Inf guards** on spherical coordinates in `validateLimits()` (before the range checks)
+- **Float math** — all trig and EMA filter literals changed to `f`-suffix; `sinf/cosf/asinf/atan2f/sqrtf` used throughout (ESP32 has no hardware double FPU)
+- **6 WiFi recovery bugs** fixed: volatile flags, backoff formula dedup, millis() overflow, `setAutoReconnect(false)`, AP mode guard
+
+Full fix log and pending hardware validation steps: `docs/WIFI_PERFORMANCE_ISSUES_LOG.md` (2026-04-09 section + Open Items)
+
+> **Heap note**: ESPAsyncWebServer v1.2.4 (installed) uses a **shared buffer model** for `textAll()` — one malloc per broadcast, not one per client. The heap concern noted in prior documentation was based on GitHub master behavior and does not apply to this version.
 
 ## Integration Docs
 

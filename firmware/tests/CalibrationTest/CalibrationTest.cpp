@@ -4,8 +4,8 @@
 // Target: ESP32 (Wemos D1 R32)
 //
 // Wiring (matches AllSensorsTest):
-//   Theta: A -> GPIO 32,  B -> GPIO 35
-//   Phi:   A -> GPIO 14,  B -> GPIO 12
+//   Theta: A -> GPIO 14,  B -> GPIO 12
+//   Phi:   A -> GPIO 32,  B -> GPIO 35
 //   Wire:  A -> GPIO 16,  B -> GPIO 17
 //
 // Serial: 115200 baud, output every 200 ms.
@@ -31,10 +31,10 @@
 #include <Encoder.h>
 
 // --- Pin definitions ---
-#define PIN_THETA_A  32
-#define PIN_THETA_B  35
-#define PIN_PHI_A    14
-#define PIN_PHI_B    12
+#define PIN_THETA_A  14
+#define PIN_THETA_B  12
+#define PIN_PHI_A    32
+#define PIN_PHI_B    35
 #define PIN_WIRE_A   16
 #define PIN_WIRE_B   17
 
@@ -341,7 +341,7 @@ void setup() {
     Serial.println("=====================================================");
     Serial.println("  CalibrationTest — ESP32 / All 3 Encoders");
     Serial.println("=====================================================");
-    Serial.println("  Theta: GPIO 32/35  |  Phi: GPIO 14/12  |  Wire: GPIO 16/17");
+    Serial.println("  Theta: GPIO 14/12  |  Phi: GPIO 32/35  |  Wire: GPIO 16/17");
     Serial.print  ("  PPR_ROTARY=");   Serial.print(ppr_t, 0);
     Serial.print  ("  PPR_WIRE=");     Serial.print(ppr_w, 0);
     Serial.print  ("  MM_PER_PULSE="); Serial.println(mm_per_pulse, 4);

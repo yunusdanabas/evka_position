@@ -389,8 +389,8 @@ No manual overflow handling needed.
 
 | Encoder | Channel A | Channel B | Notes |
 |---------|-----------|-----------|-------|
-| Theta | GPIO 32 | GPIO 35 | Pulled down internally |
-| Phi | GPIO 14 | GPIO 12 | Avoid GPIO 0, 2, 15 |
+| Theta | GPIO 14 | GPIO 12 | Theta final mapping in `SphericalSensor.h` |
+| Phi | GPIO 32 | GPIO 35 | Phi final mapping in `SphericalSensor.h` |
 | Draw-wire | GPIO 16 | GPIO 17 | Optional Z (GPIO 18) |
 
 ### Voltage Divider (Critical!)
@@ -553,24 +553,24 @@ void setup() {
 ```cpp
 void diagnose_encoder() {
     Serial.println("\n=== PCNT GPIO Diagnostic ===");
-    Serial.printf("GPIO 32 (Theta A): %d\n", digitalRead(32));
-    Serial.printf("GPIO 35 (Theta B): %d\n", digitalRead(35));
-    Serial.printf("GPIO 14 (Phi A):   %d\n", digitalRead(14));
-    Serial.printf("GPIO 12 (Phi B):   %d\n", digitalRead(12));
+    Serial.printf("GPIO 14 (Theta A): %d\n", digitalRead(14));
+    Serial.printf("GPIO 12 (Theta B): %d\n", digitalRead(12));
+    Serial.printf("GPIO 32 (Phi A):   %d\n", digitalRead(32));
+    Serial.printf("GPIO 35 (Phi B):   %d\n", digitalRead(35));
     
     // Sample transitions for 1 second
     uint32_t ta = 0, tb = 0, pa = 0, pb = 0;
-    uint8_t last_ta = digitalRead(32);
-    uint8_t last_tb = digitalRead(35);
-    uint8_t last_pa = digitalRead(14);
-    uint8_t last_pb = digitalRead(12);
+    uint8_t last_ta = digitalRead(14);
+    uint8_t last_tb = digitalRead(12);
+    uint8_t last_pa = digitalRead(32);
+    uint8_t last_pb = digitalRead(35);
     
     unsigned long start = millis();
     while (millis() - start < 1000) {
-        if (digitalRead(32) != last_ta) { ta++; last_ta = !last_ta; }
-        if (digitalRead(35) != last_tb) { tb++; last_tb = !last_tb; }
-        if (digitalRead(14) != last_pa) { pa++; last_pa = !last_pa; }
-        if (digitalRead(12) != last_pb) { pb++; last_pb = !last_pb; }
+        if (digitalRead(14) != last_ta) { ta++; last_ta = !last_ta; }
+        if (digitalRead(12) != last_tb) { tb++; last_tb = !last_tb; }
+        if (digitalRead(32) != last_pa) { pa++; last_pa = !last_pa; }
+        if (digitalRead(35) != last_pb) { pb++; last_pb = !last_pb; }
     }
     
     Serial.printf("Transitions in 1s: TA=%u, TB=%u, PA=%u, PB=%u\n", ta, tb, pa, pb);
@@ -692,8 +692,8 @@ From `firmware/src/SphericalSensor.h`:
 #define DEG_PER_PULSE (360.0 / PPR_ROTARY)
 #define MM_PER_PULSE (400.0 / PPR_WIRE)
 
-// Theta encoder: GPIO 32 (A), 35 (B)
-// Phi encoder:   GPIO 14 (A), 12 (B)
+// Theta encoder: GPIO 14 (A), 12 (B)
+// Phi encoder:   GPIO 32 (A), 35 (B)
 // Wire sensor:   GPIO 16 (A), 17 (B), 18 (Z)
 ```
 
@@ -716,4 +716,3 @@ From `firmware/src/SphericalSensor.h`:
 - [ ] ISR overhead acceptable? Monitor count accuracy over long duration
 - [ ] Overflow handled? Verify counts exceed 32,767 without loss
 - [ ] Glitch filter set? Use `setFilter(1023)` for mechanical switches
-

@@ -18,7 +18,7 @@
   - [x] Math: EMA filter primed reset on all zero operations; consistent sph/cart validation
   - [x] Docs: E30S6 → E40S6 across all files; dead links in `docs/resources.md` fixed
   - [x] Build: `espressif32@6.12.0` pinned; exact library versions; library caret ranges removed
-  - [x] Full findings log: `docs/EXTENSIVE_AUDIT_2026-04-08.md`
+  - [x] Full findings log: superseded by `docs/WIFI_PERFORMANCE_ISSUES_LOG.md` (2026-04-08 section)
 - [x] WiFi performance & stability hardening (2026-04-08)
   - [x] Disabled modem sleep (`WiFi.setSleep(WIFI_PS_NONE)`) — primary cause of sluggishness in AP+STA mode
   - [x] Pinned AP to channel 1 (`WiFi.softAP(..., ESPNOW_CHANNEL)`) — prevents channel drift during STA scans

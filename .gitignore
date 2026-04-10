@@ -42,11 +42,15 @@ settings.txt
 **/settings.txt
 
 # Research / exploration docs (not production)
+docs/microros/
+docs/firmware/FreeRTOS_Dual_Core_Architecture.md
+docs/firmware/QUICK_REFERENCE_DualCore.md
+docs/firmware/ESP32_PCNT_REFERENCE.md
+docs/improvement_research.md
+# Legacy flat-file patterns (kept for history, files already deleted or moved)
 docs/MICROROS*.md
 docs/FreeRTOS*.md
 docs/ESP32_*.md
-docs/improvement_research.md
-docs/QUICK_REFERENCE_DualCore.md
 docs/README_MICROROS.md
 
 # Reports and build artifacts
@@ -71,3 +75,4 @@ calibration/
 tools/analysis/
 tools/web_server/
 tools/VISUALIZATION_GUIDE.md
+tools/__pycache__/

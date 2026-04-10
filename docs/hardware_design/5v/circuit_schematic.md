@@ -56,10 +56,10 @@
  ║                        │              │              │  VIN ◄──────────────┘  ││      ││
  ║                  ESP32 GPIO 36        │              │  GND ◄── GND          ││      ││
  ║                  (ADC1_CH0)           │              │                     │  ││      ││
- ║                                        │              │  GPIO 32 ◄── DIV1 ─┐ ││      ││
- ║                                        │              │  GPIO 35 ◄── DIV2 ─┤ ││      ││
- ║                                        │              │  GPIO 14 ◄── DIV3 ─┤ ││      ││
- ║                                        │              │  GPIO 12 ◄── DIV4 ─┤ ││      ││
+ ║                                        │              │  GPIO 14 ◄── DIV1 ─┐ ││      ││
+ ║                                        │              │  GPIO 12 ◄── DIV2 ─┤ ││      ││
+ ║                                        │              │  GPIO 32 ◄── DIV3 ─┤ ││      ││
+ ║                                        │              │  GPIO 35 ◄── DIV4 ─┤ ││      ││
  ║                                        │              │  GPIO 16 ◄── DIV5 ─┤ ││      ││
  ║                                        │              │  GPIO 17 ◄── DIV6 ─┤ ││      ││
  ║                                        │              │  GPIO 18 ◄── DIV7 ─┤ ││      ││
@@ -422,10 +422,10 @@
 | BAT+ | LiPo cell | TP4056 BAT+, ADC divider top | 3.0-4.2V |
 | BAT- | LiPo cell | TP4056 BAT-, GND | 0V |
 | MT_OUT | MT3608 VOUT | D2 anode | 5.3V |
-| DIV1 | Theta A divider | GPIO 32 | 0-3.33V |
-| DIV2 | Theta B divider | GPIO 35 | 0-3.33V |
-| DIV3 | Phi A divider | GPIO 14 | 0-3.33V |
-| DIV4 | Phi B divider | GPIO 12 | 0-3.33V |
+| DIV1 | Theta A divider | GPIO 14 | 0-3.33V |
+| DIV2 | Theta B divider | GPIO 12 | 0-3.33V |
+| DIV3 | Phi A divider | GPIO 32 | 0-3.33V |
+| DIV4 | Phi B divider | GPIO 35 | 0-3.33V |
 | DIV5 | Wire A divider | GPIO 16 | 0-3.33V |
 | DIV6 | Wire B divider | GPIO 17 | 0-3.33V |
 | DIV7 | Wire Z divider | GPIO 18 | 0-3.33V |
@@ -437,8 +437,8 @@
 
 | Connector | Type | Pins | Purpose |
 |-----------|------|------|---------|
-| J1 | KF301-4P | +5V, GND, A, B | Theta encoder (E40S6 #1) — GPIO 32/35 |
-| J2 | KF301-4P | +5V, GND, A, B | Phi encoder (E40S6 #2) — GPIO 14/12 |
+| J1 | KF301-4P | +5V, GND, A, B | Theta encoder (E40S6 #1) — GPIO 14/12 |
+| J2 | KF301-4P | +5V, GND, A, B | Phi encoder (E40S6 #2) — GPIO 32/35 |
 | J3 | KF301-5P | V+, GND, A, B, Z | Wire encoder (DWE3000) |
 | J4 | DC barrel 5.5x2.1mm | +5V, GND | External power input |
 | J5 | JST-PH 2-pin | BAT+, BAT- | LiPo battery |

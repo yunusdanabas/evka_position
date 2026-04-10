@@ -1,6 +1,6 @@
 # Circuit Schematic — Wireless Button Remote
 
-ESP-NOW button pendant for the EvkaPosition positioning system.
+ESP-NOW 2-button pendant for the EvkaPosition positioning system.
 
 ## System Block Diagram
 
@@ -13,80 +13,67 @@ ESP-NOW button pendant for the EvkaPosition positioning system.
        |                                         |
     [LiPo]                                   [Encoders]
     500 mAh                                  [Web Dashboard]
+  (via expansion
+     board)
 ```
 
 ## Full Circuit Schematic
 
 ```
-                     XIAO ESP32-C3
-                  +------------------+
-                  |                  |
-  +3.3V ----+----| 3V3         D0/2 |----+----[BTN_0]----GND     SAVE_POINT (Green)
-             |    |                  |    |
-             |    |            D1/3 |----+----[BTN_1]----GND     ZERO (Red)
-             |    |                  |    |
-             |    |            D2/4 |----+----[BTN_2]----GND     RECORD (Blue)
-             |    |                  |    |
-             |    |            D3/5 |----+----[BTN_3]----GND     ZERO_T (Yellow)
-             |    |                  |    |
-             |    |            D4/6 |----+----[BTN_4]----GND     ZERO_W (White)
-             |    |                  |
-             |    |         USB-C   |  <-- Programming + LiPo charging
-             |    |                  |
-             |    | BAT+        BAT-|
-             |    +-----|---------|--+
-             |          |         |
-             |    +-----|---------|--+
-             |    | +        SW    - |
-             |    |    LiPo 500mAh   |
-             |    +------------------+
-             |
-             +---[330R]---[LED]---GND    (optional status LED)
+                  ESP32-C3 SuperMini + Expansion Board
+                  +------------------------------------+
+                  |                                    |
+  3.3V ------+---| 3V3                         GPIO4 |----+----[BTN_0]----GND   ZERO (Red)
+              |   |                                    |   |
+              |   |                             GPIO5 |----+----[BTN_1]----GND   SAVE_POINT (Green)
+              |   |                                    |
+              |   |                             GPIO8 |---[330R]---[LED]---GND   (status LED, optional
+              |   |                                    |                           built-in on SuperMini)
+              |   |                             USB-C |  <-- Programming
+              |   |                                    |
+              |   | BAT+      (expansion board)  BAT- |---> LiPo 3.7V 500mAh
+              |   +------------------------------------+
+              |
 ```
 
 ## Button Wiring Detail (per button)
 
 ```
-        XIAO GPIO (D0-D4)
-             |
-             +--- Internal pull-up (enabled in firmware)
-             |
-     +-------+-------+
-     |               |
-  [100nF]        [BUTTON]
-     |          (NO, tactile)
-     |               |
-    GND             GND
+        ESP32-C3 GPIO (4 or 5)
+               |
+               +--- Internal pull-up (enabled in firmware)
+               |
+           [BUTTON]
+           (NO, tactile)
+               |
+              GND
 
-    State: Released = HIGH (pull-up), Pressed = LOW (to GND)
-    100nF capacitor provides hardware debounce (RC tau ~ 1ms with 10k pull-up)
+      State: Released = HIGH (pull-up), Pressed = LOW (to GND)
+      Debounce: handled in firmware (20 ms delay after wake-up)
+      No hardware capacitor needed — short traces only.
 ```
 
 ## Pin Assignment Table
 
-| XIAO Pin | GPIO | Function | Button Color | Command |
-|----------|------|----------|-------------|---------|
-| D0 | GPIO 2 | BTN_SAVE_POINT | Green | `SAVE_POINT` |
-| D1 | GPIO 3 | BTN_ZERO | Red | `ZERO` |
-| D2 | GPIO 4 | BTN_RECORD | Blue | `RECORD_TOGGLE` |
-| D3 | GPIO 5 | BTN_ZERO_THETA | Yellow | `ZERO_T` |
-| D4 | GPIO 6 | BTN_ZERO_WIRE | White | `ZERO_W` |
+| GPIO | Function | Button Color | Command |
+|------|----------|-------------|---------|
+| GPIO 4 | BTN_ZERO | Red | `ZERO` |
+| GPIO 5 | BTN_SAVE_POINT | Green | `SAVE_POINT` |
+| GPIO 8 | LED feedback | — | Built-in blue LED (active HIGH) |
 
 ## Power Architecture
 
 ```
-                          XIAO ESP32-C3 (built-in charger)
-                         +--------------------------------+
-  USB-C 5V -----+-------| VUSB    Charge IC    BAT+/BAT-|----> LiPo 3.7V
-                 |       |        (370 mA)                |     500 mAh
-                 |       |                                |
-                 |       | LDO 3.3V -----> ESP32-C3 core  |
-                 |       +--------------------------------+
-                 |
-             (charging)
+                    ESP32-C3 SuperMini + Expansion Board
+                   +--------------------------------------+
+  USB-C 5V -------| USB-C   Charge IC (TP4056)   BAT+/- |----> LiPo 3.7V 500 mAh
+                   |                                      |
+                   | LDO 3.3V ------> ESP32-C3 core       |
+                   | VCC1/VCC2 = 3.3V (adjustable 3.7V)  |
+                   +--------------------------------------+
 
   Power consumption:
-    Deep sleep:    ~44 uA (ESP32-C3 + XIAO regulators)
+    Deep sleep:    ~44 µA (ESP32-C3 + SuperMini regulators)
     Active send:   ~120 mA for ~10 ms per button press
     Average:       < 0.05 mA (assuming 100 presses/day)
     Battery life:  ~500 mAh / 0.05 mA = ~10,000 hours = ~14 months
@@ -104,9 +91,9 @@ ESP-NOW button pendant for the EvkaPosition positioning system.
        |                                     |
   esp_deep_sleep_enable_gpio_wakeup()        |
        |                                     |
-  Wake (~300 us)                             |
+  Wake (~300 µs)                             |
        |                                     |
-  Read GPIO → button_id (0-4)               |
+  Read GPIO → button_id (0 or 1)            |
        |                                     |
   WiFi.mode(WIFI_STA)                       |
   esp_wifi_set_channel(1)                   |
@@ -126,32 +113,30 @@ ESP-NOW button pendant for the EvkaPosition positioning system.
 
 ## Strapping Pin Notes (ESP32-C3)
 
-| GPIO | Strapping | Safe for Button? | Notes |
-|------|----------|-----------------|-------|
-| **2** | SPI boot (must be HIGH/float) | **Yes** | Internal pull-up keeps HIGH at boot |
-| **3** | None | **Yes** | General purpose |
-| **4** | None | **Yes** | General purpose |
-| **5** | None | **Yes** | General purpose |
-| **6** | None | **Yes** | General purpose |
-| 8 | Flash voltage select | **Avoid** | Must be HIGH at boot for 3.3V flash |
-| 9 | Boot mode select | **Avoid** | LOW = download mode |
+| GPIO | Strapping | Safe as Button? | Safe as Output? | Notes |
+|------|----------|----------------|----------------|-------|
+| 2 | SPI boot (HIGH/float required) | Yes | Yes | Internal pull-up keeps HIGH at boot |
+| 3 | None | Yes | Yes | General purpose |
+| **4** | None | **Yes — used for BTN_ZERO** | Yes | No constraints |
+| **5** | None | **Yes — used for BTN_SAVE_POINT** | Yes | No constraints |
+| 6 | None | Yes | Yes | General purpose |
+| 8 | Flash voltage select | Avoid (input) | **Yes (output)** | Must be HIGH at boot; built-in LED — output use fine after boot |
+| 9 | Boot mode select | **Avoid** | Avoid | LOW at reset → download mode |
 
 ## Assembly Notes
 
-1. Solder 5 tactile switches to a perfboard or custom PCB
-2. Wire each button: one terminal to the XIAO GPIO pin, other terminal to GND
-3. Solder 100nF capacitor across each button (GPIO pad to GND pad)
-4. Connect LiPo battery to BAT+/BAT- pads on XIAO bottom side
-5. Optional: add slide switch in series with BAT+ for power cutoff
-6. Optional: add LED + 330R resistor to a free GPIO
-7. Mount in 3D printed enclosure with button caps protruding through top panel
+1. Solder 2 tactile switches to the expansion board header or a perfboard
+2. Wire each button: one terminal to the GPIO pin (4 or 5), other terminal to GND
+3. Connect LiPo battery to BAT+/BAT- pads on the expansion board
+5. Optional: add slide switch in series with BAT+ for hard power cutoff
+6. LED feedback is provided by the built-in GPIO 8 LED — no external LED needed
 
 ## Enclosure Recommendations
 
-- **3D printed pendant**: 80 x 45 x 25 mm, 2mm wall thickness
-  - 5 x 12mm holes for button caps on top face
+- **3D printed pendant**: 50 × 35 × 20 mm, 2 mm wall thickness
+  - 2 × 12 mm holes for button caps on top face
   - Side cutout for USB-C charging
-  - Bottom battery compartment
+  - Bottom or side slot for LiPo
   - Wrist lanyard loop
-- **Hammond 1551KTBU**: 80 x 40 x 20 mm translucent blue ABS box
-- **Mounting**: Velcro strip on back or magnetic mount (10mm neodymium disc)
+- **Hammond 1551MBK**: 50 × 35 × 20 mm black ABS
+- **Mounting**: Velcro strip on back or magnetic mount (10 mm neodymium disc)

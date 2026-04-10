@@ -23,6 +23,8 @@ STA_IP_PREFIX = "STA_IP:"
 SYSINFO_PREFIX = "SYSINFO,"
 ACK_PREFIX = "ACK:"
 ERR_PREFIX = "ERR:"
+REMOTE_BTN_PREFIX = "REMOTE_BTN:"
+REMOTE_HB_PREFIX  = "REMOTE_HB"
 
 DATA_FIELDS: Tuple[str, ...] = (
     "x_mm",
@@ -50,7 +52,7 @@ PIN_MAP: Dict[str, int] = {
 }
 
 # CMD/TCP defaults
-CMD_DEFAULT_STA_IP = "192.168.1.84"   # Example STA IP from CMD-YAZILIM network; update if DHCP differs
+CMD_DEFAULT_STA_IP = "192.168.0.84"  # Static STA IP (match SphericalSensor.h profile)
 CMD_AP_FALLBACK_IP = "192.168.1.50"
 CMD_DEFAULT_PORT = 8080
 

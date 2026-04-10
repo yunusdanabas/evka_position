@@ -7,7 +7,7 @@ Test each hardware unit **one at a time**: draw-wire encoder, theta rotary encod
 ## 1. Prerequisites
 
 - **Workflow policy**: Use PlatformIO on ESP32 only. Arduino IDE and `arduino-cli` are not part of this test workflow.
-- **Toolchain**: PlatformIO CLI. See [Setup & Test Guide](setup_test_guide.md) for install steps. Board support and Encoder library are auto-installed from `platformio.ini`.
+- **Toolchain**: PlatformIO CLI. See [Setup & Test Guide](../../integration/setup_test_guide.md) for install steps. Board support and Encoder library are auto-installed from `platformio.ini`.
 - **USB**: ESP32 connected via USB. Find port with `ls /dev/ttyUSB* /dev/ttyACM*` (replace `/dev/ttyUSB0` in commands below with your port).
 - **Ground**: Use a single common GND between any external 5 V supply, the encoder under test, and the ESP32.
 - **Voltage conditioning**: Every encoder signal line (A, B, and Z if used) must go through a voltage divider or level-shifter before the ESP32—see Section 2.
@@ -83,10 +83,10 @@ GPIOs **6, 7, 8, 9, 10, 11** are connected to internal SPI flash. **Do not use t
 
 | Signal    | GPIO | Encoder / notes |
 |-----------|------|------------------|
-| Theta A   | 32   | E40S6 (Black)    |
-| Theta B   | 35   | E40S6 (White)    |
-| Phi A     | 14   | E40S6 (Black)    |
-| Phi B     | 12   | E40S6 (White)    |
+| Theta A   | 14   | E40S6 (Black)    |
+| Theta B   | 12   | E40S6 (White)    |
+| Phi A     | 32   | E40S6 (Black)    |
+| Phi B     | 35   | E40S6 (White)    |
 | Wire A    | 16   | DWE3000          |
 | Wire B    | 17   | DWE3000          |
 | Wire Z    | 18   | DWE3000 (index)  |
@@ -156,14 +156,14 @@ If COUNT goes negative when pulling, swap A and B wires.
 
 ## 4. Test 2: Theta rotary encoder only
 
-Connect **only** the theta axis Autonics E40S6. Leave phi encoder disconnected (pins 14 and 12 unused). Use the same test app as for phi; only the theta column in the serial output is relevant—ignore PHI (it may be 0 or noisy).
+Connect **only** the theta axis Autonics E40S6. Leave phi encoder disconnected (pins 32 and 35 unused). Use the same test app as for phi; only the theta column in the serial output is relevant—ignore PHI (it may be 0 or noisy).
 
 ### Wiring
 
 | E40S6 (theta) | Via 10k/20k divider | ESP32 GPIO |
 |---------------|----------------------|------------|
-| A (Black)     | Divider              | **32**     |
-| B (White)     | Divider              | **35**     |
+| A (Black)     | Divider              | **14**     |
+| B (White)     | Divider              | **12**     |
 
 **Power:** External 5 V to encoder, GND common with ESP32. Do not power from ESP32.
 
@@ -195,14 +195,14 @@ If direction is inverted, swap A and B wires on the theta encoder.
 
 ## 5. Test 3: Phi rotary encoder only
 
-Connect **only** the phi axis Autonics E40S6. Leave theta encoder disconnected (pins 32 and 35 unused). Use the same RotaryEncoderTest test app; only the phi column is relevant—ignore THETA (it may be 0 or noisy).
+Connect **only** the phi axis Autonics E40S6. Leave theta encoder disconnected (pins 14 and 12 unused). Use the same RotaryEncoderTest test app; only the phi column is relevant—ignore THETA (it may be 0 or noisy).
 
 ### Wiring
 
 | E40S6 (phi) | Via 10k/20k divider | ESP32 GPIO |
 |-------------|----------------------|------------|
-| A (Black)   | Divider              | **14**     |
-| B (White)   | Divider              | **12**     |
+| A (Black)   | Divider              | **32**     |
+| B (White)   | Divider              | **35**     |
 
 **Power:** External 5 V to encoder, GND common with ESP32. Do not power from ESP32.
 
@@ -245,4 +245,4 @@ If direction is inverted, swap A and B wires on the phi encoder.
 | Encoder library not found       | PlatformIO auto-installs it from `platformio.ini`; run `pio lib install` if missing. |
 | Port permission denied          | `sudo usermod -aG dialout $USER` then `newgrp dialout` |
 
-More detail: [Setup & Test Guide](setup_test_guide.md) and [DWE3000 Hardware Notes](DWE3000_hardware_notes.md).
+More detail: [Setup & Test Guide](../../integration/setup_test_guide.md) and [DWE3000 Hardware Notes](DWE3000_hardware_notes.md).
