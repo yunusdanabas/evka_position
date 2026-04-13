@@ -12,7 +12,7 @@ Evka Position is a firmware project for the **ESP32 (Wemos D1 R32)** that calcul
 ## Hardware
 - **MCU:** ESP32 (Wemos D1 R32 / ESP32-WROOM-32)
 - **Rotary encoders:** Autonics E40S6 — 5000 PPR × X4 quadrature = 20000 counts/rev
-- **Draw-wire encoder:** OPKON DWE3000 — 8020 calibrated PPR (~0.02494 mm/pulse)
+- **Draw-wire encoder:** OPKON DWEM2 — 8000 theoretical PPR (0.025 mm/count; calibrate with `CAL_W`)
 - **Voltage dividers required** on all 6 encoder signal lines (encoder outputs 5V TTL, ESP32 max 3.3V)
 
 ## Pin Map

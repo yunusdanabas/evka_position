@@ -430,7 +430,7 @@ CalibrationPoint wire_curve[] = {
     {0.0f,    0.0f},      // 0 counts → 0 mm
     {400.0f,  10.0f},     // 400 counts → 10 mm
     {4000.0f, 100.0f},    // 4000 counts → 100 mm
-    {8020.0f, 200.0f},    // 8020 counts (1 rev) → 200 mm
+    {8000.0f, 200.0f},    // 8000 counts (1 rev, DWEM2 P2000 × X4) → 200 mm
 };
 
 adv_cal.saveCurve("wire_cal_curve", wire_curve, 4);

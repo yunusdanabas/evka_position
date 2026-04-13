@@ -11,7 +11,7 @@ ESP32 firmware for the Spherical 3D Positioning System.
     *   `WebDashboard.h` / `WebDashboard.cpp`: WiFi AP, HTTP dashboard, WebSocket server.
     *   `CmdTcpServer.h` / `CmdTcpServer.cpp`: Raw TCP server on port 8080 (CMD protocol).
 *   `tests/`: Standalone test sketches, each compiled independently.
-    *   `DrawWireTest/`: Standalone test for the OPKON DWE3000 draw-wire encoder.
+    *   `DrawWireTest/`: Standalone test for the OPKON DWEM2 draw-wire encoder.
     *   `RotaryEncoderTest/`: Standalone test for the Autonics E40S6 rotary encoder (theta + phi).
     *   `SingleRotaryTest/`: Single rotary encoder test (theta or phi independently).
     *   `AllSensorsTest/`: All three encoders together, without position math.

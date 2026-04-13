@@ -23,6 +23,9 @@
 #define AP_PASSWORD           "remote1234"
 #define TCP_PORT              8080
 #define MAX_CLIENTS           2
+#define AP_START_RETRIES      5
+// Lower AP TX power reduces supply spikes on weak Type-C extension boards.
+#define TEST_AP_WIFI_TX_POWER WIFI_POWER_8_5dBm
 
 // GPIO 8 = built-in blue LED on ESP32-C3 SuperMini, active HIGH
 #define PIN_LED               8
@@ -43,7 +46,7 @@
 // INTERNALS
 // ============================================================================
 
-// BTN0=GPIO4 (Red/ZERO), BTN1=GPIO5 (Green/SAVE_POINT), BTN2=GPIO0,
+// BTN0=GPIO4 (Green/SAVE_POINT), BTN1=GPIO5 (Red/DEL_POINT), BTN2=GPIO0,
 // BTN3=GPIO1, BTN4=GPIO3
 static const uint8_t BTN_PINS[BTN_COUNT] = {4, 5, 0, 1, 3};
 
@@ -107,17 +110,41 @@ static void initButtons() {
 }
 
 static void initWiFiAP() {
-    // Clear any stored credentials from the production ButtonRemote firmware
-    // that could prevent softAP() from succeeding.
+    // Force a clean radio state before AP start. Some ESP32-C3 boards can keep
+    // stale station state across resets, which may cause softAP() to fail.
     WiFi.persistent(false);
-    WiFi.disconnect(true, true);  // disconnect + erase NVS credentials
+    WiFi.mode(WIFI_MODE_NULL);
+    delay(100);
+    WiFi.softAPdisconnect(true);
     delay(100);
     WiFi.mode(WIFI_AP);
-    bool ok = WiFi.softAP(AP_SSID, AP_PASSWORD);
-    delay(200);  // let DHCP server start before accepting clients
-    Serial.printf("[TEST] AP %s -> %s  IP: %s\n",
-                  AP_SSID, ok ? "OK" : "FAIL",
-                  WiFi.softAPIP().toString().c_str());
+    if (!WiFi.setTxPower(TEST_AP_WIFI_TX_POWER)) {
+        Serial.println("[TEST] WARN: setTxPower failed");
+    } else {
+        Serial.println("[TEST] TX power set to WIFI_POWER_8_5dBm");
+    }
+    delay(100);
+
+    bool ok = false;
+    for (uint8_t attempt = 1; attempt <= AP_START_RETRIES; attempt++) {
+        ok = WiFi.softAP(AP_SSID, AP_PASSWORD, 1, false, MAX_CLIENTS);
+        if (ok) break;
+        Serial.printf("[TEST] AP start attempt %u/%u failed\n", attempt, AP_START_RETRIES);
+        delay(300);
+        WiFi.softAPdisconnect(true);
+        delay(100);
+    }
+
+    if (!ok) {
+        Serial.println("[TEST] AP start FAILED after retries");
+        return;
+    }
+
+    delay(300);  // let AP + DHCP settle before accepting clients
+    Serial.printf("[TEST] AP %s -> OK  IP: %s  CH:%d\n",
+                  AP_SSID,
+                  WiFi.softAPIP().toString().c_str(),
+                  WiFi.channel());
 }
 
 static void initTcpServer() {

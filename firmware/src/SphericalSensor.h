@@ -80,18 +80,19 @@
 
 // Encoder Specifications
 #define PPR_ROTARY      20000.0  // E40S6-5000 @ X4 quadrature (5000 PPR × 4)
-#define PPR_WIRE        8020.0  // Calibrated — OPKON DWE3000 @ X4 quadrature (actual 400mm → firmware read 1604mm)
+#define PPR_WIRE        8000.0  // Theoretical — OPKON DWEM2 @ X4 quadrature (0.1 mm/pulse × 4 edges = 0.025 mm/count)
+                                 // Calibrate: SET_PPR_WIRE 8000 → SAVE_PPR → ZERO_W → CAL_W <mm> → SET_PPR_WIRE <result> → SAVE_PPR
 #define DRUM_CIRCUM_MM   200.0  // Drum circumference in mm (200 mm/rev)
 #define DEG_PER_PULSE  (360.0 / PPR_ROTARY)          // ≈ 0.018 deg per pulse
-#define MM_PER_PULSE   (DRUM_CIRCUM_MM / PPR_WIRE)   // ≈ 0.02494 mm per pulse
+#define MM_PER_PULSE   (DRUM_CIRCUM_MM / PPR_WIRE)   // = 0.025 mm/count (theoretical; NVS overrides after CAL_W)
 
 // Mechanical Limits (safety constraints)
 #define THETA_MIN_DEG    -180.0   // Min azimuth angle
 #define THETA_MAX_DEG     180.0   // Max azimuth angle
 #define PHI_MIN_DEG      -180.0   // Min elevation angle
 #define PHI_MAX_DEG       180.0   // Max elevation angle
-#define RADIUS_MIN_MM     0.0    // Min extension (home position = 0 mm)
-#define RADIUS_MAX_MM   3000.0    // Max extension — DWE3000 stroke limit
+#define RADIUS_MIN_MM     0.0    // Min extension (home position = 0 mm relative)
+#define RADIUS_MAX_MM   2950.0   // Max extension — DWEM2 travel range (4200 - 1250 mm)
 
 // ============================================================================
 // DATA STRUCTURES

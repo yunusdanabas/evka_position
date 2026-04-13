@@ -97,8 +97,8 @@ void SphericalPositioningSensor::zeroWire() {
 void SphericalPositioningSensor::readRawEncoders(int32_t& theta_counts, int32_t& phi_counts, int32_t& radius_counts) {
     theta_counts = thetaEncoder->read() - theta_offset;
     phi_counts   = phiEncoder->read() - phi_offset;
-    // Wire encoder counts increase when rope retracts; negate so extension = positive radius
-    radius_counts = -(wireEncoder->read() - radius_offset);
+    // Wire encoder counts increase when rope extends — direct mapping
+    radius_counts = wireEncoder->read() - radius_offset;
 }
 
 SphericalCoords SphericalPositioningSensor::countsToSpherical(int32_t theta_counts, int32_t phi_counts, int32_t radius_counts) {

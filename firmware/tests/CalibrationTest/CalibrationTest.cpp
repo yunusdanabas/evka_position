@@ -40,7 +40,7 @@
 
 // --- Default calibration constants ---
 #define DEFAULT_PPR_ROTARY   20000.0f   // E40S6-5000 @ X4 quadrature (5000 PPR × 4)
-#define DEFAULT_PPR_WIRE      8020.0f   // Calibrated — OPKON DWE3000 @ X4 quadrature
+#define DEFAULT_PPR_WIRE      8000.0f   // Theoretical — OPKON DWEM2 @ X4 quadrature (0.1 mm/pulse)
 #define DRUM_CIRCUM_MM        200.0f    // mm per revolution
 #define MAX_CAL_TURNS         20
 
@@ -248,7 +248,7 @@ static void printConstants() {
     Serial.print("  deg_per_T    : "); Serial.println(deg_per_t, 6);
     Serial.print("  deg_per_P    : "); Serial.println(deg_per_p, 6);
     Serial.print("  mm_per_pulse : "); Serial.println(mm_per_pulse, 6);
-    Serial.println("  Defaults: PPR_ROTARY=20000  PPR_WIRE=8020  MM_PER_PULSE=0.02494");
+    Serial.println("  Defaults: PPR_ROTARY=20000  PPR_WIRE=8000  MM_PER_PULSE=0.02500");
     Serial.println("==============================");
     Serial.println();
 }

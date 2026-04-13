@@ -30,14 +30,27 @@ DEFAULT_IP   = "192.168.4.1"
 DEFAULT_PORT = "8080"
 BTN_COUNT    = 5
 
-_BTN_LABELS = ["BTN0\n(GPIO4)", "BTN1\n(GPIO5)", "BTN2\n(GPIO0)", "BTN3\n(GPIO1)", "BTN4\n(GPIO3)"]
+_BTN_LABELS = ["BTN0\n(ADD\nPOINT)", "BTN1\n(DEL\nPOINT)", "BTN2\n(GPIO0)", "BTN3\n(GPIO1)", "BTN4\n(GPIO3)"]
 
-_LED_IDLE  = ("background: #1e1e1e; border: 2px solid #444;"
-              " border-radius: 14px; min-width: 28px; max-width: 28px;"
-              " min-height: 28px; max-height: 28px;")
-_LED_FLASH = ("background: #ff8800; border: 2px solid #ffcc00;"
-              " border-radius: 14px; min-width: 28px; max-width: 28px;"
-              " min-height: 28px; max-height: 28px;")
+_LED_SIZE = " border-radius: 14px; min-width: 28px; max-width: 28px; min-height: 28px; max-height: 28px;"
+
+# Per-button idle styles: BTN0=green border, BTN1=red border, others=grey
+_LED_IDLE_STYLES = [
+    "background: #1e1e1e; border: 2px solid #1a5c38;" + _LED_SIZE,  # BTN0 green border
+    "background: #1e1e1e; border: 2px solid #5c1a1a;" + _LED_SIZE,  # BTN1 red border
+    "background: #1e1e1e; border: 2px solid #444;"    + _LED_SIZE,  # BTN2 default
+    "background: #1e1e1e; border: 2px solid #444;"    + _LED_SIZE,  # BTN3 default
+    "background: #1e1e1e; border: 2px solid #444;"    + _LED_SIZE,  # BTN4 default
+]
+
+# Per-button flash styles: BTN0=green, BTN1=red, others=orange
+_LED_FLASH_STYLES = [
+    "background: #00ff88; border: 2px solid #66ffbb;" + _LED_SIZE,  # BTN0 green flash
+    "background: #ff3333; border: 2px solid #ff6666;" + _LED_SIZE,  # BTN1 red flash
+    "background: #ff8800; border: 2px solid #ffcc00;" + _LED_SIZE,  # BTN2 orange
+    "background: #ff8800; border: 2px solid #ffcc00;" + _LED_SIZE,  # BTN3 orange
+    "background: #ff8800; border: 2px solid #ffcc00;" + _LED_SIZE,  # BTN4 orange
+]
 
 # ---------------------------------------------------------------------------
 # TCP receive thread
@@ -181,7 +194,7 @@ class RemoteTestWindow(QtWidgets.QMainWindow):
             col.setAlignment(QtCore.Qt.AlignHCenter)
 
             led = QtWidgets.QLabel()
-            led.setStyleSheet(_LED_IDLE)
+            led.setStyleSheet(_LED_IDLE_STYLES[i])
             led.setAlignment(QtCore.Qt.AlignCenter)
             self._leds.append(led)
             col.addWidget(led, alignment=QtCore.Qt.AlignHCenter)
@@ -299,8 +312,8 @@ class RemoteTestWindow(QtWidgets.QMainWindow):
     # -----------------------------------------------------------------------
 
     def _flash_led(self, idx: int) -> None:
-        self._leds[idx].setStyleSheet(_LED_FLASH)
-        QtCore.QTimer.singleShot(400, lambda i=idx: self._leds[i].setStyleSheet(_LED_IDLE))
+        self._leds[idx].setStyleSheet(_LED_FLASH_STYLES[idx])
+        QtCore.QTimer.singleShot(400, lambda i=idx: self._leds[i].setStyleSheet(_LED_IDLE_STYLES[i]))
 
     def _set_status(self, text: str, color: str) -> None:
         self._lbl_status.setText(f"Status: {text}")

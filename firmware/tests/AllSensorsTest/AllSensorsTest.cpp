@@ -27,7 +27,7 @@
 
 // --- Encoder constants ---
 #define PPR_ROTARY      20000.0f
-#define PPR_WIRE        8020.0f
+#define PPR_WIRE        8000.0f
 #define DRUM_CIRCUM_MM   200.0f
 #define DEG_PER_PULSE   (360.0f / PPR_ROTARY)
 #define MM_PER_PULSE    (DRUM_CIRCUM_MM / PPR_WIRE)
@@ -114,7 +114,7 @@ void setup() {
     Serial.println("========================================");
     Serial.println("  Theta: GPIO 14/12 (Autonics E40S6)");
     Serial.println("  Phi  : GPIO 32/35 (Autonics E40S6)");
-    Serial.println("  Wire : GPIO 16/17 (OPKON DWE3000)");
+    Serial.println("  Wire : GPIO 16/17 (OPKON DWEM2)");
     Serial.println("  Commands: ZERO | DIAG");
     Serial.println("========================================");
     runDiagnostic();

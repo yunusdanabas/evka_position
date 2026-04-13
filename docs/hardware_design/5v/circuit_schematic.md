@@ -256,7 +256,7 @@
     │   │                      │         ├── 1nF ── GND                    → GPIO 35      │
     │   └──────────────────────┘                                                          │
     │                                                                                     │
-    │   J3: WIRE ENCODER (DWE3000)                                                       │
+    │   J3: WIRE ENCODER (DWEM2)                                                         │
     │   ┌──────────────────────┐                                                          │
     │   │ Pin 1: V+   (Brown)  ├── FB3 (ferrite) ── 5V_RAIL ── 100nF ── GND              │
     │   │ Pin 2: GND  (White)  ├── GND                                                   │
@@ -439,7 +439,7 @@
 |-----------|------|------|---------|
 | J1 | KF301-4P | +5V, GND, A, B | Theta encoder (E40S6 #1) — GPIO 14/12 |
 | J2 | KF301-4P | +5V, GND, A, B | Phi encoder (E40S6 #2) — GPIO 32/35 |
-| J3 | KF301-5P | V+, GND, A, B, Z | Wire encoder (DWE3000) |
+| J3 | KF301-5P | V+, GND, A, B, Z | Wire encoder (DWEM2) |
 | J4 | DC barrel 5.5x2.1mm | +5V, GND | External power input |
 | J5 | JST-PH 2-pin | BAT+, BAT- | LiPo battery |
 | J6 | KF128V-5.08-2P | +5V, GND | Direct 5V test input |

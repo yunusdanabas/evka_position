@@ -34,9 +34,9 @@ subsystems used by `evka_position`.
 ## Current Working Constants (before recalibration)
 
 - `PPR_ROTARY = 20000.0`  *(E40S6-5000 @ X4 quadrature)*
-- `PPR_WIRE = 8020.0`  *(calibrated: 400 mm actual → 1604 mm before cal)*
+- `PPR_WIRE = 8000.0`  *(theoretical — OPKON DWEM2 P2000; run CAL_W after mounting to calibrate)*
 - `DEG_PER_PULSE = 360 / PPR_ROTARY ≈ 0.0180`
-- `MM_PER_PULSE = DRUM_CIRCUM_MM / PPR_WIRE ≈ 0.02494`
+- `MM_PER_PULSE = DRUM_CIRCUM_MM / PPR_WIRE ≈ 0.02500`
 
 ## Formula Reference
 

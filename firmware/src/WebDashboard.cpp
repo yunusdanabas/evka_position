@@ -57,6 +57,8 @@ button.btn-amber{border-color:#ffd700;color:#ffd700}
 button.btn-amber:active{background:#ffd700;color:#000}
 button.btn-danger{border-color:#ff4444;color:#ff4444}
 button.btn-danger:active{background:#ff4444;color:#000}
+button.btn-green{border-color:#00ff88;color:#00ff88}
+button.btn-green:active{background:#00ff88;color:#000}
 button.is-set{border-color:#44ff44;color:#44ff44;opacity:0.65}
 button:disabled{opacity:0.35;pointer-events:none}
 #status{font-size:11px;color:#8899aa;margin-top:6px;min-height:16px}
@@ -176,7 +178,8 @@ button:disabled{opacity:0.35;pointer-events:none}
  <div class="section-lbl">SESSION</div>
  <div class="btn-row">
   <button id="btn-origin" onclick="saveOrigin()" class="btn-amber">SAVE ORIGIN</button>
-  <button id="btn-point" onclick="savePoint()" disabled>SAVE POINT</button>
+  <button id="btn-point" onclick="savePoint()" class="btn-green" disabled>SAVE POINT</button>
+  <button id="btn-del-point" onclick="delPoint()" class="btn-danger" disabled>DEL LAST POINT</button>
  </div>
  <div class="btn-row">
   <button id="btn-export" onclick="endSession()" class="btn-danger" disabled>END &amp; EXPORT CSV</button>
@@ -199,12 +202,12 @@ button:disabled{opacity:0.35;pointer-events:none}
  <div class="section-lbl">REMOTE BUTTONS</div>
  <div class="rbtn-row">
   <div class="rbtn-item">
-   <div class="rbtn-led r" id="rled0"></div>
-   <div class="rbtn-lbl">BTN0 ZERO</div>
+   <div class="rbtn-led g" id="rled0"></div>
+   <div class="rbtn-lbl">BTN0 ADD</div>
   </div>
   <div class="rbtn-item">
-   <div class="rbtn-led g" id="rled1"></div>
-   <div class="rbtn-lbl">BTN1 SAVE</div>
+   <div class="rbtn-led r" id="rled1"></div>
+   <div class="rbtn-lbl">BTN1 DEL</div>
   </div>
  </div>
  <div style="margin-top:4px;display:flex;align-items:center;gap:8px">
@@ -688,6 +691,29 @@ function onWsMessage(e){
    setText("v-uptime",(h<10?"0":"")+h+":"+(m<10?"0":"")+m+":"+(s<10?"0":"")+s);
    setText("v-tcp",tcp);
   }
+ } else if(line.startsWith("POINT,")){
+  const p=line.substring(6).split(",");
+  if(p.length>=7){
+   const idx=parseInt(p[0]);
+   const x=parseFloat(p[1]),y=parseFloat(p[2]),z=parseFloat(p[3]);
+   savedPts.push({n:idx,x:x,y:y,z:z});
+   document.getElementById("savedList").innerHTML+="#"+idx+": "+x.toFixed(1)+","+y.toFixed(1)+","+z.toFixed(1)+" mm<br>";
+   document.getElementById("savedList").scrollTop=99999;
+   document.getElementById("btn-del-point").disabled=false;
+   updateSessionStats();_dirty3d=true;
+  }
+ } else if(line.startsWith("DEL_POINT,")){
+  if(savedPts.length>0){
+   savedPts.pop();
+   var html="";
+   savedPts.forEach(function(pt){
+    html+="#"+pt.n+": "+pt.x.toFixed(1)+","+pt.y.toFixed(1)+","+pt.z.toFixed(1)+" mm<br>";
+   });
+   document.getElementById("savedList").innerHTML=html;
+   document.getElementById("savedList").scrollTop=99999;
+   if(savedPts.length===0)document.getElementById("btn-del-point").disabled=true;
+   updateSessionStats();_dirty3d=true;
+  }
  } else if(line.startsWith("ERR:")){
   setStatus(line);
  } else if(line==="REMOTE_HB"){
@@ -735,7 +761,7 @@ function flashRemoteBtn(idx){
  var led=document.getElementById("rled"+idx);
  if(!led)return;
  led.classList.add("on");
- var names=["ZERO","SAVE POINT"];
+ var names=["ADD POINT","DEL POINT"];
  setText("rbtn-status","BTN"+idx+" ("+names[idx]+") active");
  clearTimeout(_rledT[idx]);
  _rledT[idx]=setTimeout(function(){
@@ -812,18 +838,19 @@ function saveOrigin(){
  if(navigator.vibrate)navigator.vibrate([30,50,30]);
 }
 
-// Session — Save Point (debounced)
+// Session — Save Point (debounced, round-trips through firmware)
 function savePoint(){
  if(_saveBusy)return;_saveBusy=true;
  const b=document.getElementById("btn-point");b.disabled=true;
  setTimeout(function(){b.disabled=false;_saveBusy=false;},200);
- const n=savedPts.length+1;
- savedPts.push({n:n,x:lastPos.x,y:lastPos.y,z:lastPos.z});
- document.getElementById("savedList").innerHTML+="#"+n+": "+lastPos.x.toFixed(1)+","+lastPos.y.toFixed(1)+","+lastPos.z.toFixed(1)+" mm<br>";
- document.getElementById("savedList").scrollTop=99999;
- updateSessionStats();
- _dirty3d=true;
+ sendCmd("SAVE_POINT");
  if(navigator.vibrate)navigator.vibrate(60);
+}
+
+// Session — Delete Last Point (round-trips through firmware)
+function delPoint(){
+ if(!savedPts.length)return;
+ sendCmd("DEL_POINT");
 }
 
 // Session — End & Export CSV
@@ -844,6 +871,7 @@ function endSession(){
  document.getElementById("btn-origin").textContent="SAVE ORIGIN";
  document.getElementById("btn-origin").classList.remove("is-set");
  document.getElementById("btn-point").disabled=true;
+ document.getElementById("btn-del-point").disabled=true;
  document.getElementById("btn-export").disabled=true;
  document.getElementById("savedList").innerHTML="";
  setText("origin_label","not set");setText("vn","0");

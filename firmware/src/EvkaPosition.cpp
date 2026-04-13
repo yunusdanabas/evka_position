@@ -21,11 +21,11 @@ static volatile int8_t espnow_pending_button    = -1;
 static volatile bool   espnow_pending_heartbeat = false;
 
 static const char* const REMOTE_BUTTON_CMD[] = {
-    "ZERO",         // Button 0 — Red   — GPIO 4
-    "SAVE_POINT",   // Button 1 — Green — GPIO 5
-    nullptr,        // Button 2 — GPIO 0 — unassigned
-    nullptr,        // Button 3 — GPIO 1 — unassigned
-    nullptr,        // Button 4 — GPIO 3 — unassigned
+    "SAVE_POINT",  // Button 0 — Green — GPIO 4
+    "DEL_POINT",   // Button 1 — Red   — GPIO 5
+    nullptr,       // Button 2 — GPIO 0 — unassigned
+    nullptr,       // Button 3 — GPIO 1 — unassigned
+    nullptr,       // Button 4 — GPIO 3 — unassigned
 };
 static constexpr uint8_t REMOTE_BUTTON_COUNT = 5;
 
@@ -99,6 +99,7 @@ static String printStatusLine() {
 
 // Returns the reply line (also printed to Serial). Empty string = no reply needed.
 static String processCommand(const String& cmd) {
+    static uint32_t pt_idx = 0;  // shared across SAVE_POINT and DEL_POINT
     if (cmd == "ZERO") {
         sensor.setZeroPoint();
         Serial.println("ACK:ZERO");
@@ -198,13 +199,23 @@ static String processCommand(const String& cmd) {
 
     } else if (cmd == "SAVE_POINT") {
         SystemStatus st = sensor.getStatus();
-        static uint32_t pt_idx = 0;
         char buf[128];
         snprintf(buf, sizeof(buf),
             "POINT,%u,%.2f,%.2f,%.2f,%.2f,%.3f,%.3f",
             pt_idx++,
             st.position.x_mm, st.position.y_mm, st.position.z_mm,
             st.spherical.r_mm, st.spherical.theta_deg, st.spherical.phi_deg);
+        Serial.println(buf);
+        return String(buf);
+
+    } else if (cmd == "DEL_POINT") {
+        if (pt_idx == 0) {
+            Serial.println("ERR:NO_POINTS");
+            return "ERR:NO_POINTS";
+        }
+        pt_idx--;
+        char buf[32];
+        snprintf(buf, sizeof(buf), "DEL_POINT,%u", pt_idx);
         Serial.println(buf);
         return String(buf);
 
@@ -366,7 +377,12 @@ void loop() {
             if (cmd == nullptr) return;  // unassigned button — ignore silently
             Serial.printf("[ESP-NOW] Button %d -> %s\n", btn, cmd);
             String reply = processCommand(String(cmd));
-            if (reply.length() > 0) dashboard.broadcast(reply.c_str());
+            if (reply.length() > 0) {
+                dashboard.broadcast(reply.c_str());
+#if ENABLE_CMD_TCP
+                cmdTcp.sendToAllClients(reply.c_str());
+#endif
+            }
         }
     }
     // Heartbeat — rebroadcast to WebSocket and TCP so GUIs can track link status
@@ -387,7 +403,14 @@ void loop() {
         String wsCmd = dashboard.takePendingCommand();
         if (wsCmd.length() > 0) {
             String reply = processCommand(wsCmd);
-            if (reply.length() > 0) dashboard.broadcast(reply.c_str());
+            if (reply.length() > 0) {
+                dashboard.broadcast(reply.c_str());
+#if ENABLE_CMD_TCP
+                // POINT/DEL_POINT must reach TCP clients too (keeps all UIs in sync)
+                if (reply.startsWith("POINT,") || reply.startsWith("DEL_POINT,"))
+                    cmdTcp.sendToAllClients(reply.c_str());
+#endif
+            }
         }
     }
 
@@ -398,7 +421,12 @@ void loop() {
         String tcpCmd = cmdTcp.takePendingCommand();
         if (tcpCmd.length() > 0) {
             String reply = processCommand(tcpCmd);
-            if (reply.length() > 0) cmdTcp.sendToAllClients(reply.c_str());
+            if (reply.length() > 0) {
+                cmdTcp.sendToAllClients(reply.c_str());
+                // POINT/DEL_POINT must reach WebSocket dashboard too
+                if (reply.startsWith("POINT,") || reply.startsWith("DEL_POINT,"))
+                    dashboard.broadcast(reply.c_str());
+            }
         }
     }
 #endif

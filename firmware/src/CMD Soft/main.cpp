@@ -21,7 +21,7 @@ ESP32Encoder encPhi;
 ESP32Encoder encR;
 
 const float PULSE_TO_RAD  = (2.0 * PI) / 20000.0; 
-const float PULSE_TO_MM_R = 0.02494;              
+const float PULSE_TO_MM_R = 0.02500;              
 const float R_OFFSET      = 0.0;                
 
 float smoothX = 0, smoothY = 0, smoothZ = 0;

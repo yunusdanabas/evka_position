@@ -159,7 +159,7 @@ Expected:
 
 ### Phase 3: Individual Encoder Tests
 
-#### 3a. Draw-Wire Encoder (DWE3000)
+#### 3a. Draw-Wire Encoder (DWEM2)
 ```bash
 # Connect only draw-wire to J3; leave J1 and J2 unconnected
 # Apply external 5V to encoder (see wiring in setup_test_guide.md)

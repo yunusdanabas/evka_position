@@ -309,7 +309,7 @@ Copy **verbatim** from [circuit_schematic.md](../5v/circuit_schematic.md):
 - **Section 3b** — **J1 / J2 / J3** pin map to **GPIO 14, 12, 32, 35, 16, 17, 18** (same as [CLAUDE.md](../../../CLAUDE.md))
 - **Sections 4–7** — ESP32 **VIN** from **5V_RAIL**, ferrites, LEDs, decoupling
 
-**Note:** All three encoders run on **5V from 5V_RAIL** — do NOT connect any encoder to the 12V rail. The DWE3000 accepts 5–30V but its HLD output swings to the supply rail; powering it at 12V would produce 0–12V output signals that exceed the voltage divider design (3.33V target) and damage the ESP32.
+**Note:** All three encoders run on **5V from 5V_RAIL** — do NOT connect any encoder to the 12V rail. The DWEM2 accepts 8–24V (or 5V) but its output swings to the supply rail; powering it at 12V would produce 0–12V output signals that exceed the voltage divider design (3.33V target) and damage the ESP32.
 
 ---
 
@@ -353,5 +353,5 @@ Copy **verbatim** from [circuit_schematic.md](../5v/circuit_schematic.md):
 2. **TP5100 3S jumper:** Verify solder bridge is set for 3S mode (12.6V termination), NOT 2S (8.4V)
 3. **BMS is mandatory:** TP5100 does not balance cells or protect against overdischarge. The 3S BMS provides cell-level safety.
 4. **Never connect 3S LiPo without BMS** — unbalanced cells are a fire risk
-5. **DWE3000 on 5V only** — see section 8 note
+5. **DWEM2 on 5V (LTP output) — do NOT use 12V supply** — see section 8 note
 6. **Do not feed 12V directly to ESP32 VIN** — the onboard AMS1117-3.3 would dissipate (12−3.3)×0.2A = 1.74W, risking thermal shutdown. Always use the 5V buck output.

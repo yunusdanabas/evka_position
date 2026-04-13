@@ -3,6 +3,49 @@
 ## Overview
 A **Draw-Wire Encoder** (also known as a cable transducer or string pot) measures linear distance by unwinding a flexible cable from a spring-loaded spool. For this system, a **Digital Pulse Output** type is required to match the interface of the rotary encoders and provide high noise immunity.
 
+## DWEM2 — Current Encoder in Use
+
+**Part code on unit**: `DWEM2 4200 LTP P2000 Z V3 2M5R`
+
+| Code | Specification | Detail |
+|---|---|---|
+| **DWEM2** | Series | Draw Wire Encoder, Metal body, gen 2 |
+| **4200** | Max range endpoint | 4200 mm at full extension |
+| **LTP** | Output driver | Line Transistor Push-Pull (5–30 V signal levels) |
+| **P2000** | Resolution | 2000 PPR → **0.1 mm/pulse** (200 mm drum ÷ 2000) |
+| **Z** | Channels | A, B, Z (Z = index pulse) |
+| **V3** | Supply voltage | 5–30 V DC |
+| **2M5R** | Cable | 2.5 m, radial exit |
+
+> **"2000 Pulse Push Pull Output"** (sticker) = 2000 mechanical pulses per drum revolution.
+> With X4 quadrature decoding → `PPR_WIRE = 8000` counts/rev → 0.025 mm/count.
+
+| Parameter | Value |
+|---|---|
+| **Model** | OPKON DWEM2 (İpli Enkoder, Metal Gövdeli) |
+| **Measurement range** | 1250 – 4200 mm (travel: 2950 mm) |
+| **Resolution** | 0.1 mm/pulse (P2000 optical) |
+| **Output type** | Push-Pull: A, B, Z (LTP driver) |
+| **Supply voltage** | 5–30 V DC (V3) |
+| **IP class** | IP 65 |
+| **Cable** | 2.5 m, radial exit (2M5R) |
+
+**Firmware settings** (`SphericalSensor.h`):
+- `PPR_WIRE = 8000.0` (theoretical for 0.1 mm/pulse variant; run `CAL_W` to calibrate after mounting)
+- `DRUM_CIRCUM_MM = 200.0` (unchanged)
+- `RADIUS_MAX_MM = 2950.0` (travel range: 4200 − 1250 mm)
+
+**Cable wiring (Push-Pull)**:
+
+| Signal | Color | ESP32 |
+|---|---|---|
+| +V (supply) | Brown | 5V rail |
+| 0 V (ground) | White | GND |
+| GND / Earth | Shield | GND |
+| Ch A | Yellow | GPIO 16 (via 10k/20k divider) |
+| Ch B | Green | GPIO 17 (via 10k/20k divider) |
+| Ch Z | Gray | (not connected — index unused) |
+
 ## Recommended Specifications
 To match the system requirements (3D positioning with 2 angles):
 
@@ -14,9 +57,11 @@ To match the system requirements (3D positioning with 2 angles):
 | **Output Voltage** | 5V (TTL) or 24V (HTL) | 5V preferred for ESP32 + level-shift/divider interfaces |
 | **Interface** | Quadrature (A, B Phase) | Same code as rotary encoders |
 
-## DWE part code specification
+## DWE3000 — Previous Encoder (reference only)
 
-Part-code breakdown for the Draw Wire Encoder model in use (e.g. DWE-3000-HLD-P2000-Z-V3-5MR):
+> **Note**: The DWE3000 has been replaced by the DWEM2. This section is retained for historical reference.
+
+Part-code breakdown for the Draw Wire Encoder previously used (e.g. DWE-3000-HLD-P2000-Z-V3-5MR):
 
 | Code | Specification | Detail |
 | :--- | :--- | :--- |
@@ -78,7 +123,7 @@ From the encoder nameplate. Use **V** (Brown) and **0 V** (White) for power; **A
 > **Note:** You can also build a custom one by attaching a standard **E40S6 Rotary Encoder** to a spring-loaded cable reel.
 > - **Resolution Formula:** `Distance_Per_Pulse = (Drum_Circumference) / PPR`
 
-## Legacy firmware vs current (ESP32 / DWE3000)
+## Legacy firmware vs current (ESP32 / DWEM2)
 
 | Aspect | Legacy | Current |
 | :--- | :--- | :--- |

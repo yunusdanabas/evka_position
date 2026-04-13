@@ -663,7 +663,7 @@ void profile_pcnt() {
 ### Related Hardware
 
 - **E40S6-5000 (Autonics):** 5000 PPR, 0–5V push-pull output
-- **DWE3000 (Temposonics):** Linear position sensor, LVDT-based
+- **DWEM2 (OPKON):** Draw-wire encoder, 2000 PPR, 200 mm drum, LTP push-pull output
 
 ---
 
@@ -688,7 +688,7 @@ From `firmware/src/SphericalSensor.h`:
 
 ```cpp
 #define PPR_ROTARY 20000.0    // E40S6-5000 @ X4 quadrature
-#define PPR_WIRE 8020.0       // DWE3000 calibrated
+#define PPR_WIRE 8000.0       // DWEM2 P2000 theoretical (2000 PPR × X4 quadrature)
 #define DEG_PER_PULSE (360.0 / PPR_ROTARY)
 #define MM_PER_PULSE (400.0 / PPR_WIRE)
 

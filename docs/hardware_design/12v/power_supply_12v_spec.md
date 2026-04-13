@@ -38,7 +38,7 @@ If you need Class B, treat this document as a starting point only and complete a
 |----------|---------|------|
 | ESP32 + WiFi active | 160–250mA @ 3.3V (post-LDO) | ~200–350mA equivalent from 5V |
 | 2× E40S6-5000 rotary encoders | ~100mA total @ 5V | 120mA |
-| 1× DWE3000 draw-wire encoder | ~50mA @ 5V | 100mA |
+| 1× DWEM2 draw-wire encoder | ~40mA @ 5V (< 40mA spec) | 100mA |
 | LEDs, GPIO loads | ~10mA | 15mA |
 | **5V rail total** | **~400mA** | **~600mA** |
 

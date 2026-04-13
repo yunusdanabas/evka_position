@@ -14,7 +14,9 @@ from .cmd_main import (
     CMD_AP_FALLBACK_IP,
     CMD_DEFAULT_PORT,
     CMD_DEFAULT_STA_IP,
+    DEL_POINT_PREFIX,
     ERR_PREFIX,
+    POINT_PREFIX,
     REMOTE_BTN_PREFIX,
     REMOTE_HB_PREFIX,
     SENSOR_PREFIX,
@@ -221,24 +223,24 @@ class CmdControlWindow(QtWidgets.QWidget):
         remote_layout = QtWidgets.QHBoxLayout(remote_box)
         remote_layout.setSpacing(16)
 
-        # BTN0 — Red — ZERO
+        # BTN0 — Green — ADD POINT
         btn0_col = QtWidgets.QVBoxLayout()
         btn0_col.setAlignment(QtCore.Qt.AlignHCenter)
         self.rled0 = QtWidgets.QLabel()
         self.rled0.setFixedSize(24, 24)
         self._set_rled(0, False)
         btn0_col.addWidget(self.rled0, alignment=QtCore.Qt.AlignHCenter)
-        btn0_col.addWidget(QtWidgets.QLabel("BTN0  ZERO"), alignment=QtCore.Qt.AlignHCenter)
+        btn0_col.addWidget(QtWidgets.QLabel("BTN0  ADD"), alignment=QtCore.Qt.AlignHCenter)
         remote_layout.addLayout(btn0_col)
 
-        # BTN1 — Green — SAVE POINT
+        # BTN1 — Red — DEL POINT
         btn1_col = QtWidgets.QVBoxLayout()
         btn1_col.setAlignment(QtCore.Qt.AlignHCenter)
         self.rled1 = QtWidgets.QLabel()
         self.rled1.setFixedSize(24, 24)
         self._set_rled(1, False)
         btn1_col.addWidget(self.rled1, alignment=QtCore.Qt.AlignHCenter)
-        btn1_col.addWidget(QtWidgets.QLabel("BTN1  SAVE"), alignment=QtCore.Qt.AlignHCenter)
+        btn1_col.addWidget(QtWidgets.QLabel("BTN1  DEL"), alignment=QtCore.Qt.AlignHCenter)
         remote_layout.addLayout(btn1_col)
 
         remote_layout.addStretch(1)
@@ -247,6 +249,25 @@ class CmdControlWindow(QtWidgets.QWidget):
         self.lbl_rbtn_status.setStyleSheet("color: #888;")
         remote_layout.addWidget(self.lbl_rbtn_status)
         main.addWidget(remote_box)
+
+        # --- Saved Points ---
+        pts_box = QtWidgets.QGroupBox("Saved Points")
+        pts_layout = QtWidgets.QVBoxLayout(pts_box)
+        pts_btn_row = QtWidgets.QHBoxLayout()
+        self.btn_save_point = QtWidgets.QPushButton("SAVE POINT")
+        self.btn_save_point.setStyleSheet("color: #00ff88; border: 1px solid #00ff88; padding: 4px 8px;")
+        self.btn_del_point = QtWidgets.QPushButton("DEL LAST POINT")
+        self.btn_del_point.setStyleSheet("color: #ff4444; border: 1px solid #ff4444; padding: 4px 8px;")
+        self.btn_del_point.setEnabled(False)
+        pts_btn_row.addWidget(self.btn_save_point)
+        pts_btn_row.addWidget(self.btn_del_point)
+        pts_layout.addLayout(pts_btn_row)
+        self.lst_saved_pts = QtWidgets.QListWidget()
+        self.lst_saved_pts.setMaximumHeight(100)
+        self.lst_saved_pts.setFont(QtGui.QFont("Consolas", 9))
+        self.lst_saved_pts.setStyleSheet("color: #7fffd4; background: #0a0a1a;")
+        pts_layout.addWidget(self.lst_saved_pts)
+        main.addWidget(pts_box)
 
         main.addStretch(1)
 
@@ -259,6 +280,8 @@ class CmdControlWindow(QtWidgets.QWidget):
         self.btn_work_zero_all.clicked.connect(self._zero_all_soft)
         self.btn_machine_zero.clicked.connect(self._zero_machine)
         self.btn_reset_minmax.clicked.connect(self._reset_minmax)
+        self.btn_save_point.clicked.connect(self._save_point)
+        self.btn_del_point.clicked.connect(self._del_point)
         self.btn_wifi_save.clicked.connect(self._save_wifi)
         self.btn_wifi_forget.clicked.connect(self._forget_wifi)
 
@@ -295,15 +318,18 @@ class CmdControlWindow(QtWidgets.QWidget):
         self.btn_reset_minmax.setEnabled(connected)
         self.btn_wifi_save.setEnabled(connected)
         self.btn_wifi_forget.setEnabled(connected)
+        self.btn_save_point.setEnabled(connected)
+        if not connected:
+            self.btn_del_point.setEnabled(False)
 
     # ---- Remote LED helpers ----
     _RLED_IDLE = [
-        "border-radius:12px;border:2px solid #662222;background:#1a1a1a;",
-        "border-radius:12px;border:2px solid #226622;background:#1a1a1a;",
+        "border-radius:12px;border:2px solid #226622;background:#1a1a1a;",  # BTN0 green border
+        "border-radius:12px;border:2px solid #662222;background:#1a1a1a;",  # BTN1 red border
     ]
     _RLED_ON = [
-        "border-radius:12px;border:2px solid #ff6666;background:#ff3333;",
-        "border-radius:12px;border:2px solid #66ff66;background:#33cc33;",
+        "border-radius:12px;border:2px solid #66ff66;background:#33cc33;",  # BTN0 green flash
+        "border-radius:12px;border:2px solid #ff6666;background:#ff3333;",  # BTN1 red flash
     ]
 
     def _set_rled(self, idx: int, active: bool) -> None:
@@ -311,7 +337,7 @@ class CmdControlWindow(QtWidgets.QWidget):
         lbl.setStyleSheet(self._RLED_ON[idx] if active else self._RLED_IDLE[idx])
 
     def _flash_rled(self, idx: int) -> None:
-        names = ["ZERO", "SAVE POINT"]
+        names = ["ADD POINT", "DEL POINT"]
         self._set_rled(idx, True)
         QtCore.QTimer.singleShot(400, lambda i=idx: self._set_rled(i, False))
 
@@ -428,6 +454,12 @@ class CmdControlWindow(QtWidgets.QWidget):
         for a in ("x", "y", "z"):
             getattr(self, f"lbl_min_{a}").setText("Min: --")
             getattr(self, f"lbl_max_{a}").setText("Max: --")
+
+    def _save_point(self) -> None:
+        self._send_command("SAVE_POINT")
+
+    def _del_point(self) -> None:
+        self._send_command("DEL_POINT")
 
     def _save_wifi(self) -> None:
         ssid = self.txt_ssid.text().strip()
@@ -557,6 +589,27 @@ class CmdControlWindow(QtWidgets.QWidget):
                     QtWidgets.QMessageBox.critical(
                         self, "WiFi Error", f"Command rejected: {line}"
                     )
+                continue
+
+            # Saved point added
+            if line.startswith(POINT_PREFIX):
+                parts = line[len(POINT_PREFIX):].split(",")
+                if len(parts) >= 4:
+                    idx, x, y, z = parts[0], parts[1], parts[2], parts[3]
+                    self.lst_saved_pts.addItem(f"#{idx}: {x}, {y}, {z} mm")
+                    self.lst_saved_pts.scrollToBottom()
+                    self.btn_del_point.setEnabled(True)
+                self._set_status(f"Status: {line}", "#00ff88")
+                continue
+
+            # Saved point deleted
+            if line.startswith(DEL_POINT_PREFIX):
+                count = self.lst_saved_pts.count()
+                if count > 0:
+                    self.lst_saved_pts.takeItem(count - 1)
+                if self.lst_saved_pts.count() == 0:
+                    self.btn_del_point.setEnabled(False)
+                self._set_status(f"Status: {line}", "#ff8800")
                 continue
 
             # Position data (X,Y,Z)

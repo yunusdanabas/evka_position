@@ -29,6 +29,8 @@
 // Main ESP32 AP SSID — scanned at startup to find the actual WiFi channel
 #define MAIN_AP_SSID    "CMDCNC_EVKA"
 #define SCAN_RETRIES     3
+// Lower TX power reduces WiFi current peaks on weak Type-C/extension supplies.
+#define REMOTE_WIFI_TX_POWER WIFI_POWER_8_5dBm
 
 // Heartbeat
 #define HEARTBEAT_INTERVAL_MS  10000
@@ -44,7 +46,7 @@
 // INTERNALS
 // ============================================================================
 
-// BTN0=GPIO4 (Red/ZERO), BTN1=GPIO5 (Green/SAVE_POINT),
+// BTN0=GPIO4 (Green/SAVE_POINT), BTN1=GPIO5 (Red/DEL_POINT),
 // BTN2=GPIO0, BTN3=GPIO1, BTN4=GPIO3
 static const uint8_t BTN_PINS[BTN_COUNT] = {4, 5, 0, 1, 3};
 
@@ -90,6 +92,11 @@ void setup() {
     // Initialise WiFi in STA mode, prevent any auto-scan/reconnect,
     // then pin to the ESP-NOW channel before initialising the stack.
     WiFi.mode(WIFI_STA);
+    if (!WiFi.setTxPower(REMOTE_WIFI_TX_POWER)) {
+        Serial.println("[ButtonRemote] WARN: setTxPower failed");
+    } else {
+        Serial.println("[ButtonRemote] TX power set to WIFI_POWER_8_5dBm");
+    }
     WiFi.setAutoReconnect(false);
     WiFi.disconnect(false, true);   // disconnect + erase stored AP credentials
     delay(100);                     // let WiFi stack settle before channel change
@@ -137,8 +144,8 @@ void setup() {
 
     Serial.println("[ButtonRemote] ESP-NOW ready");
     Serial.println("[ButtonRemote] Waiting for button press...");
-    Serial.println("  BTN0 GPIO4 -> ZERO");
-    Serial.println("  BTN1 GPIO5 -> SAVE_POINT");
+    Serial.println("  BTN0 GPIO4 -> SAVE_POINT (Green - Add Point)");
+    Serial.println("  BTN1 GPIO5 -> DEL_POINT  (Red   - Delete Last Point)");
     Serial.println("  BTN2 GPIO0 -> (unassigned)");
     Serial.println("  BTN3 GPIO1 -> (unassigned)");
     Serial.println("  BTN4 GPIO3 -> (unassigned)");

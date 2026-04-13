@@ -1,5 +1,5 @@
 // DrawWireTest.cpp
-// OPKON DWE3000 draw-wire encoder — distance readout + wire calibration
+// OPKON DWEM2 draw-wire encoder — distance readout + wire calibration
 //
 // Target: ESP32-WROOM-32
 //
@@ -7,10 +7,11 @@
 //   PIN_WIRE_A (16) — Quadrature A
 //   PIN_WIRE_B (17) — Quadrature B
 //
-// Encoder specs:
-//   PPR  = 2000 pulses / revolution
+// Encoder specs (OPKON DWEM2 P2000):
+//   PPR  = 2000 mechanical pulses / revolution
+//   X4 quadrature -> PPR_WIRE = 8000 counts / revolution
 //   Drum = 200 mm / revolution
-//   -> MM_PER_PULSE = 0.1 mm / pulse
+//   -> MM_PER_PULSE = 0.025 mm / count
 //
 // Serial: 115200 baud
 // Commands:
@@ -24,11 +25,11 @@
 #define PIN_WIRE_A   16
 #define PIN_WIRE_B   17
 
-#define PPR_WIRE        8020.0
+#define PPR_WIRE        8000.0
 #define DRUM_CIRCUM_MM   200.0
 
 // Runtime calibration values
-float mm_per_pulse = DRUM_CIRCUM_MM / PPR_WIRE;   // 0.1 mm/pulse
+float mm_per_pulse = DRUM_CIRCUM_MM / PPR_WIRE;   // 0.025 mm/count
 
 Encoder* wireEnc;
 

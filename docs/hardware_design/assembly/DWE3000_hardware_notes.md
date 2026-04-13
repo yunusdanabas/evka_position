@@ -1,6 +1,10 @@
 # DWE3000 Hardware Notes
 _Session: 2026-02-18_
 
+> **SUPERSEDED**: The DWE3000 has been replaced by the **OPKON DWEM2** (1250–4200 mm, 0.1 mm/pulse, IP65).
+> This file is retained for historical reference. For current wiring and firmware settings, see
+> `docs/hardware_design/encoders/draw_wire/README.md`.
+
 ---
 
 ## Encoder Specifications — OPKON DWE3000 HLD P2000 Z V3

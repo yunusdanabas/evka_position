@@ -1,4 +1,4 @@
-# Setup & Test Guide — OPKON DWE3000 on Wemos D1 R32 (ESP32)
+# Setup & Test Guide — OPKON DWEM2 on Wemos D1 R32 (ESP32)
 _Session: 2026-02-18_
 
 ---
@@ -7,12 +7,12 @@ _Session: 2026-02-18_
 
 ### Power
 
-Use an external 5 V supply (5–30 V accepted by DWE3000).
+Use an external 5 V supply (5–30 V accepted by DWEM2).
 GND must be shared between supply, encoder, and ESP32.
 
 ```
-External 5 V (+) ──────────── DWE3000 V+ (Brown)
-External 5 V (−) ──┬───────── DWE3000 0V (White)
+External 5 V (+) ──────────── DWEM2 V+ (Brown)
+External 5 V (−) ──┬───────── DWEM2 0V (White)
                    └───────── ESP32 GND
 ```
 
@@ -25,7 +25,7 @@ Do NOT connect encoder +V to ESP32. Power external supply before the ESP32.
 Build one per signal line (A, B, Z):
 
 ```
-DWE3000 signal (5 V swing)
+DWEM2 signal (5 V swing)
         │
        10 kΩ
         │
@@ -39,7 +39,7 @@ DWE3000 signal (5 V swing)
 #### Option B: Legacy circuit (2.2 kΩ + pull-up) — prototyping OK
 
 ```
-DWE3000 signal ──── 2.2 kΩ ──── ESP32 GPIO ──── 10 kΩ ──── 3.3 V
+DWEM2 signal ──── 2.2 kΩ ──── ESP32 GPIO ──── 10 kΩ ──── 3.3 V
 ```
 
 Works correctly. GPIO reads ~0.6 V (LOW) / ~3.8 V clamped (HIGH).
@@ -48,7 +48,7 @@ Before encoder is powered you will see constant 3.3 V — this is normal (pull-u
 
 ### GPIO Connections
 
-| DWE3000 terminal | Via circuit | ESP32 GPIO |
+| DWEM2 terminal | Via circuit | ESP32 GPIO |
 |---|---|---|
 | A (Yellow) | Divider or 2.2kΩ+pullup | **16** |
 | B (Green) | Divider or 2.2kΩ+pullup | **17** |
@@ -104,7 +104,7 @@ pio device monitor -e test_drawwire
 ### Expected output at rest
 
 ```
-DrawWireTest ready. (ESP32 / OPKON DWE3000 quadrature)
+DrawWireTest ready. (ESP32 / OPKON DWEM2 quadrature)
 Pull wire to increase count, push to decrease.
 200 mm pull -> COUNT ~2000, Z_ticks +1
 --------------------------------------------

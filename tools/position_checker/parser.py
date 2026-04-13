@@ -8,7 +8,9 @@ from .cmd_main import (
     ACK_PREFIX,
     DATA_FIELDS,
     DATA_PREFIX,
+    DEL_POINT_PREFIX,
     ERR_PREFIX,
+    POINT_PREFIX,
     SENSOR_PREFIX,
     STA_IP_PREFIX,
     SYSINFO_PREFIX,
@@ -115,7 +117,8 @@ def parse_info_line(line: str) -> Optional[str]:
     if not clean:
         return None
 
-    info_prefixes = (ACK_PREFIX, "STATUS,", "BATT,", ERR_PREFIX, "!", STA_IP_PREFIX, SYSINFO_PREFIX)
+    info_prefixes = (ACK_PREFIX, "STATUS,", "BATT,", ERR_PREFIX, "!", STA_IP_PREFIX, SYSINFO_PREFIX,
+                     POINT_PREFIX, DEL_POINT_PREFIX)
     if clean.startswith(info_prefixes):
         return clean
     return None

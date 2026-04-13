@@ -774,7 +774,7 @@ Before PCB layout, verify:
 
 **SMPS**: MT3608 boost converter (3.7V LiPo → 5.3V, 500kHz switching, <100mA typical)
 
-**Encoders**: 3x quadrature + Z-index (E40S6 rotary, DWE3000 draw-wire)
+**Encoders**: 3x quadrature + Z-index (E40S6 rotary, DWEM2 draw-wire)
 - Max signal frequency: ~15kHz (at 20kHz encoder PPR, 750 RPM max)
 - Signal levels: 0-5V TTL → 0-3.3V after divider
 

@@ -32,7 +32,7 @@ newgrp dialout
 
 ### Voltage level mismatch
 
-All encoders in this project (OPKON DWE3000 draw-wire and Autonics E40S6 rotary) output **0–5 V TTL**. The ESP32 GPIO maximum input is **3.3 V** (absolute max 3.6 V). Connecting 5 V signals directly to GPIO can damage the ESP32. **Signal conditioning is required on every encoder signal line** (A, B, and Z if used).
+All encoders in this project (OPKON DWEM2 draw-wire and Autonics E40S6 rotary) output **0–5 V TTL**. The ESP32 GPIO maximum input is **3.3 V** (absolute max 3.6 V). Connecting 5 V signals directly to GPIO can damage the ESP32. **Signal conditioning is required on every encoder signal line** (A, B, and Z if used).
 
 ### Option A — 10 kΩ / 20 kΩ voltage divider (recommended)
 
@@ -72,7 +72,7 @@ Use a **single common GND** between the external 5 V supply, the encoder(s), and
 ### Power
 
 - **Do not power the encoders from the ESP32.** Use an external regulated 5 V supply.
-- Typical current: DWE3000 ~100 mA; each E40S6 ~50 mA.
+- Typical current: DWEM2 ~25 mA at 5 V (datasheet: <40 mA @ 24 V no-load, LTP output); each E40S6 ~50 mA.
 - Power the external supply before or together with the ESP32.
 
 ### Safe GPIOs on ESP32-WROOM-32
@@ -87,9 +87,9 @@ GPIOs **6, 7, 8, 9, 10, 11** are connected to internal SPI flash. **Do not use t
 | Theta B   | 12   | E40S6 (White)    |
 | Phi A     | 32   | E40S6 (Black)    |
 | Phi B     | 35   | E40S6 (White)    |
-| Wire A    | 16   | DWE3000          |
-| Wire B    | 17   | DWE3000          |
-| Wire Z    | 18   | DWE3000 (index)  |
+| Wire A    | 16   | DWEM2            |
+| Wire B    | 17   | DWEM2            |
+| Wire Z    | 18   | DWEM2 (index)    |
 
 Voltage divider required on every signal line (5 V → 3.3 V).
 
@@ -97,11 +97,11 @@ Voltage divider required on every signal line (5 V → 3.3 V).
 
 ## 3. Test 1: Draw-wire encoder only
 
-Connect **only** the draw-wire encoder (OPKON DWE3000). Do not connect theta or phi encoders.
+Connect **only** the draw-wire encoder (OPKON DWEM2). Do not connect theta or phi encoders.
 
 ### Wiring
 
-| DWE3000 terminal | Via 10k/20k divider (or Option B) | ESP32 GPIO |
+| DWEM2 terminal | Via 10k/20k divider (or Option B) | ESP32 GPIO |
 |------------------|-------------------------------------|------------|
 | A (Yellow)       | Divider                             | **16**     |
 | B (Green)        | Divider                             | **17**     |
@@ -110,8 +110,8 @@ Connect **only** the draw-wire encoder (OPKON DWE3000). Do not connect theta or 
 **Power:**
 
 ```
-External 5 V (+) ──────────── DWE3000 V+ (Brown)
-External 5 V (−) ──┬───────── DWE3000 0V (White)
+External 5 V (+) ──────────── DWEM2 V+ (Brown)
+External 5 V (−) ──┬───────── DWEM2 0V (White)
                    └───────── ESP32 GND
 ```
 
@@ -134,7 +134,7 @@ pio device monitor -e test_drawwire
 ### Expected output at rest
 
 ```
-DrawWireTest ready. (ESP32 / OPKON DWE3000 quadrature)
+DrawWireTest ready. (ESP32 / OPKON DWEM2 quadrature)
 Pull wire to increase count, push to decrease.
 200 mm pull -> COUNT ~2000, Z_ticks +1
 --------------------------------------------
@@ -245,4 +245,4 @@ If direction is inverted, swap A and B wires on the phi encoder.
 | Encoder library not found       | PlatformIO auto-installs it from `platformio.ini`; run `pio lib install` if missing. |
 | Port permission denied          | `sudo usermod -aG dialout $USER` then `newgrp dialout` |
 
-More detail: [Setup & Test Guide](../../integration/setup_test_guide.md) and [DWE3000 Hardware Notes](DWE3000_hardware_notes.md).
+More detail: [Setup & Test Guide](../../integration/setup_test_guide.md) and [DWE3000 Hardware Notes (legacy reference)](DWE3000_hardware_notes.md).

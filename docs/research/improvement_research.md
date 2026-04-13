@@ -145,7 +145,7 @@ if (abs(delta) > MAX_DELTA_COUNTS) {
 
 `MAX_DELTA_COUNTS` maps to physical limits:
 - Theta/Phi: 200 counts @ 20000 PPR = 0.36°/frame = 7.2°/s (fast deliberate motion is ~2°/s)
-- Wire: 200 counts @ 8020 PPR = 4.99 mm/frame = 100mm/s
+- Wire: 200 counts @ 8000 PPR = 5.00 mm/frame = 100mm/s
 
 The `spike_count` accumulator can be exposed via the `STATUS` serial command for health monitoring.
 
@@ -773,7 +773,7 @@ Ordered by effort-to-impact ratio (highest impact / lowest difficulty first):
 | External libraries | All | `docs/resources.md` |
 | Circuit schematic | §3.2, §5.3 | `docs/hardware_design/5v/circuit_schematic.md` |
 | System architecture | All | `docs/hardware_design/system_architecture.md` |
-| DWE3000 draw-wire details | §4.1, §10.1 | `docs/hardware_design/encoders/draw_wire/README.md` |
+| DWEM2 draw-wire details | §4.1, §10.1 | `docs/hardware_design/encoders/draw_wire/README.md` |
 | E40S6 rotary encoder details | §4.1–4.3 | `docs/hardware_design/encoders/rotary_e40s6/README.md` |
 | Filter code | §2.1–2.5 | `firmware/src/SphericalSensor.cpp:138-141` |
 | Validation code | §2.4 | `firmware/src/SphericalSensor.cpp:114-121` |

@@ -61,7 +61,7 @@
 |-----|-----|-------------|-------|---------|
 | J1 | 1 | KF301-4P | 5.08mm | Theta encoder (E40S6 #1) |
 | J2 | 1 | KF301-4P | 5.08mm | Phi encoder (E40S6 #2) |
-| J3 | 1 | KF301-5P | 5.08mm | Wire encoder (DWE3000) |
+| J3 | 1 | KF301-5P | 5.08mm | Wire encoder (DWEM2) |
 | J4 | 1 | DC barrel jack 5.5×2.1mm or KF301-2P | — | External 5V power input |
 | J5 | 1 | JST-PH 2-pin | 2.0mm | LiPo battery |
 | J6 | 1 | KF128V-5.08-2P | 5.08mm | Direct 5V test input |
@@ -137,7 +137,7 @@
 |------|--------|
 | ESP32 Wemos D1 R32 | Already owned |
 | Autonics E40S6-5000 encoders (×2) | Already owned |
-| OPKON DWE3000 draw-wire encoder | Already owned |
+| OPKON DWEM2 draw-wire encoder | Already owned |
 
 ---
 
