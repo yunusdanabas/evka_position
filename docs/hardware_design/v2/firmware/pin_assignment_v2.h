@@ -7,7 +7,7 @@
  * 
  * HARDWARE: EVKA Position V2
  *   - MCU: ESP32-S3-DevKitC-1-N8R2 (8MB flash, 2MB PSRAM, native USB-C)
- *   - Power: 12V input, BQ24650 charger, MP1584EN buck
+ *   - Power: 12V input, no onboard charging (external balance charger), MP1584EN buck
  *   - Encoders: 2× E40S6 rotary + 1× DWEM2 draw-wire
  *   - Interfaces: RS-485/Modbus RTU, I2C expansion, 4 spare GPIOs
  *   - Watchdog: MAX813L external supervisor

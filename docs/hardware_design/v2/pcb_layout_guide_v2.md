@@ -82,9 +82,9 @@
     │  │                                                                    │   │
     │  │  J12V ── NTC ── F1 ── TVS ── Q1(IRF4905) ── V12_PROT             │   │
     │  │                                                                    │   │
-    │  │  [BQ24650 module]  [MP1584EN module]                              │   │
+    │  │  [MP1584EN module]  Q_BATT(IRF4905)  J_XT60(edge)                │   │
     │  │                                                                    │   │
-    │  │  D_EXT  D_BAT  L_FILT  C_FILT  SS36                               │   │
+    │  │  Q_RPP  F_BAT-holder  L_FILT  C_FILT  SS36                        │   │
     │  │                                                                    │   │
     │  └────────────────────────────────────────────────────────────────────┘   │
     │  ┌────────────────────────────────────────────────────────────────────┐   │
@@ -147,11 +147,12 @@
     │
     V12_PROT bus ──┬── 120kΩ/27kΩ divider ── GPIO 1
                    │
-                   ├── D_EXT (SS34, DO-201 axial)
+                   ├── BUCK_VIN (adapter path, direct)
                    │
-                   ├── BQ24650 module (mounted on 2.54mm headers)
-                   │
-                   └── D_BAT (SS34, DO-201 axial) ── from BMS
+                   └── D_GATE (SS14 Schottky) ── Q_BATT Gate (+ 100kΩ pull-down to GND)
+    
+    Battery path (PCB edge):
+    J_XT60 ── F_BAT inline holder ── Q_BATT Source → Drain → BUCK_VIN
 ```
 
 **MP1584EN module placement:**
@@ -160,13 +161,14 @@
 - Input caps (C_IN1, C_IN2) close to module VIN pins
 - Output inductor and caps close to module VOUT pins
 
-**BQ24650 module placement:**
-- Mount on 4-pin 2.54mm male headers
-- Position below MP1584EN
-- No UVLO divider needed (BQ24650 has internal UVLO)
+**Q_BATT gate circuit placement:**
+- IRF4905 TO-220: mount adjacent to Q_RPP, heatsink tab toward board edge
+- R_G2 (100kΩ pull-down) and Z1 (1N4742A Zener) close to gate pin
+- D_GATE (SS14 Schottky) on gate trace between V12_PROT and Q_BATT gate
+- F_BAT inline holder immediately adjacent to J_XT60+ terminal — no unfused battery copper on board
 
 **Trace widths in Zone A:**
-- V12_PROT: 1.5mm minimum (carries up to 2A during charging)
+- V12_PROT: 1.5mm minimum (adapter branch, continuous 2A load)
 - BUCK_VIN: 1.5mm minimum
 - 5V_RAIL: 1.0mm minimum
 - GND: 1.5mm minimum or ground pour
@@ -360,7 +362,7 @@ Avoid daisy-chaining 5V through multiple loads — star topology minimizes volta
 ```
     13. Solder male pin headers to module boards (if not pre-installed)
     14. Insert MP1584EN module into carrier headers
-    15. Insert BQ24650 module into carrier headers
+    15. Install Q_BATT (IRF4905 TO-220) and solder F_BAT inline fuse holder adjacent to J_XT60+
     16. Insert 3S BMS module into carrier headers (or wire directly)
 ```
 
@@ -444,7 +446,7 @@ Since there is no silkscreen, create a paper template for assembly:
 | Power diode lead | 1.0mm | 12 | SS34/SS36 DO-201 |
 | TVS diode lead | 1.0mm | 10 | P6KE18A, 1.5KE3.3CA |
 | Electrolytic cap lead | 0.8–1.0mm | 6 | Radial electrolytic |
-| Module header pin | 1.0mm | 16 | MP1584EN, BQ24650, BMS headers |
+| Module header pin | 1.0mm | 8 | MP1584EN, BMS headers |
 | DevKitC-1 header pin | 1.0mm | 40 | 2× 20-pin female headers |
 | Screw terminal pin | 1.2mm | 22 | KF301 series |
 | Tactile button pin | 0.8mm | 4 | 6×6mm button |

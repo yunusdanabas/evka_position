@@ -32,11 +32,10 @@
  ║       │          │                                                         │                 ║
  ║       │     (ADC tap)                                                      │                 ║
  ║       │                                                                    │                 ║
- ║       ├── D_EXT (SS34) ──┬── BUCK_VIN                                     │                 ║
- ║       │                   │                                                │                 ║
- ║       │              D_BAT (SS34)                                          │                 ║
- ║       │                   │                                                │                 ║
- ║       │              3S_OUT+ (BMS output)                                  │                 ║
+ ║       ├──────────────────────────────────── BUCK_VIN (adapter path)      │                 ║
+ ║       │                                                                    │                 ║
+ ║       │   BAT+ ─[F_BAT 5A]─ Q_BATT(IRF4905) ──► BUCK_VIN (battery path)  │                 ║
+ ║       │   Q_BATT Gate ←[D_GATE SS14]← V12_PROT  (adapter isolates battery) │                 ║
  ║       │                                                                    │                 ║
  ║       │   BUCK_VIN ── [220µF/35V] ── U_BUCK (MP1584EN 12V→5.05V)            │                 ║
  ║       │                                   │                                │                 ║
@@ -52,11 +51,9 @@
  ║       │   │                                                                │                 ║
  ║       │   │   CHARGER PATH                                                 │                 ║
  ║       │   │   ═══════════                                                   │                 ║
- ║       │   └── BQ24650 (12V → 12.6V/1A, 3S) ── 3S BMS ── J_BAT (JST-XH 4P)   │                 ║
- ║       │                                        │                           │                 ║
- ║       │                                   3S LiPo (11.1V)                  │                 ║
- ║       │                                                                    │                 ║
- ║       │   (BQ24650 internal UVLO — no external divider needed)               │                 ║
+ ║       │   NO ONBOARD CHARGING — charge 3S LiPo externally via balance charger │                 ║
+ ║       │   J_XT60 (panel) + J_BAL (JST-XH-4P balance header) on PCB edge   │                 ║
+ ║       │   HX-3S-01 BMS: undervoltage cutoff + short-circuit protection only │                 ║
  ║       │                                                                    │                 ║
  ╠═══════╪════════════════════════════════════════════════════════════════════╪═════════════════╣
  ║       │                                                                SIGNAL SECTION      ║
@@ -124,14 +121,39 @@
 
 ---
 
-## 3. Schottky OR Detail
+## 3. Active Load-Sharing — Adapter Priority (Q_BATT)
+
+Replaces Schottky OR-ing. A P-channel MOSFET (Q_BATT) switches the battery onto BUCK_VIN only
+when the adapter is absent. When the adapter is present, the gate is pulled toward V12_PROT,
+holding Q_BATT OFF and isolating the battery — adapter has unconditional priority.
 
 ```
-    V12_PROT ── Anode ─┤ │─ Cathode (band) ──┬── BUCK_VIN ──── TP_BV
-                       │SS34│                │
-    3S_OUT+  ── Anode ─┤ │─ Cathode (band) ──┘
-                       │SS34│
+    BAT_PLUS ─── F_BAT (5A ATO blade fuse) ─── Q_BATT Source (pin 3)
+    
+    Gate control circuit:
+    V12_PROT ──── D_GATE (SS14 Schottky, band toward Gate) ──┬── Q_BATT Gate (pin 1)
+                                                              │
+                                                         100kΩ pull-down
+                                                              │
+                                                             GND
+    
+    Z1 (1N4742A Zener 12V): Cathode → Q_BATT Gate, Anode → Q_BATT Source
+    (V_GS clamp — protects gate oxide on input transients)
+    
+    Q_BATT Drain (pin 2) ──┬── BUCK_VIN ──── TP_BV
+    Q_BATT Tab  (Drain)  ──┘
+    
+    V12_PROT ────────────────────────────────── BUCK_VIN  (adapter feeds buck directly)
 ```
+
+**Operation:**
+- Adapter present (V12_PROT ≈ 12V): Gate held at ~11.7V via D_GATE; V_GS = 11.7V − V_BAT.
+  At V_BAT = 12.6V (full): V_GS = −0.9V (near threshold — FET in high-resistance).
+  At V_BAT < 11V (typical): V_GS = +0.7V (positive — FET firmly OFF, battery isolated).
+- Adapter absent (V12_PROT = 0V): Gate pulled to GND by 100kΩ; V_GS = −V_BAT → FET fully ON.
+- Switchover: <1ms; C_IN1 (220µF) holds BUCK_VIN during transition.
+
+**Note:** Use **Schottky** D_GATE (0.3V drop), NOT a silicon diode (0.7V drop). The lower drop improves turn-off margin at full battery charge.
 
 ---
 
@@ -179,50 +201,76 @@
 
 ---
 
-## 5. Charger Detail
+## 5. Battery Charging — External Only
 
-### 5a. BQ24650 Module Wiring
+**There is no onboard battery charging circuit.**
 
-> **Part:** BQ24650 3S Charging Module (AliExpress, factory-configured for 3S / 12.6V)  
-> **Why:** CN3767 is a lead-acid charger — wrong chemistry for LiPo. BQ24650 is a synchronous
-> buck charger with true CC/CV termination at 4.2V/cell (12.6V for 3S).
+Three engineering problems make onboard CC/CV charging of an RC LiPo unsafe in this topology:
+
+1. **No cell balancing.** BQ24650 charges the pack to 12.6V total; it cannot monitor or equalize
+   individual cells. The HX-3S-01 BMS provides <50mA passive balancing — inadequate for any
+   meaningful LiPo capacity.
+
+2. **Simultaneous charge + load prevents safe termination.** CC/CV chargers terminate by detecting
+   current taper below ~10% of ISET. With 200–400mA system load on the battery node, the charger
+   current never tapers — it holds the pack at 12.6V indefinitely. Permanent float charging at
+   4.2V/cell causes lithium plating, pouch swelling, and cell destruction within weeks.
+
+3. **12V adapter cannot reliably charge a 12.6V pack.** VIN headroom ≈ 0V at full charge.
+   Synchronous buck chargers require VIN > VBAT + ~200mV minimum headroom to operate correctly.
+
+### 5a. External Charging Procedure
 
 ```
-    V12_PROT ──── BQ24650 VIN  (module input, 6–28V range)
-    GND ────────── BQ24650 GND
+    Charge using: iMax B3 / SkyRC E3S / any balance charger rated for 3S LiPo
     
-    BQ24650 VOUT ──── 3S BMS P+ (charge input)
-    BQ24650 GND ───── 3S BMS P-
+    Step 1: Disconnect battery from XT60 on PCB
+    Step 2: Connect battery MAIN lead (XT60) to charger
+    Step 3: Connect battery BALANCE lead (JST-XH-4P) to charger balance port
+    Step 4: Set charger to "LiPo 3S" mode, 1C or less (~1A for 1500–2200mAh)
+    Step 5: Charge until all cells reach 4.20V ± 0.02V
+    Step 6: Reconnect to PCB after charging complete
     
-    BMS B+ → LiPo Cell 3 (+)
-    BMS BM → LiPo Cell 1-2 junction  (balance)
-    BMS B2 → LiPo Cell 2-3 junction  (balance)
-    BMS B- → LiPo Cell 1 (-)
+    DO NOT connect charger through J12V or any PCB input.
+```
+
+### 5b. Battery Connectors
+
+```
+    J_XT60 (XT60 male, panel mount, PCB edge):
+    Pin 1: BAT_PLUS  (main discharge +, heavy current)
+    Pin 2: GND       (main discharge −, heavy current)
     
-    BQ24650 ISET: trim pot on module — set to ≤1A for 1500–2200mAh packs
-    BQ24650 STAT LED: on-module LED indicates charging / standby
-```
-
-### 5b. Input UVLO
-
-```
-    BQ24650 internal UVLO: ~4.5V minimum (well below 12V operating point).
-    No external voltage divider or CE-pin resistors required.
-    The module ceases charging automatically when VIN drops below the internal
-    threshold. No assembly action needed for UVLO.
-```
-
-### 5c. Battery Connector
-
-```
-    J_BAT (JST-XH-4P, 2.5mm pitch, or KF301-4P screw terminal)
+    F_BAT: 5A ATO/ATC automotive blade fuse, inline holder within 15cm of J_XT60+
+    
+    J_BAL (JST-XH-4P, 2.5mm pitch, balance lead access):
     ┌──────────────────────────────┐
-    │ Pin 1: B-  (Cell 1 negative)│
+    │ Pin 1: B-  (Cell 1 −)       │
     │ Pin 2: BM  (Cell 1-2 mid)   │
     │ Pin 3: B2  (Cell 2-3 mid)   │
-    │ Pin 4: B+  (Cell 3 positive)│
+    │ Pin 4: B+  (Cell 3 +)       │
     └──────────────────────────────┘
+    (Passive header — wires go directly to battery balance connector. No PCB circuitry.)
 ```
+
+### 5c. HX-3S-01 BMS — Protection Role Only
+
+```
+    BAT_PLUS ─── F_BAT ─── Q_BATT ──► BUCK_VIN
+    
+    Battery discharge path through BMS (protection only):
+    BMS B+ ──── Cell 3 (+)
+    BMS BM ──── Cell 1-2 junction
+    BMS B2 ──── Cell 2-3 junction
+    BMS B-  ──── Cell 1 (−)
+    BMS P+  ──── BAT_PLUS (to F_BAT and Q_BATT)
+    BMS P-  ──── GND
+```
+
+**BMS provides:**
+- Undervoltage cutoff: ~2.5–3.2V/cell (9.6V typical) — hardware backstop if firmware fails
+- Short-circuit protection: <1ms cutoff
+- **Does NOT provide charging** in this architecture — balancing done by external charger only
 
 ---
 
@@ -458,14 +506,27 @@
 
 | Net | Source | Destinations | Voltage |
 |-----|--------|-------------|---------|
-| J12V+ | DC jack | NTC → F1 → TVS → Q1 | 9–16V |
-| V12_PROT | Q1 drain | D_EXT, BQ24650 VIN, ADC divider | ~12V |
-| 3S_OUT+ | BMS P+ | D_BAT anode | 9.0–12.6V |
-| BUCK_VIN | D_EXT/D_BAT cathodes | MP1584EN VIN, C_IN | 9.0–11.6V |
+| J12V+ | DC jack | NTC → F1 → TVS → Q_RPP | 9–16V |
+| V12_PROT | Q_RPP drain | Q_BATT gate (via D_GATE), BUCK_VIN, ADC divider | ~12V |
+| BAT_PLUS | BMS P+ | F_BAT → Q_BATT source | 9.0–12.6V |
+| BUCK_VIN | V12_PROT (adapter) or Q_BATT drain (battery) | MP1584EN VIN, C_IN | 9.0–11.6V |
 | 5V_BUCK | MP1584EN output | LC filter → SS36 | 5.05V |
 | 5V_RAIL | SS36 cathode | ESP32 VIN, encoders, LEDs, MAX485, MAX813L | 4.75–4.85V |
 | 3.3V | DevKitC-1 LDO | I2C pull-ups, spare GPIO | 3.25–3.35V |
 | GND | Common | All components | 0V |
+
+**Battery voltage thresholds (firmware must enforce 10.50V and 9.90V; BMS provides emergency HW backstop at ~9.60V):**
+
+| Threshold | Voltage | Action |
+|---|---|---|
+| Full charge | 12.60V | Reference only |
+| Nominal | 11.10V | Normal operation |
+| Low battery warning | 10.50V | Trigger fault LED (GPIO 10) |
+| Graceful shutdown | 9.90V | Halt motion, enter deep sleep |
+| BMS hardware cutoff | ~9.60V | HX-3S-01 emergency disconnect |
+| Absolute minimum | 9.00V | Never discharge below 3.0V/cell |
+
+ADC divider (GPIO 1, ADC1_CH0): 120kΩ/27kΩ from BUCK_VIN — scale = 5.444. At 10.5V: V_adc = 1.93V.
 
 ---
 
@@ -473,11 +534,12 @@
 
 | TP | Signal | Expected |
 |----|--------|----------|
-| TP12 | V12_PROT | 11.5–12.5V |
-| TP_BV | BUCK_VIN | 9.0–11.6V |
+| TP12 | V12_PROT | 11.5–12.5V (adapter present) |
+| TP_BV | BUCK_VIN | 9.0–11.6V (adapter) or 8.6–12.2V (battery) |
 | TP5 | 5V_RAIL | 4.75–4.85V |
 | TP33 | 3.3V (DevKitC-1) | 3.25–3.35V |
-| TP_BAT | 3S_OUT+ | 9.0–12.6V |
+| TP_BAT | BAT_PLUS | 9.0–12.6V |
+| TP_FUSE | After F_BAT | Same as BAT_PLUS (if fuse is good) |
 | TPG | GND | 0V |
 | TP_EN | ESP32 EN | 3.3V (high) |
 
@@ -485,13 +547,15 @@
 
 ## 16. Assembly Warnings
 
-1. **Pre-set MP1584EN to 5.10V** before connecting ESP32. Use 25Ω/2W dummy load.
-2. **Verify BQ24650 module output** is 12.6V before connecting battery. Set ISET trim pot to ≤1A for 1500–2200mAh packs. BQ24650 modules are factory-configured for 3S but verify before first use.
-3. **Verify BMS balance function** — look for small 100Ω resistors on BMS board.
-4. **Double-check all Schottky diode bands** — reversed diode causes back-feed.
-5. **Do NOT bolt IRF4905 to grounded heatsink** — tab is Drain (V12_PROT).
-6. **Do NOT apply 12V to ESP32 VIN** — only 5V_RAIL connects to VIN pin.
-7. **Check DevKitC-1 orientation** — USB connector should face board edge.
-8. **Verify female header spacing** — DevKitC-1 uses standard 2.54mm, ~25.4mm between rows.
-9. **Test 5V_RAIL before inserting DevKitC-1** — protect module from overvoltage.
-10. **Do NOT connect active signals to GPIO 0** — strapping pin, may enter download mode.
+1. **Pre-set MP1584EN to 5.10V** before connecting ESP32. Use 25Ω/2W dummy load. After calibration, **apply one drop of CA glue to the trimpot body** to prevent vibration-induced drift.
+2. **Install F_BAT blade fuse BEFORE connecting battery.** F_BAT must be within 15cm of J_XT60 positive terminal. Never route unfused battery copper across the board interior.
+3. **Do NOT charge the battery through J12V or any PCB input.** Charge externally via balance charger (XT60 + JST-XH balance lead). See Section 5 for procedure.
+4. **Verify BMS undervoltage threshold** — HX-3S-01 should cut off at ~9.6V (3.2V/cell). Some variants cut as low as 2.8V/cell — verify with a bench supply before installing.
+5. **Q_BATT (battery load-sharing FET):** Tab is Drain (BUCK_VIN). Do NOT bolt to grounded heatsink. No heatsink needed — Pmax ~15mW at full battery load.
+6. **Q_RPP (reverse polarity FET):** Tab is Drain (V12_PROT). Do NOT bolt to grounded heatsink.
+7. **Double-check D_GATE Schottky orientation** — band (cathode) faces Q_BATT gate. Reversed = battery always on regardless of adapter.
+8. **Do NOT apply 12V to ESP32 VIN** — only 5V_RAIL connects to VIN pin.
+9. **Check DevKitC-1 orientation** — USB connector should face board edge.
+10. **Verify female header spacing** — DevKitC-1 uses standard 2.54mm, ~25.4mm between rows.
+11. **Test 5V_RAIL before inserting DevKitC-1** — protect module from overvoltage.
+12. **Do NOT connect active signals to GPIO 0** — strapping pin, may enter download mode.

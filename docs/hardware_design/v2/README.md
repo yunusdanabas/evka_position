@@ -3,7 +3,7 @@
 > Complete hardware redesign for the EVKA spherical positioning sensor system.  
 > **LPKF S63 compatible** — 100% through-hole, double-sided milled PCB.  
 > **MCU:** ESP32-S3-DevKitC-1 on female headers.  
-> **Power:** 12V DC input, 3S LiPo backup, BQ24650 switch-mode charger, MP1584EN buck.  
+> **Power:** 12V DC input, 3S LiPo backup (no onboard charging), active MOSFET priority, MP1584EN buck.  
 > **Interfaces:** RS-485/Modbus RTU, I2C expansion, 4 spare GPIOs.  
 > **Industrial features:** External watchdog, 4 status LEDs, DIN rail mounting.
 
@@ -15,7 +15,8 @@
 |---|---|---|
 | **MCU** | ESP32 Wemos D1 R32 | **ESP32-S3-DevKitC-1** (native USB-C, better security) |
 | **Power input** | 5V or 12V | **12V DC only** (simpler, cleaner) |
-| **Charger** | TP5100 + MT3608 boost | **BQ24650 module** (synchronous buck, true 3S CC/CV, 59% less heat) |
+| **Charging** | TP5100 + MT3608 boost | **No onboard charging** — RC LiPo charged externally via balance charger (iMax B3 / SkyRC E3S). Eliminates termination trap + fire hazard of onboard RC LiPo charging. |
+| **Source selection** | Diode OR-ing | **Active IRF4905 P-MOSFET load-sharing** — adapter always has unconditional priority; battery isolated when adapter present |
 | **Buck** | MP1584EN 12V→5V | **MP1584EN** (confirmed in stock Turkey, direnc.net 26.46₺; MP2315 not stocked) |
 | **Reverse polarity** | SI2301 SOT-23 / AO4407A SOIC-8 | **IRF4905 TO-220** (THT, easy to solder) |
 | **RS-485** | None | **Onboard MAX485** (Modbus RTU ready) |
@@ -56,14 +57,13 @@ graph TD
     J12V[12V DC Input<br/>5.5×2.1mm Jack] --> RPP[IRF4905 RPP<br/>+ P6KE18A TVS]
     RPP --> V12_PROT[Protected 12V Rail]
     
-    V12_PROT --> BQ24650[BQ24650 Charger<br/>12V→12.6V/1A 3S]
-    BQ24650 --> BMS[3S BMS + Balancer]
-    BMS --> BAT[3S LiPo Battery<br/>11.1V 2200mAh]
-    BMS --> D_BAT[Schottky OR]
+    BAT[3S LiPo Battery<br/>11.1V — charge externally] --> BMS[HX-3S-01 BMS<br/>protection only]
+    BMS --> F_BAT[F_BAT 5A Blade Fuse]
+    F_BAT --> Q_BATT[Q_BATT IRF4905<br/>load-sharing FET]
     
-    V12_PROT --> D_EXT[Schottky OR]
-    D_EXT --> BUCK_VIN[Buck Input]
-    D_BAT --> BUCK_VIN
+    V12_PROT --> BUCK_VIN[Buck Input]
+    Q_BATT --> |when adapter absent| BUCK_VIN
+    V12_PROT --> |gate control| Q_BATT
     
     BUCK_VIN --> MP1584EN[MP1584EN Buck<br/>12V→5.05V]
     MP1584EN --> LC[22µH + 220µF<br/>LC Filter]

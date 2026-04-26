@@ -14,18 +14,18 @@
 
 | Category | Line Items | Est. Cost (₺) |
 |----------|-----------|---------------|
-| Power input & protection | 8 | ~65₺ |
+| Power input & protection | 10 | ~90₺ |
 | Buck converter | 7 | ~50₺ |
-| Battery & charger | 4 + battery | ~310₺ |
+| Battery & protection | 4 + battery | ~115₺ |
 | MCU & headers | 3 | ~575₺ |
 | Signal conditioning | 5 component types | ~45₺ |
-| Connectors | 6 | ~25₺ |
+| Connectors | 7 | ~70₺ |
 | Expansion interfaces | 12 component types | ~60₺ |
 | Passives & misc | various | ~30₺ |
-| **Total (without battery)** | **~58 line items** | **~1160₺** |
-| **Total (with 3S LiPo)** | | **~1310–1410₺** |
+| **Total (without battery)** | **~60 line items** | **~1035₺** |
+| **Total (with 3S LiPo)** | | **~1185–1285₺** |
 
-> **Cost increase vs original estimate:** BQ24650 module (~200–260₺) costs more than the incorrect CN3767 (~50₺). This is the correct part for safe 3S LiPo charging.
+> **vs Phase 1 design:** BQ24650 module removed (~200–260₺ saved). Q_BATT circuit added (~65₺). XT60 connector added (~40₺). Net savings ~130–155₺. Onboard charging moved to external balance charger (not included in BOM cost).
 
 ---
 
@@ -35,17 +35,21 @@
 |-----|-----|------|------|---------|--------|-----------|
 | J12V | 1 | DC barrel jack | 5.5×2.1mm, center +, panel mount | THT | Direnc.net, AliExpress | ~5₺ |
 | NTC1 | 1 | NTC thermistor | 5D-9, 5Ω cold | THT disc | Direnc.net | ~3₺ |
-| F1 | 1 | PTC polyfuse | MF-R110, 1.1A hold, 2.2A trip | THT radial | Direnc.net | ~5₺ |
+| F1 | 1 | PTC polyfuse | MF-R110, 1.1A hold, 2.2A trip (adapter side only) | THT radial | Direnc.net | ~5₺ |
 | TVS_IN | 1 | TVS diode | P6KE18A, 18V standoff, 600W, DO-15 | Axial | ⚠️ Arkotek / Entegredunyasi; not confirmed at direnc.net | ~5₺ |
-| Q1 | 1 | P-ch MOSFET | IRF4905, 55V, 20mΩ, TO-220AB | TO-220 | ⚠️ Direnc.net ~12₺ (check stock); backup: Arkotek, Entegredunyasi.com.tr | ~12–35₺ |
-| R_G | 1 | Resistor | 100kΩ, 1%, 1/4W | Axial | Direnc.net | ~0.5₺ |
-| D_EXT | 1 | Schottky diode | SS34 or 1N5822, 3A, 40V, DO-201 | Axial | Direnc.net | ~3₺ |
-| D_BAT | 1 | Schottky diode | SS34 or 1N5822, 3A, 40V, DO-201 | Axial | Direnc.net | ~3₺ |
+| Q_RPP | 1 | P-ch MOSFET | IRF4905, 55V, 20mΩ, TO-220AB (reverse polarity) | TO-220 | ⚠️ Direnc.net ~12₺ (check stock); backup: Arkotek, Entegredunyasi.com.tr | ~12–35₺ |
+| R_G | 1 | Resistor | 100kΩ, 1%, 1/4W (Q_RPP gate pull-down) | Axial | Direnc.net | ~0.5₺ |
+| Q_BATT | 1 | P-ch MOSFET | IRF4905, 55V, 20mΩ, TO-220AB (battery load-sharing) | TO-220 | Same as Q_RPP — order 2 total | ~12₺ |
+| R_G2 | 1 | Resistor | 100kΩ, 1%, 1/4W (Q_BATT gate pull-down) | Axial | Direnc.net | ~0.5₺ |
+| D_GATE | 1 | Schottky diode | SS14 or SS34, 1A, 40V, Vf ≈ 0.3V (Q_BATT gate control) | DO-214AA or DO-201 | Direnc.net | ~1–3₺ |
+| Z1 | 1 | Zener diode | 1N4742A, 12V, 1W, DO-41 (Q_BATT V_GS clamp) | DO-41 | Direnc.net | ~1–3₺ |
+| F_BAT | 1 | Automotive blade fuse + holder | ATO/ATC 5A (2200mAh) or 10A (5000mAh); inline fuse holder | THT holder + fuse | Automotive supplier, N11, Trendyol | ~10–20₺ |
 
 **Alternatives:**
-- **Q1:** IRF9540N (100V, 117mΩ, higher drop but acceptable) or IRF9Z34N (55V, 100mΩ)
+- **Q_RPP / Q_BATT:** IRF9540N (100V, 117mΩ, higher drop but acceptable) or IRF9Z34N (55V, 100mΩ)
 - **TVS_IN:** P6KE20A if your adapter outputs >15V routinely
 - **F1:** Littlefuse 0251020.NRT1 (2A glass fuse) + Keystone 3549-2 holder if you prefer non-resettable
+- **F_BAT:** 5A for 2200mAh pack; 10A for 5000mAh pack; size to 2× expected continuous discharge current
 
 ---
 
@@ -73,29 +77,29 @@
 
 ---
 
-## 3. Battery & Charger
+## 3. Battery & Protection
+
+> **No onboard charging circuit.** The 3S LiPo is charged externally via a dedicated balance charger
+> (iMax B3 / SkyRC E3S class). The BMS provides hardware undervoltage cutoff and short-circuit
+> protection only. See `subsystems/power_supply_v2.md` Section 5 for charging procedure.
 
 | Ref | Qty | Part | Spec | Package | Source | Est. Cost |
 |-----|-----|------|------|---------|--------|-----------|
-| U_CHG | 1 | **BQ24650 3S Charging Module** | Synchronous buck, 6–28V in, 12.6V/1–5A CC/CV | Module ~35×22mm | **AliExpress** (~$6–8 USD, ~200–260₺, 2–3 week ship) | **~200–260₺** |
-| BMS_3S | 1 | 3S BMS board | HX-3S-01, 10A, with balance function | Module ~50×18mm | **robolinkmarket.com — 52.20₺ (confirmed in stock)** | **52.20₺** |
-| J_BAT | 1 | JST-XH-4P | 2.5mm pitch, or KF301-4P screw terminal | THT | Direnc.net, AliExpress | ~3₺ |
-| BAT | 1 | 3S LiPo pack | 11.1V, 2200mAh, with JST-XH balance lead | Pack | Local RC shop, AliExpress | ~150–250₺ |
+| BMS_3S | 1 | 3S BMS board | HX-3S-01, 10A, **protection only** (no onboard charging) | Module ~50×18mm | **robolinkmarket.com — 52.20₺ (confirmed in stock)** | **52.20₺** |
+| J_XT60 | 1 | XT60 male connector | Panel mount, PCB edge, main battery discharge | THT/Panel | Direnc.net ~40₺, AliExpress | ~40₺ |
+| J_BAL | 1 | JST-XH-4P header | 2.5mm pitch, balance lead access (passive, no circuitry) | THT | Direnc.net, AliExpress | ~3₺ |
+| BAT | 1 | 3S LiPo pack | 11.1V, 2200mAh (or 5000mAh), with JST-XH balance lead + XT60 main lead | Pack | Local RC shop, AliExpress | ~150–250₺ |
 
-> ⚠️ **CN3767 was the original design choice but is a lead-acid battery charger — not safe for LiPo.**  
-> The BQ24650 module provides true CC/CV termination at 12.6V (4.2V/cell) with synchronous
-> buck topology (~95% efficiency, ~1.2W heat). Factory-configured for 3S on most AliExpress modules —
-> **verify output voltage is 12.6V before connecting battery.**
+**Important notes:**
+- **BMS_3S:** Verify undervoltage cutoff at ~9.6V (3.2V/cell) with bench supply before installing. Some HX-3S-01 variants cut at 2.8V/cell — verify your specific module.
+- **Battery:** Must have **both** XT60 main lead and JST-XH-4P balance lead. Pack without balance connector cannot be safely charged.
+- **Charging:** External balance charger ONLY. Do not connect any charger through J12V or the PCB. Budget separately: iMax B3 ~450₺, SkyRC E3S ~1700₺.
 
-**Important:**
-- **BQ24650 module:** Verify 3S (12.6V) output with multimeter before connecting BMS/battery
-- **BQ24650 ISET:** Adjust current trim pot to ≤1A for 1500–2200mAh packs (never exceed 1C)
-- **BMS_3S:** Verify passive balancing (look for 100Ω resistors near balance pins)
-- Battery capacity: 1500mAh minimum, 2200mAh recommended for ~4.5h runtime
-
-**Alternative if BQ24650 is unavailable or shipping time is critical:**
-- TP5100 (~15₺, local) + MT3608 boost (~25₺, local) — same as V1 12V design.  
-  Linear charger = 2.4W heat vs BQ24650's ~1.2W. Works correctly for 3S LiPo when TP5100 3S jumper is set.
+**Role of BMS in this design:**
+- Overdischarge cutoff: YES — hardware backstop if firmware undervoltage shutdown fails
+- Short-circuit protection: YES — secondary protection alongside F_BAT blade fuse
+- Overcharge protection: NOT USED (no onboard charger)
+- Passive balancing: NOT RELIED UPON — external balance charger handles this every charge cycle
 
 ---
 
@@ -146,6 +150,8 @@
 | J_RS485 | 1 | Screw terminal | KF301-3P, 5.08mm, RS-485 | THT | Direnc.net, AliExpress | ~3₺ |
 | J_I2C | 1 | Pin header | 1×4, 2.54mm, I2C expansion | THT | Direnc.net, AliExpress | ~2₺ |
 | J_GPIO | 1 | Pin header | 1×6, 2.54mm, spare GPIOs | THT | Direnc.net, AliExpress | ~2₺ |
+
+> **Note:** XT60 (J_XT60) and JST-XH-4P balance header (J_BAL) are listed under Section 3 (Battery & Protection). XT60 must be placed at PCB edge; inline F_BAT fuse holder within 15cm of J_XT60 positive terminal.
 
 ---
 
@@ -244,9 +250,9 @@ These are not required for core operation. Add headers on the PCB during build; 
 | C_FILT_HF | 1 | Ceramic capacitor | 100nF/16V | Disc 5mm |
 | C_IN1 | 1 | Electrolytic capacitor | 220µF/35V | Radial |
 | C_IN2 | 1 | Ceramic capacitor | 100nF/50V | Disc 5mm |
-| D_BAT | 1 | Schottky diode | SS34 / 1N5822 | DO-201 |
-| D_EXT | 1 | Schottky diode | SS34 / 1N5822 | DO-201 |
+| D_GATE | 1 | Schottky diode | SS14 | DO-214AA |
 | D_OR | 1 | Schottky diode | SS36 | DO-201 |
+| F_BAT | 1 | Blade fuse + inline holder | 5A ATO/ATC | Inline |
 | FB1–3 | 3 | Ferrite bead | 600Ω @ 100MHz | Axial |
 | F1 | 1 | PTC polyfuse | MF-R110 1.1A | Radial |
 | H1 | 1 | Female header | 1×20, 2.54mm | THT |
@@ -255,7 +261,8 @@ These are not required for core operation. Add headers on the PCB during build; 
 | J12V | 1 | DC barrel jack | 5.5×2.1mm | Panel THT |
 | J2 | 1 | Screw terminal | KF301-4P 5.08mm | THT |
 | J3 | 1 | Screw terminal | KF301-5P 5.08mm | THT |
-| J_BAT | 1 | JST-XH-4P or KF301-4P | 2.5mm / 5.08mm | THT |
+| J_BAL | 1 | Balance header | JST-XH-4P 2.5mm | THT |
+| J_XT60 | 1 | XT60 panel connector | XT60 male | Panel THT |
 | J_GPIO | 1 | Pin header | 1×6, 2.54mm | THT |
 | J_I2C | 1 | Pin header | 1×4, 2.54mm | THT |
 | J_RS485 | 1 | Screw terminal | KF301-3P 5.08mm | THT |
@@ -265,13 +272,15 @@ These are not required for core operation. Add headers on the PCB during build; 
 | LED3 | 1 | LED | 3mm Yellow | THT |
 | LED4 | 1 | LED | 3mm Red | THT |
 | NTC1 | 1 | NTC thermistor | 5D-9 | Disc |
-| Q1 | 1 | P-ch MOSFET | IRF4905 | TO-220 |
+| Q_BATT | 1 | P-ch MOSFET | IRF4905 | TO-220 |
+| Q_RPP | 1 | P-ch MOSFET | IRF4905 | TO-220 |
 | R_ADC_BOT | 1 | Resistor | 27kΩ 1% | Axial |
 | R_ADC_TOP | 1 | Resistor | 120kΩ 1% | Axial |
 | R_DIV_BOT | 7 | Resistor | 20kΩ 1% | Axial |
 | R_DIV_TOP | 7 | Resistor | 10kΩ 1% | Axial |
 | R_EN_PU | 1 | Resistor | 10kΩ 1% | Axial |
 | R_G | 1 | Resistor | 100kΩ 1% | Axial |
+| R_G2 | 1 | Resistor | 100kΩ 1% | Axial |
 | R_I2C_PU1–2 | 2 | Resistor | 4.7kΩ 1% | Axial |
 | R_LED1–4 | 4 | Resistor | 1kΩ 1% | Axial |
 | R_PFI1 | 1 | Resistor | 100kΩ 1% | Axial |
@@ -283,10 +292,10 @@ These are not required for core operation. Add headers on the PCB during build; 
 | TVS_IN | 1 | TVS diode | P6KE18A | DO-15 |
 | TVS_SIG1–7 | 7 | TVS diode | 1.5KE3.3CA | DO-15 |
 | U_BUCK | 1 | Buck module | **MP1584EN** | 22×17mm |
-| U_CHG | 1 | Charger module | **BQ24650 3S** | ~35×22mm |
 | U_ESP | 1 | ESP32-S3 dev board | DevKitC-1-N8R2 | Module |
 | U_RS485 | 1 | RS-485 transceiver | MAX485EPA+ | DIP-8 |
 | U_WDT | 1 | Watchdog supervisor | MAX813L | DIP-8 |
+| Z1 | 1 | Zener diode | 1N4742A 12V | DO-41 |
 
 ---
 
@@ -313,25 +322,27 @@ These are not required for core operation. Add headers on the PCB during build; 
 
 ### Recommended Ordering Strategy
 
-1. **BQ24650 charger module:** Order from AliExpress first (2–3 week lead time). Search: "BQ24650 3S charger module" — verify 12.6V output in listing photos.
-2. **DevKitC-1 N8R2:** robolinkmarket.com (564.60₺, confirmed in stock)
-3. **MP1584EN buck module:** direnc.net (26.46₺, in stock)
-4. **MAX485EPA+ DIP-8:** direnc.net (13.23₺, in stock)
-5. **MAX813L DIP-8:** ⚠️ Order from DigiKey or Mouser (not stocked in Turkey). Alternative: check direnc.net for MAX706 DIP-8.
-6. **IRF4905 TO-220:** ⚠️ Check stock at direnc.net (~12₺) and komponentci.net (~35₺) — temporarily OOS April 2026. Backup: Arkotek Elektronik or Entegredunyasi.com.tr
-7. **HX-3S-01 BMS:** robolinkmarket.com (52.20₺, in stock)
-8. **Passives (resistors, caps, TVS, ferrites):** direnc.net bulk
-9. **P6KE18A TVS:** Not confirmed at major retailers — check Arkotek or order from LCSC (~$0.20 + shipping)
-10. **Connectors, screw terminals:** SAMM Market or AliExpress
-11. **Battery:** Local RC hobby shop (avoids shipping restrictions on LiPo)
+1. **DevKitC-1 N8R2:** robolinkmarket.com (564.60₺, confirmed in stock)
+2. **MP1584EN buck module:** direnc.net (26.46₺, in stock)
+3. **MAX485EPA+ DIP-8:** direnc.net (13.23₺, in stock)
+4. **MAX813L DIP-8:** ⚠️ Order from DigiKey or Mouser (not stocked in Turkey). Alternative: check direnc.net for MAX706 DIP-8.
+5. **IRF4905 TO-220 × 2 (Q_RPP + Q_BATT):** ⚠️ Check stock at direnc.net (~12₺ each) and komponentci.net (~35₺) — temporarily OOS April 2026. Backup: Arkotek Elektronik or Entegredunyasi.com.tr
+6. **HX-3S-01 BMS:** robolinkmarket.com (52.20₺, in stock)
+7. **1N4742A Zener 12V:** direnc.net (~1–3₺)
+8. **SS14 Schottky (D_GATE):** direnc.net or AliExpress (~1–3₺)
+9. **ATO/ATC 5A blade fuse + inline holder (F_BAT):** Auto parts shop or AliExpress (~10–20₺)
+10. **XT60 male panel connector (J_XT60):** direnc.net or AliExpress (~40₺)
+11. **Passives (resistors, caps, TVS, ferrites):** direnc.net bulk
+12. **P6KE18A TVS:** Not confirmed at major retailers — check Arkotek or order from LCSC (~$0.20 + shipping)
+13. **Connectors, screw terminals:** SAMM Market or AliExpress
+14. **Battery:** Local RC hobby shop (avoids shipping restrictions on LiPo)
 
 ---
 
 ## 15. Assembly Notes
 
 1. **Pre-set modules BEFORE soldering to PCB:**
-   - MP1584EN: 5.10V output with 25Ω/2W load
-   - BQ24650: Verify output = 12.6V with multimeter; set ISET trim pot to ≤1A
+   - MP1584EN: 5.10V output with 25Ω/2W load; apply one drop of CA glue to trimpot body after calibration
 
 2. **Component order for soldering:**
    - Step 1: Resistors and small passives (all 1/4W axial)
@@ -340,7 +351,7 @@ These are not required for core operation. Add headers on the PCB during build; 
    - Step 4: ICs in sockets or direct (MAX485, MAX813L)
    - Step 5: Transistor/Q1 (IRF4905 TO-220)
    - Step 6: Connectors and headers
-   - Step 7: Modules (MP1584EN, BQ24650, BMS) on pin headers
+   - Step 7: Modules (MP1584EN, BMS) on pin headers
    - Step 8: Female headers for DevKitC-1
    - Step 9: Final test before inserting DevKitC-1
 
