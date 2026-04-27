@@ -43,6 +43,8 @@ The [original 12V design](../12v/) uses several SMD parts that require dead-bug 
 
 Use the [SMD version](../12v/) if you have a reflow oven / hot-air station, want smaller board area, or prefer the lower Rds(on) of the AO4407A (12mΩ vs 20mΩ — negligible at 1.5A).
 
+> **For new builds:** The current recommended simple 12V design is [V3](../v3/). V3 uses the ESP32-S3-DevKitC-1, removes onboard charging, and uses a ready-made power-path module interface for the internal 3S battery backup. The 12v_tht topology is still valid but V3 is simpler and better-documented for new LPKF S63 builds.
+
 ---
 
 ## Board specification
