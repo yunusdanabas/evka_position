@@ -1,0 +1,563 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>evka_position Hardware Comparison</title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reset.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/theme/black.css">
+
+  <style>
+    :root { --r-main-font-size: 24px; }
+    .reveal { color: #d4d4d4; }
+    .reveal h1 { font-size: 1.8em; color: #f2f2f2; }
+    .reveal h2 { font-size: 1.1em; color: #c8e6ff; border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 15px; }
+    .reveal p, .reveal li { font-size: 0.75em; line-height: 1.6; }
+    .reveal table { border-collapse: collapse; width: 100%; font-size: 0.48em; }
+    .reveal table th { background: #252526; color: #9cdcfe; padding: 5px 8px; border-bottom: 2px solid #444; }
+    .reveal table td { padding: 4px 6px; border-bottom: 1px solid #2d2d2d; }
+    .reveal table tr:nth-child(even) td { background: #171717; }
+    .mermaid { background: transparent; border: none; }
+    .mermaid svg { max-width: 100%; max-height: 70vh; }
+    .good { color: #4ec9b0; }
+    .bad { color: #f48771; }
+    .warn { color: #dcdcaa; }
+    .card { padding: 12px; margin: 8px 0; border-radius: 4px; font-size: 0.75em; }
+    .card.red { background: #1f0b0b; border-left: 3px solid #f48771; }
+    .card.green { background: #0b1f0b; border-left: 3px solid #4ec9b0; }
+    .card.blue { background: #0b0b1f; border-left: 3px solid #569cd6; }
+    .hl { background: #1f1f0b; padding: 10px; border-radius: 3px; }
+    .tag { display: inline-block; padding: 3px 8px; border-radius: 3px; font-size: 0.8em; margin-right: 5px; }
+    .tag.ok { background: #0b1f0b; color: #4ec9b0; }
+    .tag.err { background: #1f0b0b; color: #f48771; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    .three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  </style>
+</head>
+<body>
+
+<div class="reveal">
+<div class="slides">
+
+<!-- SLIDE 1 -->
+<section>
+  <h1>evka_position</h1>
+  <h3>Hardware Comparison</h3>
+  <p><small>Choosing the right board for new builds</small></p>
+  <p style="color: #888; font-size: 0.7em; margin-top: 40px;">April 2026</p>
+</section>
+
+<!-- SLIDE 2 -->
+<section>
+  <h2>What We're Deciding</h2>
+  <p><strong>Question:</strong> Which hardware version should we build for a new EVKA core sensor?</p>
+  <p><strong>Options:</strong></p>
+  <ul style="font-size: 0.75em;">
+    <li>5V Legacy — Wemos, 1S LiPo, bench reference</li>
+    <li>Original 12V & 12V All-THT — Wemos, 3S with unsafe TP5100 charging</li>
+    <li>V2 Industrial — ESP32-S3, RS-485, hardware watchdog</li>
+    <li>V3-A Simple — ESP32-S3, clean 12V core</li>
+    <li>V3-B / V3-C — Onboard charging branches (15V)</li>
+    <li><span class="good">Final Design</span> — ESP32-S3, 12V, external charging, documented Q_BATT</li>
+  </ul>
+</section>
+
+<!-- SLIDE 3 -->
+<section>
+  <h2>Evolution Timeline</h2>
+  <div class="mermaid sm">
+%%{init: {'theme': 'dark'}}%%
+flowchart LR
+    A["5V Legacy\nWemos / 1S LiPo\nSchottky OR"] --> B["Original 12V\nWemos / 3S LiPo\nTP5100 2S max ERROR\nSchottky OR"]
+    B --> C["12V All-THT\nWemos / 3S LiPo\nTP5100 2S max ERROR\nAll THT"]
+    C --> D["V2 Industrial\nESP32-S3\nExternal charge\nQ_BATT RS-485"]
+    D --> E["V3-A Simple\nESP32-S3\nExternal charge\nQ_BATT core only"]
+    E --> F["V3-B\nESP32-S3 / 15V\nCN3722 onboard"]
+    E --> G["V3-C\nESP32-S3 / 15V\nXL4016 CC/CV"]
+    E --> H["Final Design\nESP32-S3 / 12V\nQ_BATT + D_ADAPT\nExternal mandatory"]
+  </div>
+</section>
+
+<!-- SLIDE 4 -->
+<section>
+  <h2>Master Spec Table</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="font-size: 0.85em;">Design</th>
+        <th style="font-size: 0.85em;">MCU</th>
+        <th style="font-size: 0.85em;">Input</th>
+        <th style="font-size: 0.85em;">Battery</th>
+        <th style="font-size: 0.85em;">Charging</th>
+        <th style="font-size: 0.85em;">Source</th>
+        <th style="font-size: 0.85em;">Assembly</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>5V Legacy</td><td>Wemos</td><td>5V</td><td>1S</td><td>TP4056</td><td>Schottky OR</td><td>Med</td></tr>
+      <tr><td><span class="bad">Orig 12V</span></td><td>Wemos</td><td>12V</td><td>3S</td><td><span class="bad">TP5100</span></td><td>Schottky OR</td><td>Hard</td></tr>
+      <tr><td><span class="bad">12V THT</span></td><td>Wemos</td><td>12V</td><td>3S</td><td><span class="bad">TP5100</span></td><td>Schottky OR</td><td>Med</td></tr>
+      <tr><td>V2 Ind</td><td>S3</td><td>12V</td><td>3S</td><td>External</td><td>Q_BATT</td><td>Hard</td></tr>
+      <tr><td>V3-A</td><td>S3</td><td>12V</td><td>3S</td><td>External</td><td>Q_BATT</td><td>Med</td></tr>
+      <tr><td>V3-B</td><td>S3</td><td>15V</td><td>3S</td><td>CN3722</td><td>Q_BATT</td><td>Med</td></tr>
+      <tr><td>V3-C</td><td>S3</td><td>15V</td><td>3S</td><td>XL4016</td><td>Q_BATT</td><td>Med</td></tr>
+      <tr style="background: #0b1f0b;"><td><strong>Final</strong></td><td><strong>S3</strong></td><td><strong>12V</strong></td><td><strong>3S</strong></td><td><strong>External</strong></td><td><strong>Q_BATT+D_ADAPT</strong></td><td><strong>Med</strong></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- SLIDE 5 -->
+<section>
+  <h2>5V Legacy</h2>
+  <div class="two-col">
+    <div>
+      <div class="mermaid sm">
+%%{init: {'theme': 'dark'}}%%
+graph TD
+    EXT["5V adapter"] --> SI["SI2301 P-FET\nreverse polarity"]
+    SI --> D1["D1 SS34\n~4.8V rail"]
+    BAT["1S LiPo\n3.0V-4.2V"] --> TP["TP4056 + DW01A\n1S CC/CV"]
+    TP --> MT["MT3608 boost\nto 5.3V"]
+    MT --> D2["D2 SS34\n~5.1V rail"]
+    D1 --> RAIL["5V_RAIL"]
+    D2 --> RAIL
+    RAIL --> MCU["Wemos D1 R32"]
+      </div>
+    </div>
+    <div>
+      <div class="hl">
+        <strong>Best part:</strong> Encoder signal conditioning baseline proven across all designs.
+      </div>
+      <div class="card red">
+        <strong>Weaknesses:</strong> 1S LiPo low energy. SI2301 SMD awkward on pertinax. 5V not machine-compatible.
+      </div>
+      <p><small>Best for: firmware development and historical reference.</small></p>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 6 -->
+<section>
+  <h2>Original 12V</h2>
+  <div class="two-col">
+    <div>
+      <div class="mermaid sm" style="background: #1f0b0b;">
+%%{init: {'theme': 'dark'}}%%
+graph TD
+    EXT["12V adapter"] --> RPP["AO4407A SOIC-8\nreverse polarity P-FET"]
+    RPP --> V12["V12_PROT"]
+    V12 --> DE["D_EXT SS34"]
+    DE --> BIN["BUCK_VIN\nSchottky OR"]
+    V12 --> MT["MT3608 boost\n12V to 15V"]
+    MT --> TP5["TP5100\n2S MAX - 8.4V limit\nCannot charge 3S"]
+    TP5 --> BMS["HX-3S-01 BMS"]
+    BMS --> DB["D_BAT SS34"]
+    DB --> BIN
+    BIN --> BUCK["MP1584EN\n12V to 5V"]
+    BUCK --> R["5V_RAIL"]
+      </div>
+    </div>
+    <div>
+      <div class="card red">
+        <strong>CRITICAL:</strong> TP5100 is a 1S/2S charger only. Max output 8.4V. Cannot charge 3S to 12.6V.
+      </div>
+      <div class="hl">
+        <strong>Best part:</strong> First useful 12V conversion. MP1584EN + LC filter establishes 3S/12V architecture.
+      </div>
+      <p><small>Best for: Historical reference only. Do not use for new builds.</small></p>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 7 -->
+<section>
+  <h2>12V All-THT + 2S LiPo Option</h2>
+  <table style="font-size: 0.60em;">
+    <tr style="background: #0b1f0b;">
+      <th>2S LiPo Alternative</th>
+      <th>Advantage</th>
+      <th>Trade-off</th>
+    </tr>
+    <tr>
+      <td>2S × 3.7V = 7.4V nominal</td>
+      <td>TP5100 works correctly at 8.4V max</td>
+      <td>Energy 16.3 Wh vs 3S 24.4 Wh (same Ah)</td>
+    </tr>
+    <tr>
+      <td>Schottky OR priority</td>
+      <td>12V adapter (11.6V) always wins vs 2S full (8.0V)</td>
+      <td>Lower backup runtime</td>
+    </tr>
+  </table>
+  <div class="card blue">
+    <strong>Verdict:</strong> 2S is viable IF the architecture is changed to 2S. But Final Design is 3S + external charging, so this is a historical option.
+  </div>
+  <div class="card red">
+    <strong>12V All-THT weaknesses:</strong> Does not fix TP5100 3S error or Schottky OR ambiguity. Through-hole makes it easier to hand-solder, but electrical problems remain.
+  </div>
+</section>
+
+<!-- SLIDE 8 -->
+<section>
+  <h2>5V to 12V Migration</h2>
+  <table style="font-size: 0.50em;">
+    <thead>
+      <tr>
+        <th>Block</th>
+        <th>5V Legacy</th>
+        <th>12V Target</th>
+        <th>Change Required</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Input voltage</td><td>5V DC</td><td>12V DC</td><td>Adapter swap</td></tr>
+      <tr><td>Reverse polarity</td><td>SI2301 SOT-23</td><td>IRF4905 TO-220</td><td>Easier THT</td></tr>
+      <tr><td>Buck converter</td><td>None</td><td>MP1584EN 12V→5V</td><td>Add regulator</td></tr>
+      <tr><td>Battery</td><td>1S LiPo</td><td>3S LiPo</td><td>New chemistry, BMS</td></tr>
+      <tr><td>Charger IC</td><td>TP4056 1S</td><td>TP5100 2S (NOT 3S)</td><td>Complete redesign</td></tr>
+      <tr style="background: #0b1f0b;"><td>Encoder conditioning</td><td>10k/20k dividers + TVS</td><td>10k/20k dividers + TVS</td><td>NO CHANGE</td></tr>
+      <tr style="background: #0b1f0b;"><td>Firmware</td><td>Wemos firmware</td><td>Wemos firmware</td><td>NO CHANGE</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size: 0.65em; color: #aaa; margin-top: 10px;">Encoder conditioning and firmware require zero changes. Real work: power path and battery charging.</p>
+</section>
+
+<!-- SLIDE 9 -->
+<section>
+  <h2>V2 Industrial</h2>
+  <div class="two-col">
+    <div>
+      <div class="mermaid sm">
+%%{init: {'theme': 'dark'}}%%
+graph TD
+    EXT["12V adapter"] --> RPP["IRF4905\nreverse polarity"]
+    RPP --> V12["V12_PROT"]
+    V12 --> BIN["BUCK_VIN"]
+    V12 --> DG["D_GATE SS14"]
+    DG --> G["Q_BATT gate"]
+    RG["100k pull-down"] --> G
+    BAT["3S LiPo"] --> FB["5A fuse"]
+    FB --> BMS["BMS_3S"]
+    BMS --> QB["Q_BATT IRF4905"]
+    G --> QB
+    QB --> BIN
+    BIN --> BUCK["MP1584EN"]
+    BUCK --> R["5V_RAIL"]
+      </div>
+    </div>
+    <div>
+      <div class="hl">
+        <strong>Best part:</strong> Industrial readiness. Active Q_BATT solves Schottky priority problem. RS-485 + watchdog.
+      </div>
+      <div class="card red">
+        <strong>Weaknesses:</strong> Most complex board. Lacks Final Design's D_ADAPT. RS-485/watchdog add validation burden if not needed.
+      </div>
+      <p><small>Best for: builds that really need RS-485/Modbus or hardware watchdog.</small></p>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 10 -->
+<section>
+  <h2>V3-A Simple</h2>
+  <div class="two-col">
+    <div>
+      <div class="mermaid sm">
+%%{init: {'theme': 'dark'}}%%
+graph TD
+    EXT["12V adapter"] --> RPP["IRF4905\nreverse polarity"]
+    RPP --> V12["V_PROT"]
+    V12 --> BIN["BUCK_VIN"]
+    V12 --> DG["D_GATE"]
+    DG --> G["Q_BATT gate"]
+    RG["100k pull-down"] --> G
+    BAT["3S LiPo"] --> FB["5A fuse"]
+    FB --> BMS["BMS_3S"]
+    BMS --> QB["Q_BATT IRF4905"]
+    G --> QB
+    QB --> BIN
+    BIN --> BUCK["MP1584EN"]
+    BUCK --> R["5V_RAIL"]
+      </div>
+    </div>
+    <div>
+      <div class="hl">
+        <strong>Best part:</strong> Cleanest safe 12V core before Final Design. Q_BATT without industrial bloat.
+      </div>
+      <div class="card red">
+        <strong>Weaknesses:</strong> Lacks D_ADAPT isolation diode. Optional charging/zener variants increase decision ambiguity.
+      </div>
+      <p><small>Best for: reference. Use Final Design instead for new boards.</small></p>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 11 -->
+<section>
+  <h2>V3-B + CN3722 / V3-C + XL4016</h2>
+  <div style="font-size: 0.7em;">
+    <div style="margin-bottom: 15px;">
+      <h3 style="font-size: 0.95em; margin-bottom: 8px; color: #9cdcfe;">V3-B: CN3722 Solar MPPT Charger</h3>
+      <p>15V adapter required. CN3722 is a real 3S CC/CV charger controller (not TP5100). CHRG status pin (active low during charge).</p>
+      <p><span class="tag ok">Real 3S charging</span> <span class="tag err">No onboard balancing</span> <span class="tag err">Needs 15V</span></p>
+    </div>
+    <div>
+      <h3 style="font-size: 0.95em; margin-bottom: 8px; color: #9cdcfe;">V3-C: XL4016 CC/CV Buck Module</h3>
+      <p>Generic adjustable buck preset to 12.60V. Useful for bench, not unattended charging. No automatic LiPo termination.</p>
+      <p><span class="tag err">Float-charge risk</span> <span class="tag err">Trimpot drift</span> <span class="tag err">Lab only</span></p>
+    </div>
+  </div>
+  <p style="margin-top: 15px; font-size: 0.70em; color: #888;">Best for: V3-B when onboard charging is mandatory and 15V is acceptable. V3-C for supervised lab fallback only.</p>
+</section>
+
+<!-- SLIDE 12 -->
+<section>
+  <h2>Final Design</h2>
+  <div class="two-col">
+    <div>
+      <div class="mermaid sm">
+%%{init: {'theme': 'dark'}}%%
+graph TD
+    EXT["12V adapter"] --> F1["Fuse/PTC"]
+    F1 --> TVS["P6KE18A TVS"]
+    TVS --> RPP["Q_RPP IRF4905\nreverse polarity P-FET"]
+    RPP --> V["V_PROT"]
+    V --> DA["D_ADAPT SS36\nadapter isolation"]
+    DA --> BIN["BUCK_VIN"]
+    V --> DG["D_GATE 1N5819"]
+    DG --> G["Q_BATT gate\n~11.7V with adapter"]
+    RG["100k pull-down"] --> G
+    BAT["3S LiPo XT60"] --> FB["5A blade fuse"]
+    FB --> BMS["BMS_3S\nprotection only"]
+    BMS --> QB["Q_BATT IRF4905\noff with adapter on without"]
+    G --> QB
+    QB --> BIN
+    BIN --> CB["470uF hold-up"]
+    CB --> BUCK["MP1584EN\n5.05V"]
+    BUCK --> R["5V_RAIL"]
+      </div>
+    </div>
+    <div>
+      <div class="card green">
+        <strong>Best part:</strong> One unambiguous build baseline.
+      </div>
+      <div class="card green">
+        <strong>D_ADAPT:</strong> Prevents battery backfeed into adapter-sense rail when unplugged.
+      </div>
+      <div class="card green">
+        <strong>Q_BATT margin:</strong> Vgs = -0.9V (worst case), 1.1V margin to Vgs(th) = -2V. Safe.
+      </div>
+      <div class="card green">
+        <strong>12V only:</strong> No 15V variants, no charger ambiguity.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 13 -->
+<section>
+  <h2>Source Selection: Schottky OR vs Q_BATT</h2>
+  <div class="two-col" style="font-size: 0.70em;">
+    <div>
+      <h3 style="color: #f48771;">Schottky OR (5V, 12V, 12V-THT)</h3>
+      <div class="mermaid sm">
+%%{init: {'theme': 'dark'}}%%
+graph LR
+    A["12V adapter\n~11.6V"] -->|"D_EXT"| OR["BUCK_VIN\nhigher wins"]
+    B["3S LiPo full\n~12.2V"] -->|"D_BAT"| OR
+    OR --> L["Load"]
+      </div>
+      <p><strong>Problem:</strong> Full 3S pack (12.2V) exceeds 12V adapter (11.6V) after diode drops. Adapter priority is ambiguous.</p>
+    </div>
+    <div>
+      <h3 style="color: #4ec9b0;">Active Q_BATT (V2, V3, Final)</h3>
+      <div class="mermaid sm">
+%%{init: {'theme': 'dark'}}%%
+graph LR
+    A["Adapter present"] -->|"V_PROT high"| G["Q_BATT gate"]
+    G -->|"Vgs ~0V"| Q["FET off"]
+    B["3S LiPo"] --> Q
+    Q -.-> L["Load blocked"]
+    C["Adapter path"] --> L2["Load enabled"]
+      </div>
+      <p><strong>Solution:</strong> Adapter present = gate high = battery FET off = adapter always powers load. Final Design adds D_ADAPT to prevent backfeed.</p>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 14 -->
+<section>
+  <h2>Charging Safety Progression</h2>
+  <table style="font-size: 0.48em;">
+    <thead>
+      <tr>
+        <th>Design</th>
+        <th>Onboard charging</th>
+        <th>Balancing</th>
+        <th>Termination</th>
+        <th>Float-charge risk</th>
+        <th>Thermal risk</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>5V Legacy</td><td>TP4056 1S</td><td>N/A</td><td>Correct 4.2V</td><td>Low</td><td>Low</td></tr>
+      <tr style="background: #1f0b0b;"><td><span class="bad">Original 12V</span></td><td><span class="bad">TP5100 path</span></td><td>None</td><td><span class="bad">Unsafe 3S</span></td><td><span class="bad">High</span></td><td><span class="bad">High</span></td></tr>
+      <tr style="background: #1f0b0b;"><td><span class="bad">12V All-THT</span></td><td><span class="bad">TP5100 path</span></td><td>None</td><td><span class="bad">Unsafe 3S</span></td><td><span class="bad">High</span></td><td><span class="bad">High</span></td></tr>
+      <tr><td>V2 Industrial</td><td>No</td><td>External</td><td>External charger</td><td>None</td><td>None</td></tr>
+      <tr><td>V3-A Simple</td><td>No</td><td>External</td><td>External charger</td><td>None</td><td>None</td></tr>
+      <tr><td>V3-B + CN3722</td><td>Yes, CN3722</td><td>No</td><td>CN3722 CC/CV</td><td>Low</td><td>Moderate</td></tr>
+      <tr><td>V3-C + XL4016</td><td>Yes, XL4016</td><td>No</td><td>None, manual</td><td><span class="bad">Critical</span></td><td>Moderate</td></tr>
+      <tr style="background: #0b1f0b;"><td><strong>Final Design</strong></td><td><strong>No</strong></td><td><strong>External</strong></td><td><strong>External charger</strong></td><td><strong>None</strong></td><td><strong>None</strong></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- SLIDE 15 -->
+<section>
+  <h2>Buildability + Power Cost</h2>
+  <table style="font-size: 0.50em;">
+    <thead>
+      <tr>
+        <th>Design</th>
+        <th>SMD required</th>
+        <th>THT-only</th>
+        <th>Module count</th>
+        <th>Power BOM items</th>
+        <th>Power cost (₺)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>5V Legacy</td><td>Yes</td><td>No</td><td>2</td><td>~12</td><td>80-120</td></tr>
+      <tr><td>Original 12V</td><td>Yes</td><td>No</td><td>4</td><td>~18</td><td>150-200</td></tr>
+      <tr><td>12V All-THT</td><td>No</td><td>Yes</td><td>4</td><td>~18</td><td>150-200</td></tr>
+      <tr><td>V2 Industrial</td><td>No</td><td>Yes</td><td>2-3</td><td>~16</td><td>250-350</td></tr>
+      <tr><td>V3-A Simple</td><td>No</td><td>Yes</td><td>1-2</td><td>~13</td><td>180-250</td></tr>
+      <tr><td>V3-B + CN3722</td><td>No</td><td>Yes</td><td>2-3</td><td>~16</td><td>220-300</td></tr>
+      <tr><td>V3-C + XL4016</td><td>No</td><td>Yes</td><td>2-3</td><td>~15</td><td>200-280</td></tr>
+      <tr style="background: #0b1f0b;"><td><strong>Final Design</strong></td><td><strong>No</strong></td><td><strong>Yes</strong></td><td><strong>1-2</strong></td><td><strong>~14</strong></td><td><strong>180-250</strong></td></tr>
+    </tbody>
+  </table>
+  <p style="font-size: 0.60em; color: #aaa; margin-top: 8px;">Prices are power/charging parts only: input protection, reverse-polarity, source selection, buck, battery interface, charger if present.</p>
+</section>
+
+<!-- SLIDE 16 -->
+<section>
+  <h2>Firmware Readiness</h2>
+  <table style="font-size: 0.55em;">
+    <thead>
+      <tr>
+        <th>Design group</th>
+        <th>Current firmware fit</th>
+        <th>Work required</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>5V Legacy</td><td>Direct fit</td><td>None for baseline</td></tr>
+      <tr><td>Original 12V / 12V All-THT</td><td>Same Wemos pin map</td><td>ADC constants enabled if used</td></tr>
+      <tr><td>V2 / V3 / Final</td><td>Not yet migrated</td><td>Add ESP32-S3 PlatformIO env, GPIO remap, PCNT encoder counting</td></tr>
+    </tbody>
+  </table>
+  <table style="font-size: 0.50em; margin-top: 15px;">
+    <thead>
+      <tr>
+        <th>Signal</th>
+        <th>Wemos D1 R32</th>
+        <th>ESP32-S3</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Theta A / B</td><td>GPIO 14 / 12</td><td>GPIO 4 / 5</td></tr>
+      <tr><td>Phi A / B</td><td>GPIO 32 / 35</td><td>GPIO 6 / 7</td></tr>
+      <tr><td>Wire A / B</td><td>GPIO 16 / 17</td><td>GPIO 15 / 16</td></tr>
+      <tr><td>Supply ADC</td><td>GPIO 36</td><td>GPIO 1 (ADC1_CH0)</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- SLIDE 17 -->
+<section>
+  <h2>Decision Flowchart</h2>
+  <div class="mermaid sm">
+%%{init: {'theme': 'dark'}}%%
+flowchart TD
+    S["Build new hardware?"] --> Q1{"RS-485 or watchdog<br/>required?"}
+    Q1 -->|"Yes"| V2["V2 Industrial<br/>if expansion is real"]
+    Q1 -->|"No"| Q2{"Onboard charging<br/>mandatory?"}
+    Q2 -->|"Yes, simple module"| V3D["V3-D Onboard 3S\nverified charger + BMS"]
+    Q2 -->|"Yes, CN3722"| V3B["V3-B + CN3722\n15V adapter"]
+    Q2 -->|"Yes, lab only"| V3C["V3-C + XL4016\nsupervised only"]
+    Q2 -->|"No"| FINAL["FINAL DESIGN\n12V Q_BATT + D_ADAPT\nexternal balance charging"]
+  </div>
+</section>
+
+<!-- SLIDE 18 -->
+<section>
+  <h2>Summary</h2>
+  <table style="font-size: 0.55em;">
+    <tr>
+      <td><strong>5V Legacy</strong></td>
+      <td>Bench reference. Proven encoder conditioning baseline.</td>
+    </tr>
+    <tr style="background: #1f0b0b;">
+      <td><strong>Original 12V / 12V All-THT</strong></td>
+      <td><span class="bad">TP5100 3S charging is unsafe/unverified. Do not use for new builds.</span></td>
+    </tr>
+    <tr>
+      <td><strong>V2 Industrial</strong></td>
+      <td>RS-485/Modbus + hardware watchdog. Use only if expansion is real.</td>
+    </tr>
+    <tr>
+      <td><strong>V3-A Simple</strong></td>
+      <td>Reference. Move to Final Design for new core boards.</td>
+    </tr>
+    <tr>
+      <td><strong>V3-B / V3-C</strong></td>
+      <td>Onboard charging branches. V3-B (CN3722) if 15V acceptable. V3-C (XL4016) lab fallback only.</td>
+    </tr>
+    <tr style="background: #0b1f0b;">
+      <td><strong>Final Design</strong></td>
+      <td>Recommended for new EVKA core sensor. 12V, ESP32-S3, Q_BATT + D_ADAPT, external balance charging, zero charger ambiguity.</td>
+    </tr>
+  </table>
+  <p style="margin-top: 20px; font-size: 0.70em; color: #aaa;">Next steps: Build first board. Validate power rails, switchover, thermal behavior. Port firmware to ESP32-S3.</p>
+</section>
+
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@4.6.1/dist/reveal.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+
+<script>
+  Reveal.initialize({
+    hash: true,
+    width: 1400,
+    height: 900,
+    margin: 0.1,
+    minScale: 0.5,
+    maxScale: 2.0
+  });
+
+  mermaid.initialize({
+    startOnLoad: false,
+    securityLevel: 'loose',
+    theme: 'dark'
+  });
+
+  Reveal.on('ready', function() {
+    mermaid.run();
+  });
+
+  Reveal.on('slidechanged', function(event) {
+    document.querySelectorAll('.mermaid').forEach(function(el) {
+      if (!el.querySelector('svg')) {
+        mermaid.run({ nodes: [el] });
+      }
+    });
+  });
+</script>
+
+</body>
+</html>
