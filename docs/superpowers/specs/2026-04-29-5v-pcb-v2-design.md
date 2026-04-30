@@ -15,20 +15,27 @@ The project switched from 12V back to the 5V design. The existing `docs/hardware
 |---|---|---|
 | Power switching | Schottky OR (0.35V drop) | LTC4412 ideal diode (20mV drop) |
 | RPP MOSFET | SI2301 SOT-23 (hard on LPKF) | AO3401 SOT-23 (same package as LTC4412, 4A) |
-| 5V input | Barrel jack only | Barrel jack + USB-C (Schottky OR) |
+| 5V input | Barrel jack only | Barrel jack + USB-C (Schottky OR) + R_CC1/R_CC2 5.1kΩ Rd terminations |
+| Input ESD | None | SMAJ5.0A × 2, one per input rail, before OR diodes (added 2026-04-30) |
+| Boost ripple suppression | None | LC pi filter on 5V_RAIL: 10µF + 10µH + 220µF (added 2026-04-30) |
 | Signal buffering | None (direct to GPIO) | 74HC14N Schmitt trigger DIP-14 |
 | Filter caps | 1nF (RC corner 23.9kHz) | 10nF (RC corner 2.4kHz, Schmitt resharpens) |
+| Encoder TVS | None | 1.5KE3.9CA × 7 (swapped from 1.5KE3.3CA on 2026-04-30 to clear 3.33V divider HIGH) |
 | MT3608 output | Trimpot (vibration drift) | Fixed 100kΩ/300kΩ divider (5.0V) |
-| GPIO12 pull-down | None | 10kΩ on divider node (strapping pin safety) |
+| GPIO12 pull-down | None | 10kΩ on **74HC14N output line** (corrected from divider-side placement on 2026-04-30) |
 | GPIO36 ADC bypass | None | 100nF ceramic |
 | PCB substrate | Pertinax (FR2) | FR4 (better adhesion, cleaner milled edges) |
 | LPKF registration | Board edge only | 3× corner fiducial marks (±0.05mm) |
+| V_EXT trace width | n/a | 3.0mm (carries up to 1.5A charge + system; added 2026-04-30) |
+| SOT-23 pads | Library default 0.55×0.65mm | 0.7×0.9mm (SOT-23) / 0.6×0.8mm (SOT-23-6) for LPKF reliability |
 
 ## Electrical Architecture
 
 ### Power Input
 - **J4**: DC barrel jack 5.5/2.1mm (center positive)
-- **J_USB**: THT USB-C female (HRO TYPE-C-31-M-12 or equivalent, VBUS + GND only)
+- **J_USB**: THT USB-C female (HRO TYPE-C-31-M-12 or equivalent), VBUS + CC1 + CC2 + GND
+- **R_CC1, R_CC2**: 5.1kΩ 1% Rd pulldowns on CC1 and CC2 (mandatory for USB-C source detection — without these, compliant chargers will not apply VBUS)
+- **TVS_USB, TVS_BAR**: SMAJ5.0A unidirectional 5V TVS (SMA / DO-214AC), one each at J_USB VBUS and J4 VIN+, *before* the OR Schottky diodes — shunts connector-side hot-plug / ESD transients to GND
 - **D_BAR**: SS34 DO-201 axial Schottky — barrel jack OR diode
 - **D_USB**: SS34 DO-201 axial Schottky — USB-C OR diode
 - Both OR onto `V_EXT_RAW`
@@ -64,10 +71,14 @@ The project switched from 12V back to the 5V design. The existing `docs/hardware
 - MT3608 OUT → **D_BOOST** SS34 Schottky → `5V_RAIL`
 - C_BOOST: 22µF electrolytic on MT3608 output
 
-### 5V_RAIL Distribution
-- C1: 220µF/10V electrolytic (bulk, ground star point)
-- C2: 100nF ceramic
-- Feeds: ESP32 Wemos D1 R32 (5V pin), J1/J2/J3 encoder VCC
+### 5V_RAIL Distribution + Pi Filter
+- The pi-filter input node is shared by Q_SWITCH drain (external path) and D_BOOST cathode (battery path) — both supply paths feed the same filter.
+- **C_PI**: 10µF/10V electrolytic — pre-L1 cap of the pi filter
+- **L1**: 10µH axial-leaded power inductor, Isat ≥ 1A (Bourns RLB0914-100KL or equiv.)
+- **C1**: 220µF/10V electrolytic (post-L1 bulk, ground star point)
+- **C2**: 100nF ceramic
+- Filter LC corner ≈ 16 kHz; attenuation at MT3608 1.2 MHz switching frequency ≈ −58 dB — keeps boost ripple off the encoder analog front-end
+- 5V_RAIL feeds: ESP32 Wemos D1 R32 (5V pin), J1/J2/J3 encoder VCC (via ferrite beads)
 
 ### Battery Voltage Monitor
 - LiPo BAT+ → R_MON1 (100kΩ) → GPIO36 (ADC1_CH0) → R_MON2 (100kΩ) → GND
@@ -79,13 +90,13 @@ Per channel:
 1. Encoder 0–5V TTL → R_TOP (10kΩ) → divider node → R_BOT (20kΩ) → GND  
    Output: 3.33V @ 5V in, 0V @ 0V in. Source impedance: 6.67kΩ
 2. C_FILT (10nF C0G) — RC corner 2.38kHz; Schmitt trigger resharpens slow edges
-3. TVS (1.5KE3.3CA DO-201) — clamps at 3.3V, bidirectional ESD protection
+3. TVS (**1.5KE3.9CA** DO-201, Vrwm 3.34V) — bidirectional ESD clamp; standoff sits just above the 3.33V divider HIGH so leakage at idle is negligible
 4. **74HC14N** Schmitt trigger (VCC = 3.3V from ESP32; VIH = 1.98V, VIL = 1.32V)
    - All 6 encoder lines use one DIP-14 IC
    - Output is inverted; fix in firmware (see Firmware Notes)
 5. 74HC14N output → ESP32 GPIO
 
-- **GPIO12 pull-down**: 10kΩ from Theta B divider node to GND (boot strapping pin safety)
+- **GPIO12 strapping pull-down**: 10kΩ on the **74HC14N output** (between pin 8 and the GPIO12 trace, with the resistor's other leg to GND). The pull-down sits *after* the inverter so it actually holds GPIO12 LOW at boot. (The original v2 draft placed this on the divider input side — that has no effect on GPIO12 because the inverter sits between input and output.)
 
 ### 74HC14N Pin Map (DIP-14, VCC=pin14 @ 3.3V, GND=pin7)
 | 74HC14N In | Signal | 74HC14N Out | GPIO |
@@ -135,17 +146,22 @@ One change required in `firmware/src/SphericalSensor.cpp` `begin()`:
 | Layers | 2 (top: signal+power, bottom: ground pour) |
 | Min trace width — signal | 0.8mm |
 | Min trace width — power | 1.5mm |
-| Min trace width — 5V_RAIL, battery | 2.0mm |
-| Min isolation clearance | 0.4mm |
+| Min trace width — 5V_RAIL (post-L1, system load) | 2.0mm |
+| Min trace width — V_EXT_RAW, V_EXT_PROT (charge + system, ≤1.5A) | **3.0mm** |
+| Min trace width — LiPo BAT+ to MT3608 IN | 2.0mm |
+| Min isolation clearance (general) | 0.4mm |
+| Min isolation clearance (SOT-23 / SOT-23-6 area) | 0.3mm with 3 milling passes |
 | Ground pour clearance | 0.4mm |
 | Via drill | 0.8mm, pad 2.0mm |
 | Via method | Wire-link (tinned wire, solder both sides) |
 | Component holes | 1.0mm standard, 1.2mm for power connectors |
+| SOT-23 (3-lead) pad | 0.7×0.9mm (expanded from library default) |
+| SOT-23-6 pad | 0.6×0.8mm (expanded from library default) |
 | Fiducials | 3× corner copper dots, 0.5mm, no drill |
 | Current derate (18µm) | 0.6× IPC-2221 standard 35µm tables |
 
 Current capacity at 18µm copper:
-- 0.8mm: ~0.54A | 1.5mm: ~0.90A | 2.0mm: ~1.30A
+- 0.8mm: ~0.54A | 1.5mm: ~0.90A | 2.0mm: ~1.30A | 3.0mm: ~1.80A
 
 ## Zone Layout
 
@@ -169,6 +185,15 @@ Zones:
 | C_FILT × 7 | 10nF C0G | THT 5mm | Replaces 1nF |
 | C_ADC, C_LTC | 100nF | THT 5mm | New (2 added) |
 | R_GATE, R_RPP | 100kΩ | THT | New (2 added) |
-| R_GPIO12 | 10kΩ | THT | New |
+| R_GPIO12 | 10kΩ | THT | New (placement: 74HC14N pin 8 output line → GND) |
 | R_MT_HI | 300kΩ 1% | THT | New — MT3608 fixed output |
 | R_MT_LO | 100kΩ 1% | THT | New — MT3608 fixed output |
+
+### 2026-04-30 review pass — additions and changes
+| Ref | Part | Package | Change |
+|---|---|---|---|
+| R_CC1, R_CC2 | 5.1kΩ 1% | THT | Added — USB-C CC pull-downs (Rd); without these no compliant USB-C source applies VBUS |
+| TVS_USB, TVS_BAR | SMAJ5.0A | DO-214AC (SMA) | Added — input ESD; one each at J_USB VBUS and J4 VIN+, before OR diodes |
+| L1 | 10µH axial, Isat ≥ 1A | THT axial | Added — pi-filter inductor on 5V_RAIL (Bourns RLB0914-100KL) |
+| C_PI | 10µF/10V electrolytic | THT radial | Added — pi-filter pre-cap |
+| TVS × 7 | 1.5KE3.9CA | DO-201 | Swapped from 1.5KE3.3CA (standoff Vrwm raised from 2.82V → 3.34V to clear the 3.33V divider HIGH)|
