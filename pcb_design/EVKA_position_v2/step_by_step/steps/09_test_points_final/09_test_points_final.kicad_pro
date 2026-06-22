@@ -1,0 +1,8 @@
+{
+  "board": {
+    "filename": "09_test_points_final.kicad_pcb"
+  },
+  "sheets": [
+    ["root", "09_test_points_final.kicad_sch"]
+  ]
+}

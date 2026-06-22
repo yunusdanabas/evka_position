@@ -1,0 +1,8 @@
+{
+  "board": {
+    "filename": "02_pi_filter_5v_rail.kicad_pcb"
+  },
+  "sheets": [
+    ["root", "02_pi_filter_5v_rail.kicad_sch"]
+  ]
+}

@@ -2,6 +2,9 @@
 
 LPKF S63, FR4, 120×80mm, 2-layer.
 
+> ⚠ **2026-05-08 — Zone D enlarged for ESP32-S3-DevKitC-1.**
+> The 120×80 board outline, 2-layer FR4 stackup, LPKF S63 design rules, and trace-width hierarchy in this file are unchanged. After the procurement audit, the MCU footprint changed from Wemos D1 R32 (UNO form) to ESP32-S3-DevKitC-1 (44-pin 2×22, 63.5×25.4 mm + dual USB-C protrusion); Zone A shrank correspondingly because USB-C, LTC4412, and Q_SWITCH were removed. See **`KICAD_PLAN_DETAILED.md` → Phase 3 Step 15** for the updated zone table. Routing priority and design rules below remain authoritative.
+
 ---
 
 ## Board Specifications
@@ -35,7 +38,7 @@ LPKF S63, FR4, 120×80mm, 2-layer.
 | Component hole — standard (resistors, caps, ICs) | 0.8mm | **1.0mm** |
 | Component hole — connectors, large leads | 1.0mm | **1.2mm** |
 | Pad annular ring | 0.3mm | **0.5mm** |
-| SOT-23 pad size (3-lead, AO3401) | 0.55×0.65mm (lib default) | **0.7×0.9mm** (LPKF-friendly) |
+| SOT-23 pad size (3-lead, AO3401) | 0.55×0.65mm (lib default) | **0.6×0.9mm** (LPKF-friendly) |
 | SOT-23-6 pad size (LTC4412) | 0.55×0.65mm (lib default) | **0.6×0.8mm** (gap ≥0.3mm at 0.95mm pitch) |
 | SOT-23 / SOT-23-6 pad-to-pad gap | 0.25mm | **0.3mm** (fresh isolation bit, 3 milling passes) |
 
@@ -74,7 +77,7 @@ LPKF S63, FR4, 120×80mm, 2-layer.
 │  C_LTC (100nF, within 5mm of LTC4412 pin2), R_GATE (100kΩ)              │
 │  Pi filter: C_PI (10µF) ─ L1 (10µH) ─ C1 (220µF) ─ C2 (100nF)           │
 │  LED1 (green), R_LED1 (1kΩ)                                              │
-│  TP1 (5V_RAIL), TP5 (GND)                                                │
+│  TP1 (5V_RAIL), TP6 (GND)                                                │
 │                                                                           │
 ├──────────────────────────────────────────────────────────────────────────┤
 │  ZONE B — BATTERY & CHARGING (top-right, ~65mm × 35mm)                   │
@@ -88,11 +91,11 @@ LPKF S63, FR4, 120×80mm, 2-layer.
 ├──────────────────────────────────────────────────────────────────────────┤
 │  ZONE C — SIGNAL CONDITIONING (bottom-left, ~60mm × 45mm)                │
 │                                                                           │
-│  J1 (Theta, KF301-4P) ── J2 (Phi, KF301-4P) ── J3 (Wire, KF301-5P)    │
+│  J1 (Theta, KF301-4P) ── J2 (Phi, KF301-4P) ── J3 (Wire, KF301-4P)    │
 │  FB1, FB2, FB3 (ferrite beads on VCC lines)                              │
 │  C_VCC × 3 (100nF at each connector VCC pin)                             │
-│  7× divider networks: R_TOP(10kΩ) + R_BOT(20kΩ) + C_FILT(10nF C0G)     │
-│                       + TVS (1.5KE3.9CA)                                 │
+│  6× divider networks: R_TOP(10kΩ) + R_BOT(20kΩ) + C_FILT(10nF C0G)     │
+│                       + TVS (general THT, part TBD)                      │
 │                                                                           │
 ├──────────────────────────────────────────────────────────────────────────┤
 │  ZONE D — MCU + SCHMITT TRIGGER (bottom-right, ~60mm × 45mm)             │
@@ -105,7 +108,7 @@ LPKF S63, FR4, 120×80mm, 2-layer.
 │  TP2 (3.3V)                                                              │
 │                                                                           │
 └──────────────────────────────────────────────────────────────────────────┘
-     TP1─────TP2─────TP3─────TP4─────TP5   (test point row, bottom edge)
+     TP1───TP2───TP3───TP4───TP5───TP6   (test point row, bottom edge)
 
 FIDUCIALS: 3× copper dots (0.5mm, no drill) at top-left, top-right, bottom-left corners
 ```
@@ -138,7 +141,7 @@ FIDUCIALS: 3× copper dots (0.5mm, no drill) at top-left, top-right, bottom-left
 ### Zone C — Signal Conditioning
 - Connectors (J1/J2/J3): bottom-left edge; encoder cables exit from left
 - Ferrite beads (FB1/2/3): immediately after 5V_RAIL tap for each encoder VCC; C_VCC bypass at each connector VCC pin
-- Divider networks: place each complete network (R_TOP, R_BOT, C_FILT, TVS 1.5KE3.9CA) in a vertical column between its encoder connector and the 74HC14N
+- Divider networks: place each complete network (R_TOP, R_BOT, C_FILT, TVS — general THT, part TBD) in a vertical column between its encoder connector and the 74HC14N
 
 ### Zone D — MCU + Schmitt Trigger
 - 74HC14N DIP-14: at the boundary of Zone C and Zone D; inputs face Zone C divider outputs, outputs face ESP32 header pins — minimizes signal trace length after buffering
@@ -207,7 +210,7 @@ Both LTC4412 (SOT-23-6) and AO3401 (SOT-23) have 0.95mm pad pitch. On LPKF S63 F
 1. Use fresh 0.2mm isolation cutter for these footprints
 2. Set isolation clearance to 0.3mm (not 0.4mm) for SOT-23 pads specifically
 3. **Run 3 isolation passes in CircuitPro for the SMD area** (default is 2). Extra pass widens the milled channel and removes copper-edge whiskers that can short adjacent SOT-23-6 pads at 0.35mm gap.
-4. **Footprint pad expansion**: use 0.7×0.9mm pads for AO3401 (SOT-23) and 0.6×0.8mm for LTC4412 (SOT-23-6) — larger than the standard library default. Larger pads give the cutter more margin and improve hand-solder fillets on a milled board with no soldermask.
+4. **Footprint pad expansion**: use 0.6×0.9mm pads for AO3401 (SOT-23) and 0.6×0.8mm for LTC4412 (SOT-23-6) — larger than the standard library default. Larger pads give the cutter more margin and improve hand-solder fillets on a milled board with no soldermask.
 5. Apply solder paste with the S63 integrated dispenser, or manually with a toothpick
 6. Solder with a fine-tip iron (1.5mm chisel or 0.8mm conical) and 0.5mm solder wire
 7. Check for bridges under magnification (10× loupe or macro camera) before powering
@@ -240,9 +243,9 @@ Both LTC4412 (SOT-23-6) and AO3401 (SOT-23) have 0.95mm pad pitch. On LPKF S63 F
 
 **Phase 1 Checkpoint:**
 - Apply 5V at J4 → LED1 lights green
-- TP1 = 4.98V (±0.1V) [LTC4412 active, ~20mV drop, post-pi-filter]
-- TP5 = 0V (GND)
-- Confirm USB-C source applies VBUS only after R_CC1 + R_CC2 are populated (without them, a real USB-C charger will keep VBUS at 0V — useful sanity check that the Rd termination is doing its job)
+- TP1 = ~4.6V (±0.1V) [passive Schottky-OR via D_EXT, ~0.35V drop, post-pi-filter]
+- TP6 = 0V (GND)
+- (USB-C / R_CC1 / R_CC2 no longer apply — USB-C input dropped; programming/console is via the ESP32-S3-DevKitC-1 onboard USB-C)
 - Do NOT connect LiPo yet
 
 ### Phase 2 — ESP32 Mount (Zone D)
@@ -261,7 +264,7 @@ Both LTC4412 (SOT-23-6) and AO3401 (SOT-23) have 0.95mm pad pitch. On LPKF S63 F
 
 18. Ferrite beads FB1, FB2, FB3 (on encoder VCC lines)
 19. C_VCC ×3 (100nF at each encoder VCC pin)
-20. 7× divider networks: for each channel, solder R_TOP + R_BOT + C_FILT + TVS (1.5KE3.9CA)
+20. 6× divider networks: for each channel, solder R_TOP + R_BOT + C_FILT + TVS (general THT, part TBD — bidir, V_RWM ≥ ~3.34V)
 21. 74HC14N DIP-14 (check orientation notch; VCC=pin14 to ESP32 3.3V, 100nF bypass between pin14↔pin7)
 22. Wire 74HC14N outputs to correct ESP32 GPIO pins (see schematic Section 5 — explicit DIP pin table)
 23. R_GPIO12 (10kΩ): leg 1 on the trace from 74HC14N pin 8 to GPIO12, leg 2 to GND
@@ -284,7 +287,7 @@ Both LTC4412 (SOT-23-6) and AO3401 (SOT-23) have 0.95mm pad pitch. On LPKF S63 F
 **Phase 4 Final Checkpoint:**
 - Reverse polarity test on J4 (−5V at center): LED1 off, no current, ESP32 unpowered
 - `pio run -e wemos_d1_r32` — build passes (firmware pin swap for 74HC14N must be active)
-- All five test points within spec (TP1–TP5)
+- All six test points within spec (TP1–TP6)
 
 ---
 
@@ -292,12 +295,13 @@ Both LTC4412 (SOT-23-6) and AO3401 (SOT-23) have 0.95mm pad pitch. On LPKF S63 F
 
 | Test Point | Location | Expected Voltage | Condition |
 |---|---|---|---|
-| TP1 | 5V_RAIL | 4.98V ±0.1V | External 5V connected |
-| TP1 | 5V_RAIL | 4.65V ±0.1V | Battery only |
+| TP1 | 5V_RAIL | ~4.6V ±0.1V | External 5V connected (Schottky-OR drop) |
+| TP1 | 5V_RAIL | ~4.65V ±0.1V | Battery only |
 | TP2 | ESP32 3.3V | 3.3V ±0.1V | Any power source |
 | TP3 | MT3608 output | 5.0V ±0.1V | Battery or external |
 | TP4 | LiPo BAT+ | 3.0–4.2V | Depending on charge state |
-| TP5 | GND | 0V | Reference |
+| TP5 | BAT_OUT (TP4056 OUT+) | 3.0–4.2V | Tracks cell via TP4056 |
+| TP6 | GND | 0V | Reference |
 
 ---
 

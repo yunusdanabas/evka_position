@@ -1,0 +1,8 @@
+{
+  "board": {
+    "filename": "05_encoder_connectors.kicad_pcb"
+  },
+  "sheets": [
+    ["root", "05_encoder_connectors.kicad_sch"]
+  ]
+}

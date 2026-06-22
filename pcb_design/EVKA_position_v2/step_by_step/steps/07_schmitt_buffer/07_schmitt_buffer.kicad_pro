@@ -1,0 +1,8 @@
+{
+  "board": {
+    "filename": "07_schmitt_buffer.kicad_pcb"
+  },
+  "sheets": [
+    ["root", "07_schmitt_buffer.kicad_sch"]
+  ]
+}

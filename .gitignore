@@ -76,3 +76,13 @@ tools/analysis/
 tools/web_server/
 tools/VISUALIZATION_GUIDE.md
 tools/__pycache__/
+
+# KiCad
+*-backups/
+*.lck
+~*.lck
+*-bak
+_autosave-*
+*.orig
+fp-info-cache
+*.kicad_prl
