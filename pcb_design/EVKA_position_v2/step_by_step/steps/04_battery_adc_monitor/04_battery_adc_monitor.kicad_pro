@@ -1,8 +1,0 @@
-{
-  "board": {
-    "filename": "04_battery_adc_monitor.kicad_pcb"
-  },
-  "sheets": [
-    ["root", "04_battery_adc_monitor.kicad_sch"]
-  ]
-}

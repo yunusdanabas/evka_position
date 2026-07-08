@@ -1,8 +1,0 @@
-{
-  "board": {
-    "filename": "06_signal_conditioning.kicad_pcb"
-  },
-  "sheets": [
-    ["root", "06_signal_conditioning.kicad_sch"]
-  ]
-}

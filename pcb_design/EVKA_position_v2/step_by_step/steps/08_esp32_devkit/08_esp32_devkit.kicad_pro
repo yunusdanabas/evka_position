@@ -1,8 +1,0 @@
-{
-  "board": {
-    "filename": "08_esp32_devkit.kicad_pcb"
-  },
-  "sheets": [
-    ["root", "08_esp32_devkit.kicad_sch"]
-  ]
-}

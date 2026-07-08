@@ -1,8 +1,0 @@
-{
-  "board": {
-    "filename": "03_charge_boost_battery.kicad_pcb"
-  },
-  "sheets": [
-    ["root", "03_charge_boost_battery.kicad_sch"]
-  ]
-}

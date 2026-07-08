@@ -1,0 +1,12 @@
+{
+  "board": "/home/yunusdanabas/evka_position/pcb_design/EVKA_position_v3/Simple Design/EVKA_position_v3/EVKA_position_v3.kicad_pcb",
+  "timestamp": "2026-06-26T12:02:55",
+  "total_violations": 0,
+  "violation_counts": {},
+  "severity_counts": {
+    "error": 0,
+    "warning": 0,
+    "info": 0
+  },
+  "violations": []
+}
