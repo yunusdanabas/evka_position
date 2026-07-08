@@ -86,3 +86,9 @@ _autosave-*
 *.orig
 fp-info-cache
 *.kicad_prl
+
+# Superpowers skill/session state
+.superpowers/
+
+# Stray generated netlist at repo root (regenerate with kicad-cli sch export netlist)
+/EvkaPosition_v2.net
