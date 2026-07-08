@@ -1,6 +1,10 @@
 #include "SphericalSensor.h"
 #include <Preferences.h>
 
+// ESP32Encoder counts as int64; our offset math is int32 (well within range for
+// this rig: ≤ a few thousand revs × 20000 counts).
+static inline int32_t encCount(ESP32Encoder* e) { return (int32_t)e->getCount(); }
+
 // Constructor
 SphericalPositioningSensor::SphericalPositioningSensor()
     : thetaEncoder(nullptr),
@@ -23,11 +27,16 @@ SphericalPositioningSensor::SphericalPositioningSensor()
 }
 
 void SphericalPositioningSensor::begin() {
-    // Construct Encoders here (not in constructor) — ESP32 GPIO ISR service
-    // is not ready during global construction.
-    thetaEncoder = new Encoder(PIN_THETA_A, PIN_THETA_B);
-    phiEncoder   = new Encoder(PIN_PHI_A, PIN_PHI_B);
-    wireEncoder  = new Encoder(PIN_WIRE_A, PIN_WIRE_B);
+    // Construct Encoders here (not in constructor) — PCNT service is not ready
+    // during global construction. External resistive dividers drive the pins, so
+    // internal pullups MUST be off (they'd skew the divider ratio).
+    ESP32Encoder::useInternalWeakPullResistors = puType::none;
+    thetaEncoder = new ESP32Encoder();
+    phiEncoder   = new ESP32Encoder();
+    wireEncoder  = new ESP32Encoder();
+    thetaEncoder->attachFullQuad(PIN_THETA_A, PIN_THETA_B);
+    phiEncoder->attachFullQuad(PIN_PHI_A, PIN_PHI_B);
+    wireEncoder->attachFullQuad(PIN_WIRE_A, PIN_WIRE_B);
 
 #if ENABLE_BATTERY_MONITOR
     // Battery ADC pin (input-only, no pull-up)
@@ -66,9 +75,9 @@ void SphericalPositioningSensor::savePPRToNVS() {
 }
 
 void SphericalPositioningSensor::setZeroPoint() {
-    theta_offset = thetaEncoder->read();
-    phi_offset = phiEncoder->read();
-    radius_offset = wireEncoder->read();
+    theta_offset = encCount(thetaEncoder);
+    phi_offset = encCount(phiEncoder);
+    radius_offset = encCount(wireEncoder);
 
     Serial.print("[Calibration] Zero point set at T:");
     Serial.print(theta_offset);
@@ -80,25 +89,25 @@ void SphericalPositioningSensor::setZeroPoint() {
 }
 
 void SphericalPositioningSensor::zeroTheta() {
-    theta_offset = thetaEncoder->read();
+    theta_offset = encCount(thetaEncoder);
     position_filter_primed = false;
 }
 
 void SphericalPositioningSensor::zeroPhi() {
-    phi_offset = phiEncoder->read();
+    phi_offset = encCount(phiEncoder);
     position_filter_primed = false;
 }
 
 void SphericalPositioningSensor::zeroWire() {
-    radius_offset = wireEncoder->read();
+    radius_offset = encCount(wireEncoder);
     position_filter_primed = false;
 }
 
 void SphericalPositioningSensor::readRawEncoders(int32_t& theta_counts, int32_t& phi_counts, int32_t& radius_counts) {
-    theta_counts = thetaEncoder->read() - theta_offset;
-    phi_counts   = phiEncoder->read() - phi_offset;
+    theta_counts = encCount(thetaEncoder) - theta_offset;
+    phi_counts   = encCount(phiEncoder) - phi_offset;
     // Wire encoder counts increase when rope extends — direct mapping
-    radius_counts = wireEncoder->read() - radius_offset;
+    radius_counts = encCount(wireEncoder) - radius_offset;
 }
 
 SphericalCoords SphericalPositioningSensor::countsToSpherical(int32_t theta_counts, int32_t phi_counts, int32_t radius_counts) {
@@ -107,8 +116,8 @@ SphericalCoords SphericalPositioningSensor::countsToSpherical(int32_t theta_coun
     const float deg_pp = 360.0f / _ppr_rotary;
     const float mm_pp  = DRUM_CIRCUM_MM / _ppr_wire;
 
-    sph.theta_deg = theta_counts * deg_pp;
-    sph.phi_deg   = -phi_counts * deg_pp;  // Phi encoder counts positive when arm drops
+    sph.theta_deg = ENCODER_THETA_SIGN * theta_counts * deg_pp;
+    sph.phi_deg   = ENCODER_PHI_SIGN   * phi_counts   * deg_pp;
     sph.r_mm      = radius_counts * mm_pp;
 
     sph.theta_deg = normalizeAngle(sph.theta_deg);

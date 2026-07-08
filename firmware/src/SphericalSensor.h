@@ -2,7 +2,7 @@
 #define SPHERICAL_SENSOR_H
 
 #include <Arduino.h>
-#include <Encoder.h>
+#include <ESP32Encoder.h>
 #include <math.h>
 #include <stdint.h>
 
@@ -10,16 +10,29 @@
 // CONFIGURATION SECTION
 // ============================================================================
 
-// Pin Definitions (must be interrupt-capable pins)
-#define PIN_THETA_A   14    // Encoder interrupt pin (Theta azimuth axis)
+// Pin Definitions — board selected at build time (-DPCB_V4 for the ESP32-S3 v4 PCB)
+#if defined(PCB_V4)
+// EVKA_position_v4 — ESP32-S3-DevKitC-1. Encoders via on-board 10k/20k dividers
+// straight to GPIO (no Schmitt buffer). Verified against the v4 schematic AND PCB
+// pad-nets (THETA=DIVIDER_NODE_1/2, PHI=_3/4, WIRE=_5/6). GPIO17/18 are NOT wired.
+#define PIN_THETA_A   7     // DIVIDER_NODE_1 (J1.1 theta A)
+#define PIN_THETA_B   8     // DIVIDER_NODE_2 (J1.3 theta B)
+#define PIN_PHI_A     4     // DIVIDER_NODE_3 (J2.2 phi A)
+#define PIN_PHI_B     5     // DIVIDER_NODE_4 (J2.4 phi B)
+#define PIN_WIRE_A    9     // DIVIDER_NODE_5 (J3.1 wire A)
+#define PIN_WIRE_B    10    // DIVIDER_NODE_6 (J3.3 wire B)
+#else
+// Classic ESP32 (Wemos D1 R32). Must stay interrupt/PCNT-capable.
+#define PIN_THETA_A   14    // Encoder pin (Theta azimuth axis)
 #define PIN_THETA_B   12    // Strapping pin — add pull-down
-#define PIN_PHI_A     32    // GPIO 32 — interrupt-capable, ADC1_CH4
-#define PIN_PHI_B     35    // GPIO 35 — input-only, interrupt-capable
+#define PIN_PHI_A     32    // GPIO 32 — ADC1_CH4
+#define PIN_PHI_B     35    // GPIO 35 — input-only
 #define PIN_WIRE_A    16    // Draw-wire encoder quadrature A
 #define PIN_WIRE_B    17    // Draw-wire encoder quadrature B
+#endif
 
 // Optional features
-#define ENABLE_BATTERY_MONITOR 0  // 0: disable battery ADC path (prototype on 5V adapter)
+#define ENABLE_BATTERY_MONITOR 1  // 1: read 1S LiPo (v4) / battery divider on PIN_BATTERY_ADC
 
 // 0 = 1S LiPo (100k+100k divider). 1 = 12V input PCB (120k+27k from V12_PROT to GPIO36).
 #define BATTERY_ADC_12V_INPUT 0
@@ -30,16 +43,16 @@
 #define ESPNOW_CHANNEL         1  // WiFi channel for ESP-NOW (must match AP channel)
 #define WIFI_AP_SSID           "CMDCNC_EVKA"
 #define WIFI_AP_PASSWORD       "cmdcnc1234"  // min 8 chars for WPA2
-#define WIFI_STA_DEFAULT_SSID  "CMD_FUAR"   // compile-time default STA network
-#define WIFI_STA_DEFAULT_PASS  "cmd20165544"
+#define WIFI_STA_DEFAULT_SSID  "ASMETAL"   // compile-time default STA network
+#define WIFI_STA_DEFAULT_PASS  "AACC223344"
 #define WIFI_STA_STATIC_IP_O1  192
 #define WIFI_STA_STATIC_IP_O2  168
-#define WIFI_STA_STATIC_IP_O3  0
+#define WIFI_STA_STATIC_IP_O3  1
 #define WIFI_STA_STATIC_IP_O4  84
 #define WIFI_STA_GW_O1         192
 #define WIFI_STA_GW_O2         168
-#define WIFI_STA_GW_O3         0
-#define WIFI_STA_GW_O4         1
+#define WIFI_STA_GW_O3         1
+#define WIFI_STA_GW_O4         254
 #define WIFI_STA_SN_O1         255
 #define WIFI_STA_SN_O2         255
 #define WIFI_STA_SN_O3         255
@@ -48,7 +61,7 @@
 #define WIFI_STA_DNS_O2        8
 #define WIFI_STA_DNS_O3        8
 #define WIFI_STA_DNS_O4        8
-#define WIFI_CFG_VERSION       2               // increment this to reset STA creds on next flash
+#define WIFI_CFG_VERSION       3               // increment this to reset STA creds on next flash
 #define WIFI_WEB_PORT          80
 #define CMD_TCP_PORT           8080
 
@@ -65,8 +78,12 @@
 // WiFi status LED
 #define PIN_WIFI_LED     2   // GPIO 2 = built-in LED on most ESP32 boards
 
-// Battery / supply monitoring on GPIO36 (see docs/hardware_design/12v/circuit_schematic_12v.md)
+// Battery / supply monitoring (ADC1_CH0). v4: GPIO1 (1S divider); classic: GPIO36.
+#if defined(PCB_V4)
+#define PIN_BATTERY_ADC  1    // GPIO 1 (ADC1_CH0) — 100k/100k divider on 1S LiPo
+#else
 #define PIN_BATTERY_ADC  36   // GPIO 36 (ADC1_CH0, input-only)
+#endif
 #if BATTERY_ADC_12V_INPUT
 #define BATT_DIVIDER_RATIO (147.0f / 27.0f)  // (120k+27k)/27k → V12 at divider input
 #define BATT_FULL_V    15.0f   // STATUS % mapping: "high" side of 12V adapter window
@@ -85,6 +102,11 @@
 #define DRUM_CIRCUM_MM   200.0  // Drum circumference in mm (200 mm/rev)
 #define DEG_PER_PULSE  (360.0 / PPR_ROTARY)          // ≈ 0.018 deg per pulse
 #define MM_PER_PULSE   (DRUM_CIRCUM_MM / PPR_WIRE)   // = 0.025 mm/count (theoretical; NVS overrides after CAL_W)
+
+// Encoder count → angle sign (mounting-dependent; tune at integration)
+// Forward motion at home should increase +X (ENCODER_THETA_SIGN); lift should increase +Z (ENCODER_PHI_SIGN).
+#define ENCODER_THETA_SIGN  (-1.0f)   // +1 or -1
+#define ENCODER_PHI_SIGN    (+1.0f)   // was implicit -1; +1 for current rig (up → +Z)
 
 // Mechanical Limits (safety constraints)
 #define THETA_MIN_DEG    -180.0   // Min azimuth angle
@@ -139,11 +161,11 @@ struct BatteryStatus {
 
 class SphericalPositioningSensor {
 private:
-    // Encoder objects (heap-allocated in begin() — ESP32 GPIO ISR service
-    // is not ready during global construction)
-    Encoder* thetaEncoder;
-    Encoder* phiEncoder;
-    Encoder* wireEncoder;
+    // Encoder objects (heap-allocated in begin() — PCNT/ISR service is not
+    // ready during global construction)
+    ESP32Encoder* thetaEncoder;
+    ESP32Encoder* phiEncoder;
+    ESP32Encoder* wireEncoder;
 
     // Calibration offsets
     int32_t theta_offset;

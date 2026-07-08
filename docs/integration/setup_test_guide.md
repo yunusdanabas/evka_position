@@ -1,6 +1,13 @@
 # Setup & Test Guide — OPKON DWEM2 on Wemos D1 R32 (ESP32)
 _Session: 2026-02-18_
 
+> **v4 PCB users:** this guide covers bench bring-up on the classic Wemos board with
+> breadboard dividers. For the **v4 PCB** (ESP32-S3, `pcb_design/EVKA_position_v4/`)
+> the dividers and wiring are on-board — you only connect the three encoder terminal
+> blocks (J1=Theta, J2=Phi, J3=Wire) and power. Build/flash with `pio run -e esp32s3_v4`.
+> Firmware pins: Theta 7/8, Phi 4/5, Wire 9/10, battery ADC GPIO1. See
+> `pcb_design/EVKA_position_v4/FIRMWARE.md`.
+
 ---
 
 ## 1. Hardware Wiring
@@ -60,14 +67,62 @@ Before encoder is powered you will see constant 3.3 V — this is normal (pull-u
 
 ### Install PlatformIO
 
+Linux/macOS:
 ```bash
 pip install -U platformio
 pio --version
 ```
 
-> Alternatively install the PlatformIO IDE extension in VS Code (search "PlatformIO IDE").
+Windows PowerShell:
+```powershell
+py -m pip install -U platformio
+py -m platformio --version
+```
 
-Board support (espressif32) and the Encoder library are declared in `platformio.ini` and downloaded automatically on first build — no manual installation required.
+> Alternatively install the PlatformIO IDE extension in VS Code (search "PlatformIO IDE").
+> Classic Visual Studio (MSVC/.sln workflow) cannot build or flash this ESP32 firmware by itself.
+
+Board support (espressif32) and the `ESP32Encoder` library are declared in `platformio.ini` and downloaded automatically on first build — no manual installation required.
+
+### If a vendor is using Visual Studio
+
+Use one of these supported workflows:
+
+1. **VS Code + PlatformIO extension** (recommended)
+2. **PlatformIO CLI** from terminal
+
+Required project root must contain:
+
+- `platformio.ini`
+- `firmware/` directory
+
+Working command sequence from project root:
+
+Linux/macOS:
+```bash
+pio run -e wemos_d1_r32
+pio run -e wemos_d1_r32 --target upload
+pio device monitor -e wemos_d1_r32
+```
+
+Windows PowerShell (works even when `pio` is not in PATH):
+```powershell
+py -m platformio run -e wemos_d1_r32
+py -m platformio run -e wemos_d1_r32 --target upload
+py -m platformio device monitor -e wemos_d1_r32
+```
+
+If upload fails because wrong port is auto-selected, set explicit upload port:
+
+Linux/macOS:
+```bash
+pio run -e wemos_d1_r32 --target upload --upload-port /dev/ttyUSB0
+```
+
+Windows PowerShell:
+```powershell
+py -m platformio run -e wemos_d1_r32 --target upload --upload-port COM5
+```
 
 ### Find USB port
 
@@ -163,6 +218,16 @@ To re-zero without reflashing, send `ZERO\n` over serial.
 | COUNT goes negative on pull | A and B swapped | Swap A↔B wires |
 | Z_ticks never increments | GPIO 18 not connected | Check Z wire and its divider |
 | Upload timeout | Board not entering bootloader | Hold BOOT → RESET → release BOOT → retry |
+| `Could not open /dev/ttyS0` (Linux) or `COMx` open failure (Windows) | Auto-selected wrong port or busy port | Run `pio device list` (or `py -m platformio device list` on Windows) and retry with explicit `--upload-port` |
 | `Encoder` not found on compile | Library missing | PlatformIO auto-installs from `platformio.ini`; run `pio lib install` if needed |
 | Port permission denied | User not in dialout | `sudo usermod -aG dialout $USER && newgrp dialout` |
 | False phi counts after main firmware flash | PHI_A wired to wrong GPIO | Verify phi A wire goes to GPIO 32 divider |
+
+### Failure artifact bundle (send to project team)
+
+If flashing still fails, provide:
+
+1. Exact command used
+2. First error block from output
+3. Result of `pio device list`
+4. Board model and USB cable type (data-capable vs charge-only)

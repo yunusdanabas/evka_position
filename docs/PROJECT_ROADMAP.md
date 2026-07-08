@@ -30,11 +30,12 @@
   - [x] Full diagnostic log: `docs/WIFI_PERFORMANCE_ISSUES_LOG.md`
 
 ## In Progress
+- [x] v4 PCB firmware port (2026-07-08) — ESP32-S3-DevKitC-1 board; new PlatformIO env `esp32s3_v4` (`-DPCB_V4`); pins THETA 7/8, PHI 4/5, WIRE 9/10, battery ADC GPIO1; switched both boards to `ESP32Encoder` (hardware PCNT); battery monitor enabled. Both envs build clean. Verified against v4 schematic + PCB pad-nets. Hardware bring-up pending.
 - [ ] Phase 5: Full 3-encoder integration test
   - [x] Firmware integration hardening (non-blocking serial + `PING`/`STATUS`)
   - [x] Backward-compatible serial protocol retained (`DATA,...` unchanged)
   - [x] Battery monitoring made optional for 5V-adapter prototype (`ENABLE_BATTERY_MONITOR=0` default)
-  - [ ] Flash main firmware (wemos_d1_r32) on final wiring
+  - [ ] Flash main firmware (`wemos_d1_r32` classic, or `esp32s3_v4` on the v4 PCB) on final wiring
   - [ ] Verify all 3 encoders produce correct spherical + Cartesian output
   - [ ] Test ZERO command and status lines on hardware
   - [ ] Log sample DATA CSV output for visualization testing

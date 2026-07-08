@@ -3,29 +3,39 @@
 > Türkçe WiFi kullanıcı kılavuzu: [README_TR.md](README_TR.md)
 
 ## Overview
-Evka Position is a firmware project for the **ESP32 (Wemos D1 R32)** that calculates the real-time 3D position (X, Y, Z) of a target object using three sensor inputs:
+Evka Position is a firmware project for the **ESP32** — the classic Wemos D1 R32, or the **ESP32-S3 v4 PCB** (`pcb_design/EVKA_position_v4/`) — that calculates the real-time 3D position (X, Y, Z) of a target object using three sensor inputs:
 
 1. **Theta (θ):** Azimuth angle (horizontal rotation)
 2. **Phi (φ):** Elevation angle (vertical tilt)
 3. **Radius (r):** Linear distance (draw-wire extension)
 
 ## Hardware
-- **MCU:** ESP32 (Wemos D1 R32 / ESP32-WROOM-32)
+- **MCU:** classic ESP32 (Wemos D1 R32 / ESP32-WROOM-32), **or ESP32-S3-DevKitC-1 (N16R8)** on the v4 PCB
 - **Rotary encoders:** Autonics E40S6 — 5000 PPR × X4 quadrature = 20000 counts/rev
 - **Draw-wire encoder:** OPKON DWEM2 — 8000 theoretical PPR (0.025 mm/count; calibrate with `CAL_W`)
-- **Voltage dividers required** on all 6 encoder signal lines (encoder outputs 5V TTL, ESP32 max 3.3V)
+- **Quadrature counting:** `madhephaestus/ESP32Encoder` (hardware PCNT) on both boards
+- **Voltage dividers required** on all 6 encoder signal lines (encoder outputs 5V TTL, ESP32 max 3.3V — on the v4 PCB the dividers are on-board)
 
 ## Pin Map
 
-| Pin | Signal |
-|-----|--------|
-| 14  | Theta encoder A |
-| 12  | Theta encoder B |
-| 32  | Phi encoder A |
-| 35  | Phi encoder B |
-| 16  | Draw-wire encoder A |
-| 17  | Draw-wire encoder B |
-| 2   | WiFi status LED (active-high) |
+The pin map is selected at build time by `PCB_V4` in `SphericalSensor.h`.
+
+**Classic ESP32** (env `wemos_d1_r32`):
+
+| Pin | Signal | | Pin | Signal |
+|-----|--------|-|-----|--------|
+| 14 / 12 | Theta A / B | | 16 / 17 | Draw-wire A / B |
+| 32 / 35 | Phi A / B | | 36 | Battery ADC |
+| 2 | WiFi status LED (active-high) | | | |
+
+**v4 PCB — ESP32-S3** (env `esp32s3_v4`, `-DPCB_V4`):
+
+| Pin | Signal | | Pin | Signal |
+|-----|--------|-|-----|--------|
+| 7 / 8 | Theta A / B | | 9 / 10 | Draw-wire A / B |
+| 4 / 5 | Phi A / B | | 1 | Battery ADC (1S LiPo, ÷2) |
+
+> v4 has **no onboard buttons** (GPIO17/18 unconnected) and no firmware LED (only a hardwired power LED) — the WiFi-status-LED code is a harmless no-op there.
 
 Current compile-time pins, PPR values, battery options, and WiFi feature
 flags are defined in `firmware/src/SphericalSensor.h`. If a doc disagrees with
@@ -53,9 +63,13 @@ docs/
 ```bash
 pip install platformio
 
-pio run -e wemos_d1_r32                        # compile
+pio run -e wemos_d1_r32                        # compile (classic ESP32)
 pio run -e wemos_d1_r32 --target upload        # flash
 pio device monitor                             # serial monitor (115200 baud)
+
+# v4 PCB (ESP32-S3):
+pio run -e esp32s3_v4                           # compile
+pio run -e esp32s3_v4 --target upload           # flash
 ```
 
 On first boot, the firmware waits 2 seconds then calls `setZeroPoint()`. **The device must be at mechanical home (all sensors at zero) before powering on.**
@@ -120,21 +134,25 @@ Dashboard tabs:
 
 Wiring: `GPIO 2 → 1 kΩ resistor → LED anode → LED cathode → GND`
 
+> On the **v4 PCB** GPIO2 is not populated (only a hardwired power LED exists), so this LED code is a harmless no-op there.
+
 ### Router Mode (STA)
 
-Save router credentials via the WiFi Settings panel (web dashboard) or `WIFI_SET:<ssid>,<pass>` command. `ENABLE_REMOTE_WIFI_CONFIG=1` is the current default — credentials are accepted over TCP and WebSocket, saved to NVS, and the device reboots. STA uses a hardcoded static profile (`192.168.0.84 / 255.255.255.0`, gateway `192.168.0.1`, DNS `8.8.8.8`), so `GET_IP` reports that fixed address when connected. The AP fallback `192.168.1.50` stays active.
+Save router credentials via the WiFi Settings panel (web dashboard) or `WIFI_SET:<ssid>,<pass>` command. `ENABLE_REMOTE_WIFI_CONFIG=1` is the current default — credentials are accepted over TCP and WebSocket, saved to NVS, and the device reboots. STA uses a hardcoded static profile (`192.168.1.84 / 255.255.255.0`, gateway `192.168.1.254`, DNS `8.8.8.8`), so `GET_IP` reports that fixed address when connected. The AP fallback `192.168.1.50` stays active.
 
 For CMD software connection details and fallback behavior, see `docs/integration/CMD_SOFTWARE_INTEGRATION.md`.
 
 ## Wireless Button Remote (ESP-NOW)
 
-A 2-button ESP32-C3 SuperMini pendant communicates with the main ESP32 via ESP-NOW.
-No pairing required — broadcasts on the same WiFi channel as the AP.
+A 2-button ESP32-C3 SuperMini pendant communicates with the main board via ESP-NOW.
+No pairing required — it ESP-NOW-broadcasts and auto-discovers the AP's channel by
+scanning for SSID `CMDCNC_EVKA`, so it works unchanged with either the classic ESP32
+or the v4 ESP32-S3 board (no MAC is hardcoded).
 
 | Button | GPIO | Color | Command | Action |
 |--------|------|-------|---------|--------|
-| 0 | 4 | Red | `ZERO` | Re-zero all encoders |
-| 1 | 5 | Green | `SAVE_POINT` | Save current position snapshot |
+| 0 | 4 | Green | `SAVE_POINT` | Save current position snapshot |
+| 1 | 5 | Red | `DEL_POINT` | Delete the last saved point |
 
 **Build & flash remote firmware:**
 ```bash
@@ -232,11 +250,29 @@ python -m tools.position_checker.cmd_main
 | Address | When to use |
 |---------|-------------|
 | `192.168.1.50` | **AP fallback** — always reachable on the `CMDCNC_EVKA` access point |
-| `192.168.0.84` | **STA static IP** — router mode with hardcoded profile (`GW 192.168.0.1`, mask `255.255.255.0`, DNS `8.8.8.8`) |
+| `192.168.1.84` | **STA static IP** — router mode with hardcoded profile (`GW 192.168.1.254`, mask `255.255.255.0`, DNS `8.8.8.8`) |
 
 > After connecting to a router, send `GET_IP` from the GUI (or serial) to confirm STA connectivity. The GUI auto-updates the IP field from the `STA_IP:` response.
 
 Port is always **8080** regardless of AP or STA mode.
+
+### 3. Quick IPT (`tools/ipt`)
+
+Hidden-point measurement tool. Recovers a target point that the pen cannot touch
+directly (around a corner, behind an obstacle, inside a recess) using the Prodim
+Proliner's "Quick IPT" (Inverted Pen Technology) method.
+
+```bash
+# WiFi (AP fallback)
+python -m tools.ipt --tcp 192.168.1.50:8080
+
+# Serial
+python -m tools.ipt --serial /dev/ttyUSB0 --baud 115200
+```
+
+Hold the pen **tip** on the hidden target, sweep the **handle** in a wide spiral,
+and fit a sphere to recover the target. See `tools/ipt/README.md` for full
+workflow, quality flags, and troubleshooting.
 
 ## Mathematical Model
 
