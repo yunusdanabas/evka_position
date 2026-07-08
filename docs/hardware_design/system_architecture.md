@@ -44,6 +44,7 @@ $$
 > - **X-axis:** $\theta=0$ aligns with +X.
 > - **Y-axis:** $\theta=+90^\circ$ aligns with +Y.
 > - This matches `SphericalSensor.cpp` conversion logic.
+> - **Encoder signs:** `ENCODER_THETA_SIGN` and `ENCODER_PHI_SIGN` in `SphericalSensor.h` map quadrature counts to $\theta$/$\phi$ (mounting-dependent; flip ±1 if lift or forward direction is inverted).
 
 ### Inverse Kinematics (Cartesian → Spherical)
 To find the required sensor values for a target point $(X, Y, Z)$:

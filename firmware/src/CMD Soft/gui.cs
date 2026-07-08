@@ -30,6 +30,7 @@ namespace CMDScanner
         private float _lastRawX = 0, _lastRawY = 0, _lastRawZ = 0;
         private float _offsetX = 0, _offsetY = 0, _offsetZ = 0;
         private bool _isRelativeZeroActive = false;
+        private string _wifiPendingAction = null; // "save" | "forget" | null
 
         // Sensor readings
         private float _lastR = 0, _lastTheta = 0, _lastPhi = 0;
@@ -341,6 +342,16 @@ namespace CMDScanner
                             {
                                 lblStatus.Text = "Status: " + line;
                                 lblStatus.ForeColor = Color.Green;
+                                if (line.Contains("WIFI_SAVED") && _wifiPendingAction != null)
+                                {
+                                    string action = _wifiPendingAction;
+                                    _wifiPendingAction = null;
+                                    if (action == "save")
+                                        MessageBox.Show("WiFi credentials sent to ESP32. Device will reboot.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                    else
+                                        MessageBox.Show("Credentials cleared. Device rebooting. Connect to CMDCNC WiFi.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                    CleanupConnection();
+                                }
                             }));
                         }
                         else if (line.StartsWith(PrefixErr))
@@ -349,6 +360,11 @@ namespace CMDScanner
                             {
                                 lblStatus.Text = "Status: " + line;
                                 lblStatus.ForeColor = Color.Red;
+                                if (line.Contains("WIFI") && _wifiPendingAction != null)
+                                {
+                                    _wifiPendingAction = null;
+                                    MessageBox.Show("Command rejected: " + line, "WiFi Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                }
                             }));
                         }
                     }
@@ -434,18 +450,51 @@ namespace CMDScanner
             phi   = (float)(Math.Asin(Math.Max(-1.0, Math.Min(1.0, z / r)))
                             * 180.0 / Math.PI);
         }
+
+        private void RefreshDisplayFromLastRaw()
+        {
+            float finalX = _isRelativeZeroActive ? (_lastRawX - _offsetX) : _lastRawX;
+            float finalY = _isRelativeZeroActive ? (_lastRawY - _offsetY) : _lastRawY;
+            float finalZ = _isRelativeZeroActive ? (_lastRawZ - _offsetZ) : _lastRawZ;
+
+            lblX.Text = $"X: {finalX,7:F2} mm";
+            lblY.Text = $"Y: {finalY,7:F2} mm";
+            lblZ.Text = $"Z: {finalZ,7:F2} mm";
+
+            if (_isRelativeZeroActive)
+            {
+                float dr, dTheta, dPhi;
+                CartesianToSpherical(finalX, finalY, finalZ, out dr, out dTheta, out dPhi);
+                lblR.Text     = $"R: {dr,8:F2} mm";
+                lblTheta.Text = $"\u03B8: {dTheta,8:F3}\u00B0";
+                lblPhi.Text   = $"\u03C6: {dPhi,8:F3}\u00B0";
+            }
+        }
         #endregion
 
         #region 3. BUTTON EVENTS
-        private void BtnZeroX_Click(object sender, EventArgs e) { _offsetX = _lastRawX; _isRelativeZeroActive = true; ResetMinMax(); }
-        private void BtnZeroY_Click(object sender, EventArgs e) { _offsetY = _lastRawY; _isRelativeZeroActive = true; ResetMinMax(); }
-        private void BtnZeroZ_Click(object sender, EventArgs e) { _offsetZ = _lastRawZ; _isRelativeZeroActive = true; ResetMinMax(); }
+        private void BtnZeroX_Click(object sender, EventArgs e)
+        {
+            _offsetX = _lastRawX; _isRelativeZeroActive = true; ResetMinMax();
+            RefreshDisplayFromLastRaw();
+        }
+        private void BtnZeroY_Click(object sender, EventArgs e)
+        {
+            _offsetY = _lastRawY; _isRelativeZeroActive = true; ResetMinMax();
+            RefreshDisplayFromLastRaw();
+        }
+        private void BtnZeroZ_Click(object sender, EventArgs e)
+        {
+            _offsetZ = _lastRawZ; _isRelativeZeroActive = true; ResetMinMax();
+            RefreshDisplayFromLastRaw();
+        }
 
         private void BtnWorkZeroAll_Click(object sender, EventArgs e)
         {
             _offsetX = _lastRawX; _offsetY = _lastRawY; _offsetZ = _lastRawZ;
             _isRelativeZeroActive = true;
             ResetMinMax();
+            RefreshDisplayFromLastRaw();
         }
 
         private async void BtnMachineZero_Click(object sender, EventArgs e)
@@ -456,20 +505,25 @@ namespace CMDScanner
                 _isRelativeZeroActive = false;
                 _offsetX = 0; _offsetY = 0; _offsetZ = 0;
                 ResetMinMax();
+                RefreshDisplayFromLastRaw();
                 await SendCommandAsync("ZERO");
             }
         }
 
         private async void BtnWifiSave_Click(object sender, EventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(txtSsid.Text) || txtPass.Text.Length < 8)
+            if (string.IsNullOrWhiteSpace(txtSsid.Text))
             {
-                MessageBox.Show("SSID is required and password must be at least 8 characters.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("SSID is required.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
+            if (txtPass.Text.Length > 0 && txtPass.Text.Length < 8)
+            {
+                MessageBox.Show("Password must be empty (open network) or at least 8 characters.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            _wifiPendingAction = "save";
             await SendCommandAsync($"WIFI_SET:{txtSsid.Text},{txtPass.Text}");
-            MessageBox.Show("WiFi credentials sent to ESP32. Device will reboot.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            CleanupConnection();
         }
 
         private async void BtnWifiForget_Click(object sender, EventArgs e)
@@ -477,9 +531,8 @@ namespace CMDScanner
             DialogResult dr = MessageBox.Show("This will erase stored WiFi credentials and the device will return to AP-only mode. Continue?", "Forget Network", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
             if (dr == DialogResult.Yes && _tcpClient != null && _tcpClient.Connected)
             {
+                _wifiPendingAction = "forget";
                 await SendCommandAsync("WIFI_SET:,");
-                MessageBox.Show("Credentials cleared. Device rebooting. Connect to CMDCNC WiFi.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                CleanupConnection();
             }
         }
 

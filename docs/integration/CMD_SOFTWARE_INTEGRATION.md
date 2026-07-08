@@ -26,7 +26,7 @@ These values are currently defined in `firmware/src/SphericalSensor.h`:
 - `WIFI_AP_SSID = "CMDCNC_EVKA"`
 - `WIFI_AP_PASSWORD = "cmdcnc1234"`
 - AP IP = `192.168.1.50`
-- `WIFI_STA_DEFAULT_SSID = "CMD-YAZILIM"` (compile-time default; runtime credentials stored in NVS)
+- `WIFI_STA_DEFAULT_SSID = "ASMETAL"` (compile-time default; runtime credentials stored in NVS)
 
 ## TCP Protocol Quick Reference
 
@@ -53,20 +53,47 @@ ESP32 -> Client (newline-delimited):
 STA_IP:<ipv4>
 STA_IP:NOT_CONNECTED
 X<value>,Y<value>,Z<value>
+SENSOR,<r>,<theta>,<phi>,<valid>,<frame>
+SYSINFO,<rssi>,<heap>,<uptime_s>,<tcp_clients>
+POINT,<idx>,<x>,<y>,<z>,<r>,<theta>,<phi>
+DEL_POINT,<idx>
+REMOTE_BTN:<0|1>
+REMOTE_HB
 ACK:ZERO
 ACK:WIFI_SAVED
 ERR:WIFI_INVALID
 ERR:WIFI_CFG_DISABLED
 ERR:SSID_INVALID
 ERR:PASS_TOO_SHORT
+ERR:NO_POINTS
 ERR:UNKNOWN_CMD
 ```
 
-Note: Firmware may also emit additional lines (`SENSOR,...`, `SYSINFO,...`) for enhanced tools. CMD clients that only parse `X...` and `STA_IP:...` continue to work.
+Note: Firmware may also emit additional lines (`SENSOR,...`, `SYSINFO,...`,
+`POINT,...`, `DEL_POINT,...`, `REMOTE_BTN:...`, `REMOTE_HB`) for enhanced tools.
+CMD clients that only parse `X...` and `STA_IP:...` continue to work.
 All other newline-delimited commands are forwarded to firmware `processCommand()`
-(`PING`, `STATUS`, `CONSTANTS`, `CAL_*`, `SET_PPR_*`, `SAVE_PPR`, etc.).
+(`PING`, `STATUS`, `CONSTANTS`, `CAL_*`, `SET_PPR_*`, `SAVE_PPR`,
+`SAVE_POINT`, `DEL_POINT`, etc.).
 For enhanced clients parsing `SENSOR,...`, the field order is:
 `SENSOR,<r_mm>,<theta_deg>,<phi_deg>,<is_valid>,<frame_count>`.
+
+### Linux CMD GUI features (beyond minimal CMD protocol)
+
+The Linux GUI (`tools/position_checker/cmd_main`) adds:
+
+| Feature | Behavior |
+|---------|----------|
+| Software Zero (All) / X=0 / Y=0 / Z=0 | Client-side display offset; R/θ/φ recomputed from zeroed XYZ |
+| Clear Software Zero | Clears offsets without sending `ZERO` |
+| Hardware Zero | Sends `ZERO`; clears software zero |
+| Reset Min/Max | Session statistics only |
+| Saved points | `SAVE_POINT` / `DEL_POINT`; list is session-local |
+| Remote indicators | `REMOTE_BTN:0/1`, `REMOTE_HB` link status |
+| SYSINFO panel | RSSI, heap, uptime, TCP client count |
+
+Software zero is cleared on TCP disconnect. Saved-point indices on the device
+(`pt_idx`) persist across reconnects; the GUI list does not.
 
 ## Linux CMD GUI (Included Tool)
 

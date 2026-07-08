@@ -18,6 +18,9 @@
 //   CAL_P <n> — calibrate phi:   ZERO_P, rotate n full turns, send CAL_P n
 //   DIAG      — sample all 4 pins for 1 s and report transitions
 //   VERBOSE   — toggle per-sample A/B pin levels in output
+//
+// Note: production firmware applies ENCODER_THETA_SIGN / ENCODER_PHI_SIGN in
+// SphericalSensor::countsToSpherical(); this test prints raw count × deg/pulse.
 
 #include <Arduino.h>
 #include <Encoder.h>

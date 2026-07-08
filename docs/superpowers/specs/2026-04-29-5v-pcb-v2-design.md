@@ -165,7 +165,7 @@ Current capacity at 18µm copper:
 
 ## Zone Layout
 
-See `docs/hardware_design/5v_v2/pcb_layout_guide.md` for full ASCII layout and assembly sequence.
+See `pcb_design/EVKA_position_v2/docs/pcb_layout_guide.md` for full ASCII layout and assembly sequence.
 
 Zones:
 - **Zone A** (top-left): Power input, RPP, LTC4412, bulk caps, LEDs, test points

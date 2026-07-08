@@ -48,6 +48,18 @@ factor = actual_mm / measured_mm
 new_MM_PER_PULSE = MM_PER_PULSE * factor
 ```
 
+## Encoder angle signs (before PPR calibration)
+
+Confirm Cartesian directions match the machine before calibrating PPR:
+
+| Define | Current value | Expected motion |
+|--------|---------------|-----------------|
+| `ENCODER_PHI_SIGN` | +1.0 | Lift → +Z, φ increases |
+| `ENCODER_THETA_SIGN` | -1.0 | Forward → +X, θ changes |
+
+If lift drives −Z or forward drives −X, flip the corresponding sign in
+`firmware/src/SphericalSensor.h` and reflash. See `docs/hardware_design/system_architecture.md`.
+
 ## Logging and Finalization
 
 - Use templates under `docs/calibration/templates/` for every trial.
