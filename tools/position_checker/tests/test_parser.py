@@ -38,6 +38,10 @@ class ParserTests(unittest.TestCase):
         self.assertIsNotNone(frame)
         self.assertEqual(frame.y_mm, -4.5)
         self.assertIsNone(parse_xyz_line("X1,Y2"))
+        self.assertIsNone(parse_xyz_line("Xnan,Y0,Z0"))
+
+    def test_parse_sensor_rejects_non_finite(self) -> None:
+        self.assertIsNone(parse_sensor_line("SENSOR,nan,0,0,1,1"))
 
 
 if __name__ == "__main__":

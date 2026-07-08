@@ -54,7 +54,7 @@ PIN_MAP: Dict[str, int] = {
 }
 
 # CMD/TCP defaults
-CMD_DEFAULT_STA_IP = "192.168.0.84"  # Static STA IP (match SphericalSensor.h profile)
+CMD_DEFAULT_STA_IP = "192.168.1.84"  # Static STA IP (match SphericalSensor.h profile)
 CMD_AP_FALLBACK_IP = "192.168.1.50"
 CMD_DEFAULT_PORT = 8080
 

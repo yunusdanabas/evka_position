@@ -74,13 +74,16 @@ def parse_sensor_line(line: str) -> Optional[SensorFrame]:
     if len(parts) < 5:
         return None
     try:
-        return SensorFrame(
+        frame = SensorFrame(
             r_mm=float(parts[0]),
             theta_deg=float(parts[1]),
             phi_deg=float(parts[2]),
             is_valid=int(parts[3]),
             frame_count=int(parts[4]),
         )
+        if not all(math.isfinite(v) for v in (frame.r_mm, frame.theta_deg, frame.phi_deg)):
+            return None
+        return frame
     except ValueError:
         return None
 
@@ -98,11 +101,14 @@ def parse_xyz_line(line: str) -> Optional[XYZFrame]:
     try:
         if not (parts[0].startswith('X') and parts[1].startswith('Y') and parts[2].startswith('Z')):
             return None
-        return XYZFrame(
+        frame = XYZFrame(
             x_mm=float(parts[0][1:]),
             y_mm=float(parts[1][1:]),
             z_mm=float(parts[2][1:]),
         )
+        if not all(math.isfinite(v) for v in (frame.x_mm, frame.y_mm, frame.z_mm)):
+            return None
+        return frame
     except ValueError:
         return None
 

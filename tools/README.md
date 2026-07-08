@@ -2,6 +2,27 @@
 
 Python utilities for the evka_position project.
 
+## ipt
+
+Quick IPT hidden-point measurement tool. Recovers a target point that the pen
+cannot touch directly (around a corner, behind an obstacle, inside a recess)
+using the Prodim Proliner's "Quick IPT" (Inverted Pen Technology) method.
+
+```bash
+# WiFi (AP fallback)
+python -m tools.ipt --tcp 192.168.1.50:8080
+
+# Serial
+python -m tools.ipt --serial /dev/ttyUSB0 --baud 115200
+
+# No flag → opens disconnected
+python -m tools.ipt
+```
+
+Hold the pen **tip** on the hidden target, sweep the **handle** in a wide spiral,
+and fit a sphere to recover the target. See `tools/ipt/README.md` for full
+workflow, quality flags, and troubleshooting.
+
 ## position_checker
 
 Real-time 3D position visualiser that reads the `DATA,` CSV stream from the
@@ -103,14 +124,25 @@ AP fallback remains `192.168.1.50` when connected directly to `CMDCNC_EVKA`.
 - Connect / disconnect to ESP32 TCP server
 - Live `X,Y,Z` display from streamed telemetry line:
   - `X12.34,Y-56.78,Z90.12`
-- Per-axis software zero (`X=0`, `Y=0`, `Z=0`)
-- All-axis software zero
-- Hardware encoder zero (`ZERO`)
+- Live `SENSOR,...` panel (R, θ, φ, valid, frame)
+- Per-axis **software zero** (`X=0`, `Y=0`, `Z=0`) — display-only offset
+- **Software Zero (All)** — zeros all axes in the display frame (no firmware command)
+- **Clear Software Zero** — return to world coordinates without sending `ZERO`
+- **Hardware Zero (Encoder)** — sends `ZERO` to firmware at mechanical home
+- **Reset Min/Max** — clears session min/max stats only (not zero offsets)
+- Saved points (`SAVE_POINT` / `DEL_POINT`) with session-local list
+- ESP-NOW remote button indicators (`REMOTE_BTN`, `REMOTE_HB`)
 - Router IP query (`GET_IP` -> `STA_IP:*`)
+- System info polling (`SYSINFO` — RSSI, heap, uptime, TCP clients)
 - Wi-Fi credential save/forget:
-  - Save: `WIFI_AYAR:ssid,password`
-  - Forget: `WIFI_AYAR:,`
+  - Save: `WIFI_SET:<ssid>,<password>` (empty password = open network)
+  - Forget: `WIFI_SET:,`
 - Local settings persistence via `settings.txt` in current working directory
+
+**Zero semantics:** Software zero subtracts the current raw XYZ as a client-side
+offset so the display shows relative position. R/θ/φ are recomputed from the
+zeroed Cartesian values. Hardware zero sends `ZERO` and resets encoders. Software
+zero is cleared on disconnect.
 
 ### TCP Protocol Quick Reference
 
@@ -119,8 +151,11 @@ GUI -> ESP32 (newline-delimited ASCII):
 ```text
 GET_IP
 ZERO
-WIFI_AYAR:<ssid>,<password>
-WIFI_AYAR:,
+SAVE_POINT
+DEL_POINT
+SYSINFO
+WIFI_SET:<ssid>,<password>
+WIFI_SET:,
 ```
 
 ESP32 -> GUI (newline-delimited ASCII):
@@ -129,6 +164,12 @@ ESP32 -> GUI (newline-delimited ASCII):
 STA_IP:<ipv4>
 STA_IP:NOT_CONNECTED
 X<value>,Y<value>,Z<value>
+SENSOR,<r>,<theta>,<phi>,<valid>,<frame>
+SYSINFO,<rssi>,<heap>,<uptime_s>,<tcp_clients>
+POINT,<idx>,<x>,<y>,<z>,<r>,<theta>,<phi>
+DEL_POINT,<idx>
+REMOTE_BTN:<0|1>
+REMOTE_HB
 ACK:<cmd>
 ERR:<reason>
 ```
