@@ -24,6 +24,10 @@ Documentation and KiCad sources for the **12V-input** evka_position carrier with
 
 An **all through-hole version** of this design is available in [../12v_tht/](../12v_tht/). Same circuit topology — all SMD discretes (AO4407A, SMBJ18A, SS34 SMA, 0805 caps) replaced with THT equivalents (IRF4905 TO-220, P6KE18A axial, SS34 DO-201, ceramic disc). Easier to hand-solder on pertinax without SMD rework tools.
 
+## New simple V3 reference
+
+For new simple 12V builds, prefer [../v3/](../v3/). V3 keeps the ESP32-S3 + 3S backup direction, removes onboard charging and V2 expansion hardware, and uses a ready-made power-path module interface for the internal battery backup.
+
 ## Legacy 5V reference (unchanged signal section)
 
 - [../5v/circuit_schematic.md](../5v/circuit_schematic.md) — sections 3–7 (encoder dividers, GPIO, TVS, ferrites)

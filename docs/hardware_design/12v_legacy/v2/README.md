@@ -32,7 +32,7 @@
 ## Folder Structure
 
 ```
-docs/hardware_design/v2/
+docs/hardware_design/12v_legacy/v2/
 ├── README.md                         # This file
 ├── circuit_schematic_v2.md           # Full system schematic with ASCII diagrams
 ├── bill_of_materials_v2.md           # Complete BOM with Turkish sourcing
@@ -161,7 +161,7 @@ graph TD
 ### Firmware changes required
 1. Update `platformio.ini` to use `board = esp32-s3-devkitc-1`
 2. Replace all GPIO references in `SphericalSensor.h` using new map
-3. **Replace `PaulStoffregen/Encoder` with `madhephaestus/ESP32Encoder`** — uses ESP32-S3 PCNT hardware, zero CPU overhead for quadrature counting. See `docs/hardware_design/v2/subsystems/encoder_interface_v2.md` section 9a.
+3. **Replace `PaulStoffregen/Encoder` with `madhephaestus/ESP32Encoder`** — uses ESP32-S3 PCNT hardware, zero CPU overhead for quadrature counting. See `docs/hardware_design/12v_legacy/v2/subsystems/encoder_interface_v2.md` section 9a.
 4. Add `Wire.h` for I2C (RTC, ADS1115)
 5. Add `ModbusRTU` library for RS-485
 6. Add `RTClib` for DS3231 timestamping
@@ -175,6 +175,7 @@ graph TD
 
 ## Related Documents
 
+- Simple V3 design: [`../v3/`](../v3/) — ESP32-S3 core-only board with internal 3S backup and generic ready-made power-path module interface
 - Legacy 12V design: [`../12v/`](../12v/)
 - Legacy 5V design: [`../5v/`](../5v/)
 - System architecture: [`../system_architecture.md`](../system_architecture.md)

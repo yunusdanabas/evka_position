@@ -28,5 +28,5 @@ Open **`evka_position_12v.kicad_pro`** in **KiCad 9**.
 From the repo root:
 
 ```bash
-kicad-cli sch erc docs/hardware_design/12v/kicad/evka_position_12v.kicad_sch
+kicad-cli sch erc docs/hardware_design/12v_legacy/12v/kicad/evka_position_12v.kicad_sch
 ```
