@@ -68,8 +68,9 @@ obj/
 firmware/src/CMD Soft/bin/
 firmware/src/CMD Soft/obj/
 
-# Root-level calibration folder (moved to firmware/tests/)
-calibration/
+# Root-level calibration folder (moved to firmware/tests/) — anchored so it does
+# NOT match docs/calibration/
+/calibration/
 
 # Experimental tools
 tools/analysis/
