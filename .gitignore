@@ -56,8 +56,23 @@ docs/ESP32_*.md
 !docs/ESP32_WIFI_AP_STA_HEAP_DRAIN_GUIDE.md
 docs/README_MICROROS.md
 
-# Reports and build artifacts
-report/
+# LaTeX build artifacts in the report folders (sources + PDFs stay tracked).
+# Do NOT use a bare "report/" rule — it silently hid laser_radius/report/ (a
+# documented deliverable) and report/main.tex. Same bug class as /calibration/.
+report/*.aux
+report/*.log
+report/*.out
+report/*.toc
+report/*.synctex.gz
+report/*.fls
+report/*.fdb_latexmk
+laser_radius/report/*.aux
+laser_radius/report/*.log
+laser_radius/report/*.out
+laser_radius/report/*.toc
+laser_radius/report/*.synctex.gz
+laser_radius/report/*.fls
+laser_radius/report/*.fdb_latexmk
 
 # .NET / C# build artifacts
 bin/
