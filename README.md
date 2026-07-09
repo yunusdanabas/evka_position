@@ -2,6 +2,11 @@
 
 > Türkçe WiFi kullanıcı kılavuzu: [README_TR.md](README_TR.md)
 
+> **New maintainer / taking over this project?** Start at **[HANDOFF.md](HANDOFF.md)**, set up your
+> machine with **[CONTRIBUTING.md](CONTRIBUTING.md)** (Ubuntu **and** Windows), learn the internals in
+> **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**, and browse everything from the
+> **[docs index](docs/README.md)**.
+
 ## Overview
 Evka Position is a firmware project for the **ESP32** — the classic Wemos D1 R32, or the **ESP32-S3 v4 PCB** (`pcb_design/EVKA_position_v4/`) — that calculates the real-time 3D position (X, Y, Z) of a target object using three sensor inputs:
 
@@ -307,3 +312,11 @@ Full fix log and pending hardware validation steps: `docs/WIFI_PERFORMANCE_ISSUE
 - Calibration procedures: `docs/calibration/README.md`
 - NVS calibration persistence: `docs/firmware/ESP32_NVS_CALIBRATION_GUIDE.md`
 - System architecture: `docs/hardware_design/system_architecture.md`
+- **Full documentation index:** `docs/README.md`
+
+## License & Ownership
+
+This repository currently has **no license file** — it is unlicensed (all rights reserved by
+default). The owner should choose a license. The "CMD" C# app and its original ESP32 firmware under
+`firmware/src/CMD Soft/` originate from an external vendor; confirm their terms before redistribution.
+See [HANDOFF.md](HANDOFF.md) §6.

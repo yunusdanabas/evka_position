@@ -1,0 +1,19 @@
+# Python dependencies for the evka_position tools (position_checker, ipt, calibration).
+# Mirror of pyproject.toml [project.dependencies] + test tooling, for pip/Windows users
+# who don't want an editable install.
+#
+#   python -m venv .venv
+#   # Linux/macOS:  source .venv/bin/activate
+#   # Windows:      .venv\Scripts\activate
+#   pip install -r requirements.txt
+#
+# (Equivalent editable install:  pip install -e .  — see pyproject.toml)
+
+pyserial>=3.5
+matplotlib>=3.7
+numpy>=1.20
+PyQt5>=5.15
+pyqtgraph>=0.12
+
+# Test runner (not a runtime dependency)
+pytest>=7.0

@@ -1,0 +1,30 @@
+# Consistent editor settings across contributors/OSes.
+# https://editorconfig.org  (supported natively by VS Code, Visual Studio, JetBrains)
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+# C/C++ firmware and C# — 4-space indent (matches existing sources)
+[*.{c,cpp,h,ino,cs}]
+indent_size = 4
+
+# Python — PEP 8, 4 spaces
+[*.py]
+indent_size = 4
+
+[*.{yml,yaml,json}]
+indent_size = 2
+
+# Markdown: trailing whitespace can be a hard line break — don't trim
+[*.md]
+trim_trailing_whitespace = false
+
+# Windows scripts use CRLF
+[*.{bat,cmd,ps1}]
+end_of_line = crlf

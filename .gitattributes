@@ -1,0 +1,39 @@
+# Normalize line endings across Ubuntu <-> Windows checkouts.
+# Text files are stored with LF in git and checked out with LF everywhere,
+# so the repo does not churn when edited on Windows.
+
+* text=auto eol=lf
+
+# Windows-native scripts keep CRLF
+*.bat  text eol=crlf
+*.ps1  text eol=crlf
+*.cmd  text eol=crlf
+
+# Source: force LF regardless of platform
+*.cpp  text eol=lf
+*.h    text eol=lf
+*.ino  text eol=lf
+*.py   text eol=lf
+*.cs   text eol=lf
+*.md   text eol=lf
+*.ini  text eol=lf
+*.json text eol=lf
+
+# Binary / non-diffable assets — never normalize, never try to merge
+*.pdf       binary
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.zip       binary
+*.dll       binary
+*.exe       binary
+*.pdb       binary
+*.step      binary
+*.stp       binary
+# KiCad files: LF internally but not human-mergeable — treat as binary to avoid
+# EOL rewriting / bogus merges on Windows
+*.kicad_pcb binary
+*.kicad_sch binary
+*.kicad_pro binary
+*.kicad_prl binary
