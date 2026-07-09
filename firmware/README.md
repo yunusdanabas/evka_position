@@ -35,4 +35,4 @@ pio run -e wemos_d1_r32
 
 ## Configuration
 
-Edit `src/SphericalSensor.h` to change pin assignments, encoder resolution, or safety limits. See [`CLAUDE.md`](../CLAUDE.md) for a summary of all constants.
+Edit `src/SphericalSensor.h` to change pin assignments, encoder resolution, or safety limits. See [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md) for a summary of all constants.

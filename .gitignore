@@ -51,6 +51,9 @@ docs/improvement_research.md
 docs/MICROROS*.md
 docs/FreeRTOS*.md
 docs/ESP32_*.md
+# ...but these two are current, referenced troubleshooting docs — keep them tracked:
+!docs/ESP32_WDT_20HZ_QUICK_REFERENCE.md
+!docs/ESP32_WIFI_AP_STA_HEAP_DRAIN_GUIDE.md
 docs/README_MICROROS.md
 
 # Reports and build artifacts

@@ -20,4 +20,4 @@ Original evka_position carrier board — 5V external input with 1S LiPo battery 
 
 ## Superseded by
 
-The **12V + 3S LiPo** design in [../12v/](../12v/) replaces this board for new builds. The signal conditioning section (dividers, TVS, ferrites) is identical between both designs.
+The **12V + 3S LiPo** design in [../12v_legacy/12v/](../12v_legacy/12v/) (archived — the project reverted to 5V) is a historical alternative to this board. The signal conditioning section (dividers, TVS, ferrites) is identical between both designs.
