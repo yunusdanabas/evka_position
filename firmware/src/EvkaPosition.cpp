@@ -1,4 +1,5 @@
 #include "SphericalSensor.h"
+#include "StatusLed.h"
 #include <Preferences.h>
 
 #if ENABLE_WIFI
@@ -43,7 +44,7 @@ static void onEspNowRecv(const uint8_t* mac, const uint8_t* data, int len) {
     }
 }
 
-static void initEspNow() {
+static bool initEspNow() {
     // Print the channel the AP is actually on so we can verify it matches
     // the remote's ESPNOW_CHANNEL define.
     uint8_t primary; wifi_second_chan_t second;
@@ -52,10 +53,11 @@ static void initEspNow() {
 
     if (esp_now_init() != ESP_OK) {
         Serial.println("[ESP-NOW] Init FAILED");
-        return;
+        return false;
     }
     esp_now_register_recv_cb(onEspNowRecv);
     Serial.println("[ESP-NOW] Remote receiver ready");
+    return true;
 }
 #endif // ENABLE_WIFI && ENABLE_ESPNOW_REMOTE
 
@@ -64,11 +66,46 @@ static void initEspNow() {
 // ============================================================================
 
 SphericalPositioningSensor sensor;
+StatusLed statusLed;
+
+static bool g_boot_calibrating = false;
+#if ENABLE_WIFI && ENABLE_ESPNOW_REMOTE
+static bool g_espnow_fault = false;
+#endif
 
 // Update Frequency
 #define UPDATE_PERIOD_MS  50  // 20 Hz position update rate
 
 static String serial_buffer;
+
+static StatusLedInputs buildStatusLedInputs() {
+    StatusLedInputs in = {};
+#if ENABLE_WIFI
+    in.wifi_enabled = true;
+    in.sta_configured = dashboard.isStaConfigured();
+    in.sta_connected = dashboard.isStaConnected();
+#else
+    in.wifi_enabled = false;
+#endif
+    in.boot_calibrating = g_boot_calibrating;
+#if ENABLE_WIFI && ENABLE_ESPNOW_REMOTE
+    in.espnow_fault = g_espnow_fault;
+#endif
+    in.position_valid = (sensor.getStatus().is_valid != 0);
+    return in;
+}
+
+static void tickStatusLed() {
+    statusLed.update(buildStatusLedInputs());
+}
+
+static void waitWithStatusLed(uint32_t ms) {
+    const uint32_t start = millis();
+    while ((int32_t)(millis() - start) < (int32_t)ms) {
+        tickStatusLed();
+        delay(10);
+    }
+}
 
 static String buildStatusLine() {
     SystemStatus st = sensor.getStatus();
@@ -81,33 +118,57 @@ static String buildStatusLine() {
     return String(buf);
 }
 
+#if ENABLE_BATTERY_MONITOR
+static String buildBatteryLine() {
+    BatteryStatus bat = sensor.readBattery();
+    char buf[40];
+    snprintf(buf, sizeof(buf), "BATT,%.3f,%u,%u",
+             bat.voltage, bat.percentage, bat.is_low ? 1 : 0);
+    return String(buf);
+}
+#endif
+
 static String printStatusLine() {
     String statusLine = buildStatusLine();
     Serial.println(statusLine);
 
 #if ENABLE_BATTERY_MONITOR
-    BatteryStatus bat = sensor.readBattery();
-    Serial.print("BATT,");
-    Serial.print(bat.voltage, 3);
-    Serial.print(",");
-    Serial.print(bat.percentage);
-    Serial.print(",");
-    Serial.println(bat.is_low ? 1 : 0);
+    Serial.println(buildBatteryLine());
 #endif
     return statusLine;
 }
 
+static void sendBatteryLineToWireless() {
+#if ENABLE_WIFI && ENABLE_BATTERY_MONITOR
+    String batt = buildBatteryLine();
+    dashboard.broadcast(batt.c_str());
+#if ENABLE_CMD_TCP
+    cmdTcp.sendToAllClients(batt.c_str());
+#endif
+#endif
+}
+
 // Returns the reply line (also printed to Serial). Empty string = no reply needed.
-static String processCommand(const String& cmd) {
+static String processCommand(String cmd) {
+    cmd.trim();
     static uint32_t pt_idx = 0;  // shared across SAVE_POINT and DEL_POINT
     if (cmd == "ZERO") {
         sensor.setZeroPoint();
         Serial.println("ACK:ZERO");
+        statusLed.flashZeroAck();
         return "ACK:ZERO";
 
     } else if (cmd == "PING") {
         Serial.println("ACK:PONG");
         return "ACK:PONG";
+
+    } else if (cmd == "BLINK") {
+        // Connection test: flash the status LED bright white for ~700 ms so the
+        // operator can visually confirm the ESP32 received a command (works over
+        // serial, TCP, and WebSocket). No-op on boards without the RGB LED.
+        statusLed.flashOverlay(255, 255, 255, 700);
+        Serial.println("ACK:BLINK");
+        return "ACK:BLINK";
 
     } else if (cmd == "STATUS") {
         return printStatusLine();
@@ -115,16 +176,19 @@ static String processCommand(const String& cmd) {
     } else if (cmd == "ZERO_T") {
         sensor.zeroTheta();
         Serial.println("ACK:ZERO_T");
+        statusLed.flashZeroAck();
         return "ACK:ZERO_T";
 
     } else if (cmd == "ZERO_P") {
         sensor.zeroPhi();
         Serial.println("ACK:ZERO_P");
+        statusLed.flashZeroAck();
         return "ACK:ZERO_P";
 
     } else if (cmd == "ZERO_W") {
         sensor.zeroWire();
         Serial.println("ACK:ZERO_W");
+        statusLed.flashZeroAck();
         return "ACK:ZERO_W";
 
     } else if (cmd == "CONSTANTS") {
@@ -321,11 +385,17 @@ void setup() {
     
     Serial.println("\n========================================");
     Serial.println("  Spherical 3D Positioning System");
-    Serial.println("  Firmware v1.0");
+    Serial.println("  Firmware v1.1  (BLINK connection test)");
+#if defined(PCB_V4)
+    Serial.println("  Board: EVKA v4 / ESP32-S3");
+#else
+    Serial.println("  Board: classic ESP32");
+#endif
     Serial.println("========================================\n");
     
     // Initialize sensor hardware
     sensor.begin();
+    statusLed.begin();
 
 #if ENABLE_WIFI
     dashboard.begin();
@@ -334,26 +404,23 @@ void setup() {
     cmdTcp.begin();
 #endif
 #if ENABLE_ESPNOW_REMOTE
-    initEspNow();
+    g_espnow_fault = !initEspNow();
 #endif
-    // WiFi status LED
-    pinMode(PIN_WIFI_LED, OUTPUT);
-    digitalWrite(PIN_WIFI_LED, LOW);
 #endif
 
     // CRITICAL: Set zero point when robot is at home position
+    g_boot_calibrating = true;
     Serial.println("Waiting 2s before calibration...");
-    delay(2000);
+    waitWithStatusLed(2000);
     Serial.println("Setting zero point... (Ensure robot is at MECHANICAL HOME!)");
     sensor.setZeroPoint();
+    g_boot_calibrating = false;
+    tickStatusLed();
     Serial.println("Calibration Complete.");
 }
 
 void loop() {
     static unsigned long last_update = 0;
-    static unsigned long last_led_toggle = 0;
-    static bool led_state = false;
-    static bool sta_configured = false;
 
     // Non-blocking serial command handler
     handleSerialCommands();
@@ -365,9 +432,10 @@ void loop() {
         int8_t btn = espnow_pending_button;
         espnow_pending_button = -1;
         if (btn < REMOTE_BUTTON_COUNT) {
-            // Broadcast button event for web UI and TCP indicator
+            // Broadcast button event for web UI, TCP, and serial indicator
             char btn_msg[24];
             snprintf(btn_msg, sizeof(btn_msg), "REMOTE_BTN:%d", btn);
+            Serial.println(btn_msg);
             dashboard.broadcast(btn_msg);
 #if ENABLE_CMD_TCP
             cmdTcp.sendToAllClients(btn_msg);
@@ -376,6 +444,7 @@ void loop() {
             const char* cmd = REMOTE_BUTTON_CMD[btn];
             if (cmd == nullptr) return;  // unassigned button — ignore silently
             Serial.printf("[ESP-NOW] Button %d -> %s\n", btn, cmd);
+            statusLed.flashRemoteButton();
             String reply = processCommand(String(cmd));
             if (reply.length() > 0) {
                 dashboard.broadcast(reply.c_str());
@@ -385,9 +454,10 @@ void loop() {
             }
         }
     }
-    // Heartbeat — rebroadcast to WebSocket and TCP so GUIs can track link status
+    // Heartbeat — rebroadcast to WebSocket, TCP, and serial so GUIs can track link status
     if (espnow_pending_heartbeat) {
         espnow_pending_heartbeat = false;
+        Serial.println("REMOTE_HB");
         dashboard.broadcast("REMOTE_HB");
 #if ENABLE_CMD_TCP
         cmdTcp.sendToAllClients("REMOTE_HB");
@@ -405,6 +475,7 @@ void loop() {
             String reply = processCommand(wsCmd);
             if (reply.length() > 0) {
                 dashboard.broadcast(reply.c_str());
+                if (wsCmd == "STATUS") sendBatteryLineToWireless();
 #if ENABLE_CMD_TCP
                 // POINT/DEL_POINT must reach TCP clients too (keeps all UIs in sync)
                 if (reply.startsWith("POINT,") || reply.startsWith("DEL_POINT,"))
@@ -423,6 +494,7 @@ void loop() {
             String reply = processCommand(tcpCmd);
             if (reply.length() > 0) {
                 cmdTcp.sendToAllClients(reply.c_str());
+                if (tcpCmd == "STATUS") sendBatteryLineToWireless();
                 // POINT/DEL_POINT must reach WebSocket dashboard too
                 if (reply.startsWith("POINT,") || reply.startsWith("DEL_POINT,"))
                     dashboard.broadcast(reply.c_str());
@@ -431,29 +503,9 @@ void loop() {
     }
 #endif
 
-    // WiFi status LED: blink=searching, solid=connected, off=no STA
-    {
-        // Check if STA credentials are configured (only once)
-        static bool sta_checked = false;
-        if (!sta_checked) {
-            sta_configured = dashboard.isStaConfigured();
-            sta_checked = true;
-        }
-
-        if (!sta_configured) {
-            digitalWrite(PIN_WIFI_LED, LOW);  // OFF — no STA config
-        } else if (WiFi.status() == WL_CONNECTED) {
-            digitalWrite(PIN_WIFI_LED, HIGH); // Solid ON — connected
-        } else {
-            // Blink 500ms — searching
-            if (millis() - last_led_toggle >= 500) {
-                last_led_toggle = millis();
-                led_state = !led_state;
-                digitalWrite(PIN_WIFI_LED, led_state ? HIGH : LOW);
-            }
-        }
-    }
 #endif // ENABLE_WIFI
+
+    tickStatusLed();
 
     // Update position at fixed interval
     if (millis() - last_update >= UPDATE_PERIOD_MS) {

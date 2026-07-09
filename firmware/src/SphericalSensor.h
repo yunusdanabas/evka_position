@@ -79,8 +79,17 @@
 #define WIFI_AP_IP_O3    1
 #define WIFI_AP_IP_O4    50
 
-// WiFi status LED
-#define PIN_WIFI_LED     2   // GPIO 2 = built-in LED on most ESP32 boards
+// Status LED — RGB NeoPixel on ESP32-S3 DevKit; classic board uses GPIO2
+#if defined(PCB_V4)
+#define ENABLE_RGB_STATUS_LED  1
+#ifndef RGB_LED_GPIO
+#define RGB_LED_GPIO  48   // DevKit v1.0 WS2812; v1.1 uses 38 (env esp32s3_v4_rgb38)
+#endif
+#define PIN_RGB_LED  RGB_LED_GPIO
+#else
+#define ENABLE_RGB_STATUS_LED  0
+#endif
+#define PIN_WIFI_LED     2   // GPIO 2 = built-in LED on classic ESP32 boards
 
 // Battery / supply monitoring (ADC1_CH0). v4: GPIO1 (1S divider); classic: GPIO36.
 #if defined(PCB_V4)

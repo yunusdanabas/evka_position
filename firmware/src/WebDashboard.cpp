@@ -53,7 +53,7 @@ body{background:#1a1a2e;color:#e0e0e0;font-family:monospace;overflow:hidden;touc
 .vcard-unit{font-size:11px;color:#556677}
 .vcard.invalid .vcard-value{color:#ff3333}
 .btn-row{display:flex;gap:6px;margin-top:8px}
-.btn-row button{flex:1;min-height:48px;padding:0 8px;font-size:12px;font-family:monospace;
+.btn-row button{flex:1;min-height:56px;padding:12px 8px;font-size:12px;font-family:monospace;
   border:1px solid #00ffff;color:#00ffff;background:transparent;border-radius:5px;
   touch-action:manipulation;-webkit-tap-highlight-color:transparent;cursor:pointer}
 .btn-row button:active{background:#00ffff;color:#000}
@@ -131,7 +131,8 @@ button:disabled{opacity:0.35;pointer-events:none}
 <body>
 <div id="app">
 <div id="hdr">
- <span id="hdr-title">EVKAPOSITION</span>
+  <span id="hdr-title">EVKAPOSITION</span>
+  <span style="color:#445566;font-size:9px;font-style:italic">Yunus Emre Danabaş</span>
  <div id="conn-led"></div>
  <button id="btn-freeze" onclick="toggleFreeze()">FREEZE</button>
  <button id="btn-axes" onclick="toggleAxes()">AXES</button>
@@ -201,6 +202,7 @@ button:disabled{opacity:0.35;pointer-events:none}
  <div class="btn-row">
   <button onclick="resetMinMax()" class="btn-amber">RESET MIN/MAX</button>
   <button onclick="sendCmd('PING')">PING</button>
+   <button onclick="sendCmd('BLINK')" style="flex:0 0 auto;padding:12px 12px;font-size:10px">BLINK LED</button>
  </div>
  <div class="sep"></div>
  <div class="section-lbl">REMOTE BUTTONS</div>
@@ -230,10 +232,11 @@ button:disabled{opacity:0.35;pointer-events:none}
       font-family:monospace;line-height:1.6;margin-top:3px"></div>
  <div class="sep"></div>
  <div class="section-lbl">WIFI SETTINGS</div>
- <div class="vcard">
-  <div class="row"><span class="lbl">Router IP</span><span class="val" id="v-router-ip">--</span></div>
-  <div class="row"><span class="lbl">RSSI</span><span class="val" id="v-rssi">--</span></div>
- </div>
+  <div class="vcard">
+   <div class="row"><span class="lbl">Router IP</span><span class="val" id="v-router-ip">--</span></div>
+   <div class="row"><span class="lbl">RSSI</span><span class="val" id="v-rssi">--</span></div>
+   <div class="row"><span class="lbl">Battery</span><span class="val" id="v-batt">--</span></div>
+  </div>
  <div style="display:flex;gap:4px;margin:4px 0">
   <input type="text" id="wifi-ssid" placeholder="Network SSID" style="flex:1;padding:6px;font-size:11px;font-family:monospace;background:#0a0a1a;border:1px solid #446;color:#eef;border-radius:3px">
   <input type="password" id="wifi-pass" placeholder="Password" style="flex:1;padding:6px;font-size:11px;font-family:monospace;background:#0a0a1a;border:1px solid #446;color:#eef;border-radius:3px">
@@ -247,7 +250,8 @@ button:disabled{opacity:0.35;pointer-events:none}
  <div class="row"><span class="lbl">Free Heap</span><span class="val" id="v-heap">--</span></div>
  <div class="row"><span class="lbl">Uptime</span><span class="val" id="v-uptime">--</span></div>
  <div class="row"><span class="lbl">TCP Clients</span><span class="val" id="v-tcp">--</span></div>
- <div id="status">Connecting...</div>
+  <div id="status">Connecting...</div>
+  <div style="text-align:right;color:#445566;font-size:9px;font-style:italic;margin-top:8px">Yunus Emre Danabaş</div>
 </div>
 <!-- Calibration view — full width, shown when CALIBRATE tab active -->
 <div id="cal-view">
@@ -685,17 +689,23 @@ function onWsMessage(e){
  } else if(line.startsWith("STA_IP:")){
   const ip=line.substring(7).trim();
   setText("v-router-ip",ip==="NOT_CONNECTED"?"Not Connected":ip);
- } else if(line.startsWith("SYSINFO,")){
-  const p=line.substring(8).split(",");
-  if(p.length>=4){
-   const rssi=parseInt(p[0]),heap=parseInt(p[1]),up=parseInt(p[2]),tcp=parseInt(p[3]);
-   setText("v-rssi",rssi+" dBm");
-   setText("v-heap",(heap/1024).toFixed(0)+" KB");
-   const h=Math.floor(up/3600),m=Math.floor((up%3600)/60),s=up%60;
-   setText("v-uptime",(h<10?"0":"")+h+":"+(m<10?"0":"")+m+":"+(s<10?"0":"")+s);
-   setText("v-tcp",tcp);
-  }
- } else if(line.startsWith("POINT,")){
+  } else if(line.startsWith("SYSINFO,")){
+   const p=line.substring(8).split(",");
+   if(p.length>=4){
+    const rssi=parseInt(p[0]),heap=parseInt(p[1]),up=parseInt(p[2]),tcp=parseInt(p[3]);
+    setText("v-rssi",rssi+" dBm");
+    setText("v-heap",(heap/1024).toFixed(0)+" KB");
+    const h=Math.floor(up/3600),m=Math.floor((up%3600)/60),s=up%60;
+    setText("v-uptime",(h<10?"0":"")+h+":"+(m<10?"0":"")+m+":"+(s<10?"0":"")+s);
+    setText("v-tcp",tcp);
+   }
+  } else if(line.startsWith("BATT,")){
+   const p=line.substring(5).split(",");
+   if(p.length>=3){
+    const v=parseFloat(p[0]),pct=parseInt(p[1]),low=parseInt(p[2]);
+    setText("v-batt",v.toFixed(3)+" V / "+pct+"%"+(low?" LOW":""));
+   }
+  } else if(line.startsWith("POINT,")){
   const p=line.substring(6).split(",");
   if(p.length>=7){
    const idx=parseInt(p[0]);
@@ -817,7 +827,7 @@ function exportSnapshots(){
 function saveWifi(){
  const ssid=document.getElementById("wifi-ssid").value.trim();
  const pass=document.getElementById("wifi-pass").value;
- if(!ssid||pass.length<8){setStatus("SSID required, password min 8 chars");return;}
+  if(!ssid||(pass.length>0&&pass.length<8)){setStatus("SSID required, password empty or min 8 chars");return;}
  sendCmd("WIFI_SET:"+ssid+","+pass);
  setStatus("WiFi credentials sent. Waiting for device response...");
 }
@@ -827,7 +837,7 @@ function forgetWifi(){
 }
 
 // Request system info periodically
-setInterval(function(){if(ws&&ws.readyState===1){sendCmd("SYSINFO");sendCmd("GET_IP");}},5000);
+setInterval(function(){if(ws&&ws.readyState===1){sendCmd("SYSINFO");sendCmd("GET_IP");sendCmd("STATUS");}},5000);
 
 // Session — Save Origin
 function saveOrigin(){

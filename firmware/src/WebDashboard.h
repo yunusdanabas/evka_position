@@ -17,6 +17,7 @@ public:
     void broadcast(const char* dataLine);
     String takePendingCommand();   // Poll from loop() to process WS commands
     bool isStaConfigured() const { return _staConfigured; }
+    bool isStaConnected() const { return _staConnected; }
 
 private:
     static constexpr uint32_t AP_HEALTH_CHECK_MS    = 2000;
