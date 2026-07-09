@@ -49,8 +49,8 @@ third-party Windows CNC app ("CMD") consumes.
 | Firmware — **v4 PCB (ESP32-S3)** | ✅ **Ported & builds** (`esp32s3_v4`); **hardware bring-up pending** |
 | v4 PCB | ✅ **Fabricated**; assembly + bring-up not yet done |
 | WiFi dashboard + TCP CMD protocol | ✅ Working, hardened (see troubleshooting docs) |
-| ESP-NOW wireless pendant | ✅ Working (`button_remote`) |
-| Python tools (position_checker, ipt, calibration) | ✅ Working, 52 tests pass |
+| ESP-NOW wireless pendant | ✅ Working (`button_remote`, verified on ESP32-C3 USB) |
+| Python tools (evka_gui, position_checker shims, ipt) | ✅ Working |
 | CMD C# Windows app | ✅ Builds (`CMDScanner.csproj`, .NET 8) |
 | Full 3-encoder hardware integration test | ⬜ **Next milestone** (Phase 5) |
 
@@ -83,6 +83,8 @@ evka_position/
 │
 ├── tools/                  Python host-side tools (see docs/README.md → Tools)
 │   ├── position_checker/   Live 3D visualizer + CMD-protocol GUI
+│   ├── evka_gui/           Unified control + 3D GUI (canonical)
+│   ├── evka_gui_v2/        Deprecated shim
 │   ├── ipt/                Hidden-point ("Inverted Pen") measurement tool
 │   ├── calibration/        Kabsch world↔sensor calibration (calibrate.py)
 │   └── remote_tester/      Pendant test GUI
@@ -91,6 +93,7 @@ evka_position/
 │   └── EVKA_position_v4/    ← current board (+ FIRMWARE.md quickstart)
 │
 ├── docs/                   All documentation — start at docs/README.md (index)
+│   └── gui_unification/     GUI consolidation plan + implementation log
 └── laser_radius/           Research: laser-based radius alternative (exploratory)
 ```
 

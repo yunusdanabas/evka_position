@@ -151,12 +151,15 @@ GUI -> ESP32 (newline-delimited ASCII):
 ```text
 GET_IP
 ZERO
+BLINK
 SAVE_POINT
 DEL_POINT
 SYSINFO
 WIFI_SET:<ssid>,<password>
 WIFI_SET:,
 ```
+
+`BLINK` → `ACK:BLINK`; the board flashes its status LED white for ~0.7 s (a connection check; no-op on boards without the RGB LED).
 
 ESP32 -> GUI (newline-delimited ASCII):
 
@@ -175,3 +178,59 @@ ERR:<reason>
 ```
 
 WiFi credential validation: SSID must be 1–32 chars (`ERR:SSID_INVALID`); password must be empty or ≥8 chars (`ERR:PASS_TOO_SHORT`). Unrecognized commands return `ERR:UNKNOWN_CMD`.
+
+## evka_gui — unified control GUI (canonical)
+
+Single-window host GUI for **EVKA Position v4** (ESP32-S3, env `esp32s3_v4`).
+Combines the serial visualizer, Linux CMD panel, and v4 control GUI. One
+connection drives everything: Serial, WiFi/TCP, or CSV replay.
+
+**Main page** — live position, 3D trail, min/max, software/hardware zero,
+saved points, WiFi config, SYSINFO, ESP-NOW remote, battery when firmware reports it.
+
+**Calibration window** (toolbar) — wire multi-trial PPR, theta/phi turn-count,
+endpoint pair export.
+
+### Run
+
+```bash
+python -m tools.evka_gui                              # open disconnected
+python -m tools.evka_gui --serial /dev/ttyUSB0 --baud 115200
+python -m tools.evka_gui --tcp 192.168.1.50:8080      # AP (CMDCNC_EVKA)
+python -m tools.evka_gui --tcp 192.168.1.84:8080      # STA (ASMETAL)
+python -m tools.evka_gui --replay frames.csv
+```
+
+AP/STA quick-select buttons in the connection panel. Settings persist via `QSettings`.
+
+### Transport → feature matrix
+
+| Feature | Serial | WiFi/TCP | Replay |
+|---|:--:|:--:|:--:|
+| Live position (X/Y/Z, R/θ/φ) | ✓ | ✓ | ✓ |
+| 3D trail + 2D plots | ✓ | ✓ | ✓ |
+| Battery | ✓ | ✓ via `STATUS` | — |
+| ESP-NOW remote | — | ✓ | — |
+| WiFi config | — | ✓ | — |
+| Calibration | ✓ | ✓ | — |
+| Commands | ✓ | ✓ | — |
+
+### Tests
+
+```bash
+python -m pytest tools/evka_gui/tests -v
+```
+
+### Deprecated shims
+
+| Old command | Replacement |
+|---|---|
+| `python -m tools.evka_gui_v2` | `python -m tools.evka_gui` |
+| `python -m tools.position_checker.cmd_main` | `python -m tools.evka_gui --tcp …` |
+| `python -m tools.position_checker.main --port …` | `python -m tools.evka_gui --serial …` |
+
+Pass `--legacy-cmd-gui` or `--legacy-visualizer` to run the old standalone tools.
+
+## evka_gui_v2 (deprecated)
+
+Shim only — use `tools.evka_gui` instead.

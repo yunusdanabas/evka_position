@@ -29,6 +29,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Real-time 3D position visualiser for evka_position firmware."
     )
+    parser.add_argument(
+        "--legacy-visualizer",
+        action="store_true",
+        help="Run the original standalone visualizer (deprecated)",
+    )
     parser.add_argument("--port", help="Serial port, e.g. /dev/ttyUSB0 or COM3")
     parser.add_argument(
         "--baud", type=int, default=115200,
@@ -77,6 +82,23 @@ def main() -> None:
              "Pass 'none' to disable.",
     )
     args = parser.parse_args()
+
+    if not args.legacy_visualizer:
+        import warnings
+        warnings.warn(
+            "python -m tools.position_checker.main is deprecated; "
+            "use: python -m tools.evka_gui [--serial PORT | --replay CSV] "
+            "(pass --legacy-visualizer for the old visualizer)",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        from tools.evka_gui.__main__ import main as gui_main
+        gui_argv = []
+        if args.replay_file:
+            gui_argv.extend(["--replay", args.replay_file])
+        elif args.port:
+            gui_argv.extend(["--serial", args.port, "--baud", str(args.baud)])
+        sys.exit(gui_main(gui_argv))
 
     if args.replay_file is None and not args.port:
         parser.error("--port is required unless --replay-file is used")

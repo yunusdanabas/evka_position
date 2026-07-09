@@ -1,5 +1,13 @@
 # tools/position_checker — live 3D visualizer + CMD GUI
 
+> **Deprecated as standalone tools.** Use the unified GUI instead:
+> `python -m tools.evka_gui`. Legacy entry points remain as shims
+> (`--legacy-visualizer`, `--legacy-cmd-gui`).
+
+This package still provides the **protocol SSOT** (`cmd_main.py`) and shared
+libraries (`tcp_client.py`, `cmd_display.py`, `parser.py`) consumed by
+`tools/evka_gui`.
+
 Two host-side apps that read the firmware's telemetry:
 
 - **Visualizer** — reads the serial `DATA,` stream and renders a live 3D trajectory.

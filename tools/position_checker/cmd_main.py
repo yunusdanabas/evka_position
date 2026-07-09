@@ -77,15 +77,29 @@ def get_visualizer_conventions() -> VisualizerConventions:
 
 
 def main() -> None:
-    from .cmd_gui import run_cmd_gui  # Local import avoids circular dependency.
-
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(name)s %(levelname)s %(message)s",
     )
-    code = run_cmd_gui()
-    if code:
-        sys.exit(code)
+    if "--legacy-cmd-gui" in sys.argv:
+        sys.argv.remove("--legacy-cmd-gui")
+        from .cmd_gui import run_cmd_gui
+        code = run_cmd_gui()
+        if code:
+            sys.exit(code)
+        return
+
+    import warnings
+    warnings.warn(
+        "python -m tools.position_checker.cmd_main is deprecated; "
+        "use: python -m tools.evka_gui --tcp HOST:PORT "
+        "(pass --legacy-cmd-gui to run the old Linux CMD panel)",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    from tools.evka_gui.__main__ import main as gui_main
+    endpoint = f"{CMD_DEFAULT_STA_IP}:{CMD_DEFAULT_PORT}"
+    sys.exit(gui_main(["--tcp", endpoint]))
 
 
 if __name__ == "__main__":

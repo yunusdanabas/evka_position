@@ -54,6 +54,8 @@ firmware/
   tests/        # Standalone test sketches (DrawWireTest, RotaryEncoderTest, ...)
 tools/
   position_checker/   # Python real-time 3D visualiser and TCP CMD GUI
+  evka_gui/           # Unified control + 3D GUI (Serial/TCP/replay)
+  evka_gui_v2/        # Deprecated shim → evka_gui
 docs/
   integration/        # CMD software integration guide, setup guide, validation checklist
   calibration/        # Calibration procedures and templates
@@ -96,7 +98,7 @@ All commands work over serial (115200 baud), TCP port 8080, and WebSocket equall
 | `PING` | `ACK:PONG` | Connectivity check |
 | `ZERO` | `ACK:ZERO` | Re-zero all encoder offsets |
 | `ZERO_T` / `ZERO_P` / `ZERO_W` | `ACK:ZERO_*` | Zero individual encoder |
-| `STATUS` | `STATUS,<valid>,<frame>,<ts>,<r>,<theta>,<phi>,<x>,<y>,<z>` | Single status snapshot |
+| `STATUS` | `STATUS,<valid>,<frame>,<ts>,<r>,<theta>,<phi>,<x>,<y>,<z>` plus `BATT,<v>,<pct>,<is_low>` when enabled | Single status snapshot |
 | `CONSTANTS` | `CONSTANTS,<ppr_r>,<ppr_w>,<mm_pp>,<deg_pp>` | Current calibration constants |
 | `CAL_W <mm>` | `CAL:WIRE,<factor>,<mm_pp>,<ppr_w>` | Wire calibration trial (factor 0.1–10×) |
 | `CAL_T <n>` / `CAL_P <n>` | `CAL:THETA/<PHI>,<counts>,<ppr>` | Rotary calibration (N full turns; ≥100 counts) |
@@ -180,6 +182,9 @@ SENSOR,900.00,25.000,10.000,1,42
 
 Field order for `SENSOR`: `r_mm, theta_deg, phi_deg, is_valid, frame_count`
 
+`STATUS` also returns/broadcasts `BATT,<voltage>,<percent>,<is_low>` when
+`ENABLE_BATTERY_MONITOR=1`.
+
 **Client → ESP32:** any command from the table above, newline-terminated.
 
 ## WebSocket
@@ -193,6 +198,7 @@ DATA,123.45,-56.78,890.12,900.00,25.000,10.000,1,42,12345
 Field order: `x_mm, y_mm, z_mm, r_mm, theta_deg, phi_deg, is_valid, frame_count, ts_ms`
 
 Send any command from the table above as a WebSocket text frame.
+`STATUS` also returns `BATT,<voltage>,<percent>,<is_low>` when battery monitoring is enabled.
 
 ## Python Visualiser Tools
 
@@ -278,6 +284,23 @@ python -m tools.ipt --serial /dev/ttyUSB0 --baud 115200
 Hold the pen **tip** on the hidden target, sweep the **handle** in a wide spiral,
 and fit a sphere to recover the target. See `tools/ipt/README.md` for full
 workflow, quality flags, and troubleshooting.
+
+### 4. EVKA Unified Control GUI (`tools/evka_gui`)
+
+Single-window control panel + 3D view for v4 board bring-up and daily operation.
+Supports Serial, WiFi/TCP (AP `192.168.1.50` or STA `192.168.1.84`/ASMETAL), and
+CSV replay. Calibration opens in a separate window.
+
+```bash
+python -m tools.evka_gui                              # open disconnected
+python -m tools.evka_gui --serial /dev/ttyUSB0 --baud 115200
+python -m tools.evka_gui --tcp 192.168.1.50:8080        # AP direct
+python -m tools.evka_gui --tcp 192.168.1.84:8080        # STA (ASMETAL)
+```
+
+`tools/evka_gui_v2` and `tools/position_checker/{main,cmd_main}` are deprecated
+shims. Full feature matrix:
+[`tools/README.md`](tools/README.md#evka_gui--unified-control-gui-canonical).
 
 ## Mathematical Model
 

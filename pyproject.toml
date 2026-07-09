@@ -16,6 +16,7 @@ dependencies = [
 ]
 
 [project.scripts]
+evka-gui = "tools.evka_gui.__main__:main"
 position-checker = "tools.position_checker.main:main"
 
 [tool.setuptools.packages.find]
