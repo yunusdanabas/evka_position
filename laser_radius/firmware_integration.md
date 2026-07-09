@@ -13,9 +13,107 @@
 | **UART TTL direct** | JRT B605B (TTL variant), any device with native 3.3–5V logic UART | None beyond wiring — ESP32-S3 UART pins are 3.3V, confirm device logic level (some run at up to 5V TTL — check before connecting) | Simplest path. Any two free GPIOs via the ESP32-S3 GPIO matrix; the freed wire-encoder pins (GPIO 15/16) are the natural choice in this variant since draw-wire is removed. |
 | **RS232 level-shifted** | Dimetix D-series (single-device RS232 mode), JRT B605B RS232 variant, Meskernel LDL-T | MAX3232-class level shifter (small breakout, not currently on the carrier PCB — new addition) | RS232 swings ±5–12V; must not be wired directly to ESP32-S3 GPIOs (not 5V-tolerant, per the as-built board's own AUX-header warning in `circuit_schematic.md`). Route through the level shifter into a free UART pair (e.g., AUX header GPIO 11/12 or the freed wire pins). |
 | **RS-485/RS422 half-duplex** | Meskernel LDL-T (RS485 mode), Dimetix D-series (RS422 multi-drop mode) | MAX485-class transceiver (RS-485) or RS422-specific transceiver e.g. MAX3095/MAX489 family (RS422) — not currently on the carrier PCB, new addition either way | See `version_b_integrated_modules.md` §4 for the as-built GPIO correction (13/14 = AUX header TX/RX, 15 = DE/RE, since GPIO 18 is already BTN2 on the current board) and the RS422-vs-RS485 transceiver distinction. Note: unlike the excluded TF02-i, none of the current recommended devices use Modbus RTU — they use proprietary ASCII protocols. |
-| **BLE central (GATT)** | Bosch PLR 40 C (Version A fallback) | None — ESP32-S3 has native BLE 5 | See §3 for radio coexistence with the existing WiFi AP+STA stack. |
+| **BLE central (GATT)** | Bosch PLR 40 C (Version A fallback) — **BLE 4.2 GATT confirmed** | None — ESP32-S3 has native BLE 5 | **Bluetooth type confirmed (2026-07-09):** Bosch's official manual states "Bluetooth 4.2 (Low Energy)" and "must support the GATT profile." ESP32-S3 is BLE-only, perfect match. Service UUID `02a6c0d0-0451-4000-b000-fb3210111989`, characteristic `02a6c0d1-0451-4000-b000-fb3210111989`. Protocol decrypted from GLM family (CRC-8, IEEE 754 float), but **not yet verified on physical PLR 40 C** — one capture session required before firmware work. Use **NimBLE-Arduino** stack. See [`bosch_plr_40c_integration.md`](bosch_plr_40c_integration.md) for full details, UUIDs, and code sketches. See §3 below for radio coexistence with the existing WiFi AP+STA stack. |
 
-## 2. 20 Hz Loop Feasibility
+## 2. Bosch PLR 40 C Protocol (decrypted from GLM family, not yet verified on PLR 40 C)
+
+**Bluetooth type: CONFIRMED — BLE 4.2 GATT** (Bosch official manual, 2026-07-09). ESP32-S3 compatible (BLE-only chip matches BLE-only device).
+
+**Protocol status:** Decrypted from Bosch GLM devices (GLM 50C/50CG/120C) via community reverse-engineering. Assumed to work across the GLM/PLR family, but **not yet verified on a physical PLR 40 C unit**. One real-device capture session required before firmware work.
+
+### 2.1 BLE GATT Profile
+
+| UUID Function | Identifier |
+|---|---|
+| **Service UUID** | `02a6c0d0-0451-4000-b000-fb3210111989` |
+| **TX/Indicate Characteristic** | `02a6c0d1-0451-4000-b000-fb3210111989` |
+| **RX/Write Characteristic** | (Often unified with TX characteristic) |
+
+**Connection pattern:**
+1. Scan for service UUID `02a6c0d0-0451-4000-b000-fb3210111989`
+2. Connect, discover characteristic `02a6c0d1-0451-4000-b000-fb3210111989`
+3. Subscribe to **indications** (requires acknowledgment)
+4. Write commands to the same characteristic
+5. Parse indication responses
+
+### 2.2 Frame Format
+
+```
+Send frame:    [0xC0][command][length][data...][CRC-8]
+Receive frame: [0xC0][status][length][data...][CRC-8]
+```
+
+### 2.3 Command Table
+
+| Command | Hex Payload | Description |
+|---------|-------------|-------------|
+| **Continuous Sync** | `C0 55 02 01 00 1A` | Enable continuous data streaming (~4 Hz) |
+| **Single Measurement** | `C0 40 00 EE` | Trigger one distance measurement |
+| **Laser On** | `C0 41 00 96` | Turn laser pointer on |
+| **Laser Off** | `C0 42 00 1E` | Turn laser pointer off |
+| **Backlight On** | `C0 47 00 20` | Turn display backlight on |
+| **Backlight Off** | `C0 48 00 62` | Turn display backlight off |
+
+### 2.4 Response Parsing (Continuous Sync Mode)
+
+In continuous sync mode, the device transmits **20-byte response arrays** via BLE indications.
+
+**Distance extraction:**
+- Bytes **7, 8, 9, 10** (0-indexed) contain the distance
+- **Little-endian IEEE 754 Single-Precision (32-bit) Floating-Point**
+- Example: bytes `[162, 180, 151, 62]` → `0x3E97B4A2` → `0.294 m` (294 mm)
+
+**C++ parsing:**
+```cpp
+float parseDistance(const uint8_t* data, size_t length) {
+    if (length < 11 || data[0] != 0xC0) return -1.0f;
+    uint32_t raw = (uint32_t)data[10] << 24 | (uint32_t)data[9] << 16 |
+                   (uint32_t)data[8] << 8 | (uint32_t)data[7];
+    float distance_m;
+    memcpy(&distance_m, &raw, sizeof(float));
+    return distance_m * 1000.0f;  // convert to mm
+}
+```
+
+### 2.5 CRC-8 Checksum (Bosch-Specific)
+
+Custom CRC-8 algorithm (not standard):
+- **Initialization Vector:** `0xAA`
+- **Polynomial:** `0xA6`
+- **Input/Output Reflection:** False
+
+```cpp
+uint8_t calculateBoschCRC8(const uint8_t* data, size_t length) {
+    uint8_t crc = 0xAA;
+    for (size_t i = 0; i < length; i++) {
+        uint8_t b = data[i];
+        for (int j = 0; j < 8; j++) {
+            uint8_t x = ((crc >> 7) ^ (b >> (7 - j))) & 1;
+            crc = (crc << 1) & 0xFF;
+            if (x) crc ^= 0xA6;
+        }
+    }
+    return crc;
+}
+```
+
+### 2.6 Status Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | OK |
+| 1 | Communication timeout |
+| 3 | Checksum error |
+| 4 | Unknown command |
+| 5 | Invalid access level |
+| 8 | Hardware error |
+| 10 | Device not ready |
+
+**Full integration analysis, ESP32-S3 NimBLE code sketches, and risk assessment:** [`bosch_plr_40c_integration.md`](bosch_plr_40c_integration.md).
+
+---
+
+## 3. 20 Hz Loop Feasibility
 
 The firmware's main loop runs at `UPDATE_PERIOD_MS = 50` (20 Hz, `EvkaPosition.cpp`). All wired interfaces (UART/RS232/RS-485/RS422) can be polled well within that budget — their own max sample rates range from ~3–8 Hz (JRT B605B slow/high-accuracy mode) up to 100 Hz (Meskernel LDL-T; corrected 2026-07-08 from an earlier 30 Hz figure) and 50 Hz (Dimetix DAE). The mismatch only matters for the **slower** end:
 
@@ -28,7 +126,7 @@ The firmware's main loop runs at `UPDATE_PERIOD_MS = 50` (20 Hz, `EvkaPosition.c
 
 This means the 20 Hz *loop* rate is unaffected regardless of device speed — only the *effective radius update rate* varies by device, which is already how the system's `is_valid` / staleness concept is designed to be consumed downstream.
 
-## 3. BLE + WiFi Coexistence (Version A Fallback Only)
+## 4. BLE + WiFi Coexistence (Version A Fallback Only — if PLR 40 C is BLE)
 
 The ESP32-S3 has a single 2.4 GHz radio shared between WiFi and Bluetooth — WiFi/BT coexistence is handled by the IDF's time-division scheduler, not two independent radios. This is a well-known ESP-IDF constraint, not specific to this project, but it directly affects the Bosch PLR 40 C fallback path, since the current firmware already runs WiFi AP+STA concurrently (`ENABLE_WIFI=1` default, per `CLAUDE.md`).
 
@@ -38,7 +136,7 @@ The ESP32-S3 has a single 2.4 GHz radio shared between WiFi and Bluetooth — Wi
 - **The Bosch PLR 40 C is a manual-trigger device anyway** (§2.3 of `version_a_handheld_devices.md`) — a human aims and fires it, at most ~1 Hz. This actually works in this path's favor: the BLE fallback never needs to sustain 20 Hz, so coexistence latency spikes are far less punishing here than they would be for a continuous-streaming device.
 - **Must be measured empirically, not assumed** — before committing to this fallback path for anything beyond occasional manual verification, bench-test actual GATT notification latency with WiFi AP+STA simultaneously active.
 
-## 4. `LaserRadiusSensor` API Sketch (design only, not implemented)
+## 5. `LaserRadiusSensor` API Sketch (design only, not implemented)
 
 Mirrors the shape of the existing `SphericalSensor` class so it can later replace the draw-wire branch of `readRawEncoders()` / `update()` without touching the theta/phi encoder code:
 
@@ -62,7 +160,7 @@ public:
 
 **Integration point:** `SphericalSensor::update()` currently derives `r` from the draw-wire's raw counts. In this variant, the wire-encoder branch would be replaced with a call to `LaserRadiusSensor::update()` + `getRadiusMM()`, leaving the theta/phi `Encoder`-library code and `sphericalToCartesian()` untouched — the class boundary keeps the blast radius of this variant contained to one source module, matching how the draw-wire code is already isolated today.
 
-## 5. Authoritative Wiring Guidance (Recap)
+## 6. Authoritative Wiring Guidance (Recap)
 
 For implementers: the single source of truth for GPIO assignment in this variant is `version_b_integrated_modules.md` §4 (RS-485/RS422 path) and §1 above (UART/RS232 path) — both reflect the **current as-built** `EVKA_position_v2` 5V board, not the older `12v_legacy/v2` pin plan the original brief cited. Freed pins from draw-wire removal (GPIO 15/16) and the existing AUX header (GPIO 11/12/13/14) cover every interface option in this document without needing new GPIO territory — only new *transceiver hardware* (MAX3232 for RS232, MAX485/RS422-transceiver for the differential path) is a genuinely new PCB addition, pending PCB-owner review.
 

@@ -17,6 +17,8 @@
 // CONFIGURATION
 // ============================================================================
 
+#define FIRMWARE_VERSION "ButtonRemote v1.1"
+
 // Number of buttons and GPIO assignments.
 // Safe GPIOs on ESP32-C3: avoids strapping pins (2, 9), serial (6, 7), LED (8).
 #define BTN_COUNT     5
@@ -85,6 +87,9 @@ void setup() {
     Serial.begin(115200);
     delay(500);
 
+    Serial.println(FIRMWARE_VERSION);
+    Serial.println("[ButtonRemote] ESP-NOW wireless pendant (always-awake)");
+
     initButtons();
     pinMode(PIN_LED, OUTPUT);
     ledOff();
@@ -105,6 +110,7 @@ void setup() {
     // When the main board's STA connects to a home router on channel != 1,
     // its AP silently moves to that channel — hardcoding ch1 would break ESP-NOW.
     uint8_t active_channel = ESPNOW_CHANNEL;  // fallback
+    bool found_ap = false;
     for (int attempt = 0; attempt < SCAN_RETRIES; attempt++) {
         if (attempt > 0) delay(1000);
         Serial.printf("[ButtonRemote] Scanning for '%s'... (attempt %d/%d)\n",
@@ -113,15 +119,16 @@ void setup() {
         for (int i = 0; i < n; i++) {
             if (WiFi.SSID(i) == MAIN_AP_SSID) {
                 active_channel = (uint8_t)WiFi.channel(i);
+                found_ap = true;
                 Serial.printf("[ButtonRemote] Found on ch%u (RSSI %d dBm)\n",
                               active_channel, WiFi.RSSI(i));
                 break;
             }
         }
         WiFi.scanDelete();
-        if (active_channel != ESPNOW_CHANNEL) break;  // found
+        if (found_ap) break;
     }
-    if (active_channel == ESPNOW_CHANNEL) {
+    if (!found_ap) {
         Serial.printf("[ButtonRemote] AP not found — using fallback ch%u\n", active_channel);
     }
 

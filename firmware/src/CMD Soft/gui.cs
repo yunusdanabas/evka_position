@@ -24,6 +24,7 @@ namespace CMDScanner
         private const string PrefixStaIp = "STA_IP:";
         private const string PrefixSensor = "SENSOR,";
         private const string PrefixSysInfo = "SYSINFO,";
+        private const string PrefixBatt = "BATT,";
         private const string PrefixAck = "ACK:";
         private const string PrefixErr = "ERR:";
         private const string PrefixXyz = "X";
@@ -57,7 +58,7 @@ namespace CMDScanner
         private Label lblStatus, lblX, lblY, lblZ, lblRouterIpValue;
         private Label lblR, lblTheta, lblPhi, lblValid, lblFrame;
         private Label lblMinX, lblMaxX, lblMinY, lblMaxY, lblMinZ, lblMaxZ;
-        private Label lblRssi, lblHeap, lblUptime;
+        private Label lblRssi, lblHeap, lblUptime, lblBattery;
 
         public Form1()
         {
@@ -191,8 +192,9 @@ namespace CMDScanner
             GroupBox gbSys = new GroupBox { Text = "System Info", Location = new Point(20, y), Size = new Size(445, 55), Font = new Font("Segoe UI", 9, FontStyle.Bold), ForeColor = Color.FromArgb(64, 64, 64) };
             lblRssi = new Label { Text = "RSSI: --", Location = new Point(15, 25), AutoSize = true, Font = new Font("Consolas", 9), ForeColor = Color.DimGray };
             lblHeap = new Label { Text = "Heap: --", Location = new Point(140, 25), AutoSize = true, Font = new Font("Consolas", 9), ForeColor = Color.DimGray };
-            lblUptime = new Label { Text = "Uptime: --", Location = new Point(280, 25), AutoSize = true, Font = new Font("Consolas", 9), ForeColor = Color.DimGray };
-            gbSys.Controls.AddRange(new Control[] { lblRssi, lblHeap, lblUptime });
+            lblUptime = new Label { Text = "Uptime: --", Location = new Point(250, 25), AutoSize = true, Font = new Font("Consolas", 9), ForeColor = Color.DimGray };
+            lblBattery = new Label { Text = "Batt: --", Location = new Point(350, 25), AutoSize = true, Font = new Font("Consolas", 9), ForeColor = Color.DimGray };
+            gbSys.Controls.AddRange(new Control[] { lblRssi, lblHeap, lblUptime, lblBattery });
 
             this.Controls.AddRange(new Control[] { gbConnection, lblStatus, pnlAxes, gbSensor, btnWorkZeroAll, btnMachineZero, gbWifi, gbSys });
 
@@ -299,6 +301,21 @@ namespace CMDScanner
                                     lblRssi.Text = $"RSSI: {rssi} dBm";
                                     lblHeap.Text = $"Heap: {heap / 1024} KB";
                                     lblUptime.Text = $"Uptime: {h:D2}:{m:D2}:{s:D2}";
+                                }));
+                            }
+                        }
+                        else if (line.StartsWith(PrefixBatt))
+                        {
+                            string[] parts = line.Substring(PrefixBatt.Length).Split(',');
+                            if (parts.Length >= 3 &&
+                                float.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out float volts) &&
+                                int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int pct) &&
+                                int.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out int low))
+                            {
+                                this.Invoke(new Action(() =>
+                                {
+                                    lblBattery.Text = $"Batt: {volts:F2}V/{pct}%";
+                                    lblBattery.ForeColor = low != 0 ? Color.Red : Color.DimGray;
                                 }));
                             }
                         }
@@ -567,6 +584,8 @@ namespace CMDScanner
             lblStatus.ForeColor = Color.Red;
             SetControlsEnabled(false);
             lblRouterIpValue.Text = "Router IP: --";
+            lblBattery.Text = "Batt: --";
+            lblBattery.ForeColor = Color.DimGray;
         }
 
         private void SetControlsEnabled(bool connected)

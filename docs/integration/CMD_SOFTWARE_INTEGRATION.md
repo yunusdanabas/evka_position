@@ -35,9 +35,14 @@ Client -> ESP32 (newline-delimited):
 ```text
 GET_IP
 ZERO
+BLINK
 WIFI_SET:<ssid>,<password>
 WIFI_AYAR:<ssid>,<password>
 ```
+
+`BLINK` → `ACK:BLINK`; flashes the board status LED white for ~0.7 s (connection
+test over serial, TCP, or WebSocket). On boards without an RGB LED the ACK still
+returns; classic ESP32 builds blink GPIO2 instead.
 
 Note: `WIFI_SET`/`WIFI_AYAR` are active (`ENABLE_REMOTE_WIFI_CONFIG = 1`).
 On success the device saves credentials to NVS and reboots, sending `ACK:WIFI_SAVED`
@@ -55,11 +60,13 @@ STA_IP:NOT_CONNECTED
 X<value>,Y<value>,Z<value>
 SENSOR,<r>,<theta>,<phi>,<valid>,<frame>
 SYSINFO,<rssi>,<heap>,<uptime_s>,<tcp_clients>
+BATT,<voltage>,<percent>,<is_low>
 POINT,<idx>,<x>,<y>,<z>,<r>,<theta>,<phi>
 DEL_POINT,<idx>
 REMOTE_BTN:<0|1>
 REMOTE_HB
 ACK:ZERO
+ACK:BLINK
 ACK:WIFI_SAVED
 ERR:WIFI_INVALID
 ERR:WIFI_CFG_DISABLED
@@ -70,17 +77,20 @@ ERR:UNKNOWN_CMD
 ```
 
 Note: Firmware may also emit additional lines (`SENSOR,...`, `SYSINFO,...`,
-`POINT,...`, `DEL_POINT,...`, `REMOTE_BTN:...`, `REMOTE_HB`) for enhanced tools.
+`BATT,...`, `POINT,...`, `DEL_POINT,...`, `REMOTE_BTN:...`, `REMOTE_HB`) for enhanced tools.
 CMD clients that only parse `X...` and `STA_IP:...` continue to work.
 All other newline-delimited commands are forwarded to firmware `processCommand()`
 (`PING`, `STATUS`, `CONSTANTS`, `CAL_*`, `SET_PPR_*`, `SAVE_PPR`,
 `SAVE_POINT`, `DEL_POINT`, etc.).
 For enhanced clients parsing `SENSOR,...`, the field order is:
 `SENSOR,<r_mm>,<theta_deg>,<phi_deg>,<is_valid>,<frame_count>`.
+For enhanced clients parsing `BATT,...`, the field order is:
+`BATT,<voltage>,<percent>,<is_low>`; it is sent after `STATUS` when battery monitoring is enabled.
 
 ### Linux CMD GUI features (beyond minimal CMD protocol)
 
-The Linux GUI (`tools/position_checker/cmd_main`) adds:
+The unified GUI (`tools/evka_gui`) and legacy Linux CMD panel (`--legacy-cmd-gui`)
+add:
 
 | Feature | Behavior |
 |---------|----------|
@@ -91,16 +101,44 @@ The Linux GUI (`tools/position_checker/cmd_main`) adds:
 | Saved points | `SAVE_POINT` / `DEL_POINT`; list is session-local |
 | Remote indicators | `REMOTE_BTN:0/1`, `REMOTE_HB` link status |
 | SYSINFO panel | RSSI, heap, uptime, TCP client count |
+| Battery panel | `BATT,<voltage>,<percent>,<is_low>` after `STATUS` |
 
 Software zero is cleared on TCP disconnect. Saved-point indices on the device
 (`pt_idx`) persist across reconnects; the GUI list does not.
 
-## Linux CMD GUI (Included Tool)
-
-Run the Linux CMD-compatible GUI from repo root:
+## Unified Host GUI (recommended)
 
 ```bash
-python -m tools.position_checker.cmd_main
+python -m tools.evka_gui                              # open disconnected
+python -m tools.evka_gui --tcp 192.168.1.84:8080      # STA (ASMETAL)
+python -m tools.evka_gui --tcp 192.168.1.50:8080      # AP direct
+python -m tools.evka_gui --serial /dev/ttyUSB0
+```
+
+Merges the Linux CMD panel, serial visualizer, and v4 control GUI into one window.
+Calibration opens in a separate window. Web dashboard (`http://192.168.1.50`) stays
+at feature parity for phone/field use.
+
+Legacy entry points (deprecated):
+
+```bash
+python -m tools.position_checker.cmd_main              # → evka_gui --tcp
+python -m tools.position_checker.cmd_main --legacy-cmd-gui
+python -m tools.evka_gui_v2                            # → evka_gui
+```
+
+## Linux CMD GUI (legacy shim)
+
+Run the old Linux CMD-compatible GUI:
+
+```bash
+python -m tools.position_checker.cmd_main --legacy-cmd-gui
+```
+
+Or use the unified GUI (recommended):
+
+```bash
+python -m tools.evka_gui --tcp 192.168.1.84:8080
 ```
 
 Visualizer protocol conventions (prefixes, field ordering, phi policy, and
@@ -122,7 +160,9 @@ AP/STA resilience update:
 - `firmware/src/CmdTcpServer.cpp`
 - `firmware/src/CmdTcpServer.h`
 - `firmware/src/EvkaPosition.cpp`
-- `tools/position_checker/cmd_gui.py`
+- `tools/evka_gui/` — **canonical** unified control + 3D GUI (Serial/TCP/replay)
+- `tools/evka_gui_v2/` — deprecated shim → `evka_gui`
+- `tools/position_checker/cmd_gui.py` — legacy Linux CMD panel (`--legacy-cmd-gui`)
 - `tools/position_checker/tcp_client.py`
 - `README_TR.md` — Turkish WiFi connection guide for end users
 - `docs/WIFI_PERFORMANCE_ISSUES_LOG.md` — WiFi diagnostics and AP resilience notes

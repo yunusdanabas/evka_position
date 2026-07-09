@@ -130,15 +130,17 @@ Tüm komutlar serial (115200 baud), TCP ve WebSocket üzerinde çalışır. Komu
 
 | Düğme | GPIO | Renk | Komut | İşlev |
 |-------|------|------|-------|-------|
-| 0 | 4 | Kırmızı | `ZERO` | Tüm encoder'ları sıfırla |
-| 1 | 5 | Yeşil | `SAVE_POINT` | Mevcut konumu kaydet |
+| 0 | 4 | Yeşil | `SAVE_POINT` | Mevcut konumu kaydet |
+| 1 | 5 | Kırmızı | `DEL_POINT` | Son kayıtlı noktayı sil |
 
 **Uzaktan kumanda firmware'ini derle ve yükle:**
 ```bash
 pio run -e button_remote --target upload
+pio device monitor -e button_remote
 ```
 
-Donanım: ESP32-C3 SuperMini + genişletme kartı (LiPo 500 mAh, USB-C şarj). Pil ömrü ~14 ay.
+Donanım: ESP32-C3 SuperMini + genişletme kartı (LiPo 500 mAh, USB-C şarj).
+Ana kart önce açılmalı — uzaktan kumanda `CMDCNC_EVKA` SSID'sini tarayarak WiFi kanalını bulur.
 Şema, BOM ve kart teknik özellikleri: `docs/hardware_design/remote/`
 
 ---

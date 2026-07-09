@@ -59,24 +59,25 @@ Both 2026-07-08 surveys confirm the LDL-T family as **phase-shift (AMCW)** — t
 **Pros:** the only wired candidate whose native sample rate beats the firmware's 20 Hz loop outright; tiny form factor is the easiest of all candidates to dock/hide in a compact housing; interface flexibility (pick USART/RS232/RS485 per board design) is unique in this shortlist.
 **Cons:** the byte-level command spec is still not cleanly surfaced publicly (survey-2's one caveat — request the protocol datasheet before firmware work); import-lead-time risk (15–30 days), no confirmed domestic stock.
 
-### 2.3 Bosch PLR 40 C — flagged (phase-shift principle unconfirmed)
+### 2.3 Bosch PLR 40 C — flagged (measurement principle unconfirmed; Bluetooth type now confirmed)
 
-> **⚠ Flagged (2026-07-08):** the Istanbul survey certifies the Bosch GLM/PLR class as phase-shift with a community-reverse-engineered BLE protocol, but the stricter second survey **could not surface a clean primary-source statement that Bosch's measurement principle is phase-shift/AMCW** and therefore "is not certifying Bosch as a pass." Bosch's *accuracy* (±2 mm across the full range) is confirmed from the spec sheet; it is the *technology gate* that is unverified. Because it is neither ToF nor %-of-reading, it stays here rather than in the excluded section — but it is **held out of the certified pass list** until the principle is confirmed. This drops it from the earlier draft's #1 bench-order slot. The confirmed street price is unchanged and remains its main draw.
-
+> **⚠ Flagged (2026-07-01, revised 2026-07-09):** one flag remains:
+> 1. **Measurement principle unconfirmed** — the stricter 2026-07-08 survey could not surface a primary-source statement that Bosch's PLR/GLM line uses phase-shift/AMCW (vs. some other method). Bosch's *accuracy* (±2 mm across the full range) is confirmed from the spec sheet; it is the *technology gate* that is unverified.
+> 2. ~~**Bluetooth type discrepancy**~~ — **RESOLVED (2026-07-09):** Bosch's own PLR 30 C / PLR 40 C manual explicitly states **"Bluetooth 4.2 (Low Energy)"** and that compatible devices **"must support the GATT profile."** Community evidence (nRF Connect scans, WebBluetooth demos, Stack Overflow) all confirm BLE GATT. The archived philipptrenz library (classic SPP) was for older GLM models; the PLR 40 C is BLE-only. ESP32-S3 compatibility confirmed (ESP32-S3 is BLE-only). Protocol decrypted from GLM family (CRC-8, IEEE 754 float parsing), but byte-level traces are from GLM 50C/120C — **one real-device capture session on PLR 40 C still required** before firmware work. See [`bosch_plr_40c_integration.md`](bosch_plr_40c_integration.md) for full details.
 
 | Spec | Value |
 |---|---|
 | Range | 0.05–40 m |
 | Accuracy | **±2 mm across the full 0.05–40 m range** — confirmed via the official spec sheet, not just near-field. (Degrades to ±4 mm / ±0.15 mm·m⁻¹ under unfavorable conditions — strong ambient light, altitude, poor-reflectivity surfaces — still within the ≤10 mm spec even in the worst case.) |
-| Interface | **Bluetooth LE 4.2 only** (GATT) — no wired output |
-| Protocol | Bosch GLM/PLR Bluetooth App Kit GATT profile (service UUID `00005301-…`, example measure command `0xC0 0x40 0x00 0xEE`). Community reference: [`philipptrenz/BOSCH-GLM-rangefinder`](https://github.com/philipptrenz/BOSCH-GLM-rangefinder), reportedly compatible across GLM100C/PLR30C/PLR40C/PLR50C. |
+| Interface | **BLE 4.2 GATT (confirmed)** — no wired output, no USB port. Service UUID `02a6c0d0-0451-4000-b000-fb3210111989`, characteristic `02a6c0d1-0451-4000-b000-fb3210111989`. ESP32-S3 compatible (BLE-only chip matches BLE-only device). See [`bosch_plr_40c_integration.md`](bosch_plr_40c_integration.md) §2. |
+| Protocol | Bosch GLM/PLR BLE GATT protocol (decrypted from GLM family, **not yet verified on PLR 40 C**). CRC-8 (polynomial 0xA6, init 0xAA). Distance: bytes 7-10 of 20-byte response, little-endian IEEE 754 float (meters). Commands: continuous sync `C0 55 02 01 00 1A`, single measure `C0 40 00 EE`. **One real-device capture session required** before firmware work. Full details: [`bosch_plr_40c_integration.md`](bosch_plr_40c_integration.md) §3. |
 | Max sample rate | Manual-trigger, human-paced (~1/4 s measurement time, but a human has to aim and fire it) |
 | Laser class | Class 2 |
 | Power | 2× AAA |
 | Price (Turkey) | **Confirmed, best availability in this study**: ~3,865–4,275 TL (~$110–125) — Hepsiburada, Trendyol, N11, Amazon.tr, Tekzen |
 
 **Pros:** meets the *accuracy* spec at its absolute max range with margin, cheapest fast-to-acquire option, best local stock of anything in this document.
-**Cons:** **measurement principle unconfirmed** (flag above) — must be verified before certifying; BLE central role shares the ESP32-S3's single 2.4 GHz radio with WiFi AP+STA (see `firmware_integration.md` §3); manual-trigger pacing suits verification/spot-checks better than continuous automated tracking.
+**Cons:** **one remaining flag** — (1) measurement principle unconfirmed (must be verified before certifying); (2) BLE protocol decrypted from GLM family but not yet verified on physical PLR 40 C (one capture session required); (3) no USB port, no wired fallback; (4) manual-trigger pacing suits verification/spot-checks better than continuous automated tracking; (5) BLE latency jitter + WiFi coexistence on ESP32-S3's single 2.4 GHz radio; (6) 5-minute auto-power-off cannot be permanently disabled; (7) power supply fragility (must solder to battery springs for continuous operation).
 
 ### 2.4 Leica DISTO X4/D810-class (premium option, genuine wired path via accessory)
 
@@ -133,13 +134,14 @@ At this accuracy bar, Version A and Version B stop being different *technologies
 
 ## Open Risks
 
-1. **Bosch and JRT measurement principle is unconfirmed** — the top risk after the 2026-07-08 survey. Both are held out of the certified pass list (§2.1/§2.3); confirm phase-shift from a primary datasheet before treating either as more than a reference tool.
-2. **Meskernel byte-level protocol still not cleanly public** — pricing is now confirmed, but the command spec must be requested from the manufacturer before firmware work.
-3. **Leica handhelds (D2/D5/X6/S910) expose app/BLE transfer, not a documented raw serial command set** — the S910's native USB and the older X4's RS232 "passive tracking" accessory are the closest to a wired path; the exact streaming protocol should be reconfirmed against a physical unit.
-4. **Leica DISTO X4 is discontinued**; the confirmed current picks are **D5** (mainline), **X6** (rugged flagship), and **S910** (native USB) — all priced in §3.
-5. **Remaining ESTIMATE-only §3 prices** (Hilti PD-I, Stanley, RS PRO, ADA) still need direct confirmation — Leica D2/D5/X6/S910 and Bosch GLM are now CONFIRMED.
-6. **Hilti PD-I's Bluetooth protocol is undocumented publicly** — its partner-app ecosystem (magicplan, ImageMeter) suggests a GATT profile exists, but no public reference implementation was found.
-7. **None of the wired candidates (JRT, Meskernel) have confirmed Turkish stock** — import only (15–30 day lead). Only the BLE handhelds (Leica in TR channel, Bosch, likely RS PRO) are domestically stocked.
+1. **Bosch PLR 40 C has one remaining flag** — measurement principle unconfirmed (must verify on physical unit). Bluetooth type is now **confirmed** (BLE 4.2 GATT). Protocol decrypted from GLM family but not yet verified on PLR 40 C specifically (one capture session required). See [`bosch_plr_40c_integration.md`](bosch_plr_40c_integration.md) for full details.
+2. **JRT measurement principle is unconfirmed** — the stricter of the two price surveys could not surface a current, public, primary-source statement that unambiguously tags JRT's current modules as phase-shift (rather than some other ranging method), so JRT is **held out of the certified pass list** until the measurement principle is confirmed from a datasheet.
+3. **Meskernel byte-level protocol still not cleanly public** — pricing is now confirmed, but the command spec must be requested from the manufacturer before firmware work.
+4. **Leica handhelds (D2/D5/X6/S910) expose app/BLE transfer, not a documented raw serial command set** — the S910's native USB and the older X4's RS232 "passive tracking" accessory are the closest to a wired path; the exact streaming protocol should be reconfirmed against a physical unit.
+5. **Leica DISTO X4 is discontinued**; the confirmed current picks are **D5** (mainline), **X6** (rugged flagship), and **S910** (native USB) — all priced in §3.
+6. **Remaining ESTIMATE-only §3 prices** (Hilti PD-I, Stanley, RS PRO, ADA) still need direct confirmation — Leica D2/D5/X6/S910 and Bosch GLM are now CONFIRMED.
+7. **Hilti PD-I's Bluetooth protocol is undocumented publicly** — its partner-app ecosystem (magicplan, ImageMeter) suggests a GATT profile exists, but no public reference implementation was found.
+8. **None of the wired candidates (JRT, Meskernel) have confirmed Turkish stock** — import only (15–30 day lead). Only the BLE handhelds (Leica in TR channel, Bosch, likely RS PRO) are domestically stocked.
 
 ## Next Physical Test Steps
 

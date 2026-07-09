@@ -207,7 +207,42 @@ To re-zero without reflashing, send `ZERO\n` over serial.
 
 ---
 
-## 6. Troubleshooting
+## 6. Wireless Button Remote (ESP32-C3)
+
+The ESP-NOW pendant is a **separate** ESP32-C3 board (`button_remote` env). It does not
+use the main sensor firmware.
+
+### Flash the remote
+
+```bash
+pio device list                                    # find ttyACM* (ESP32-C3 USB)
+pio run -e button_remote --target upload --upload-port /dev/ttyACM0
+pio device monitor -e button_remote
+```
+
+Expected serial output: `ButtonRemote v1.1`, AP scan for `CMDCNC_EVKA`, `ESP-NOW ready`,
+heartbeat every ~10 s.
+
+### Verify with main board
+
+1. Flash main firmware (`esp32s3_v4` or `wemos_d1_r32`) with `ENABLE_ESPNOW_REMOTE=1`
+2. Power main board first so AP `CMDCNC_EVKA` is visible
+3. Reset remote — it should find the AP channel (or fall back to ch 1)
+4. Green button (GPIO 4) → `SAVE_POINT`; red button (GPIO 5) → `DEL_POINT`
+5. TCP/WebSocket clients see `REMOTE_HB` and `REMOTE_BTN:0/1`
+
+### Bench test without main board
+
+```bash
+pio run -e button_remote_test --target upload
+python tools/remote_tester/remote_test_gui.py
+```
+
+See `docs/hardware_design/remote/README.md` for hardware wiring and button maps.
+
+---
+
+## 7. Troubleshooting
 
 | Symptom | Cause | Fix |
 |---|---|---|
