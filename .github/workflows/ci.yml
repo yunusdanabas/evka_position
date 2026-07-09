@@ -26,5 +26,14 @@ jobs:
       - name: Run Python tests
         run: pytest -q
 
-      - name: Build main firmware
+      - name: Build main firmware (classic ESP32)
         run: pio run -e wemos_d1_r32
+
+      - name: Build main firmware (v4 PCB, ESP32-S3)
+        run: pio run -e esp32s3_v4
+
+      - name: Build remote pendant firmware
+        run: pio run -e button_remote
+
+      - name: Build CMD C# app
+        run: dotnet build "firmware/src/CMD Soft/CMDScanner.csproj" -c Release

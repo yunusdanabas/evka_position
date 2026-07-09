@@ -116,15 +116,20 @@ pip install -r requirements.txt  # or:  pip install -e .   (editable, from pypro
 
 Run the tools (from the repo root, with the venv active):
 ```bash
-python -m tools.position_checker        # live 3D visualizer + CMD GUI
-python -m tools.ipt                     # hidden-point ("Inverted Pen") measurement tool
-python -m tools.ipt.solver              # solver self-check, no hardware needed
-python tools/calibration/calibrate.py   # Kabsch world<->sensor calibration
+python -m tools.evka_gui --serial                     # unified control + 3D GUI (canonical)
+python -m tools.evka_gui --tcp 192.168.1.50:8080      # same, over WiFi AP
+python -m tools.ipt                                   # hidden-point ("Inverted Pen") measurement tool
+python -m tools.ipt.solver                            # solver self-check, no hardware needed
+python tools/calibration/calibrate.py                 # Kabsch world<->sensor calibration
 ```
+
+> `tools.evka_gui_v2` and `tools.position_checker`'s `main`/`cmd_main` entry points are
+> **deprecated shims** — see
+> [tools/README.md](tools/README.md#evka_gui--unified-control-gui-canonical) for the migration table.
 
 Run the tests (no hardware required):
 ```bash
-pytest tools/ipt tools/position_checker -q
+pytest -q
 ```
 
 > **PyQt5 on Windows** installs from pip like any other package — no extra system libraries.
@@ -136,8 +141,9 @@ Per-tool details are in each tool's `README.md` (`tools/<tool>/README.md`).
 
 ## 4. CMD C# app (Windows only)
 
-The third-party CNC GUI under `firmware/src/CMD Soft/` is a **.NET 8 WinForms** app — it builds and
-runs on **Windows only**.
+The third-party CNC GUI under `firmware/src/CMD Soft/` is a **.NET 8 WinForms** app — it **runs on
+Windows only**, but it *builds* on any OS with the .NET 8 SDK (`EnableWindowsTargeting` is set in
+the csproj; CI builds it on Linux).
 
 ```powershell
 # Requires the .NET 8 SDK (https://dotnet.microsoft.com/download)
@@ -163,7 +169,7 @@ git-ignored. This app came from an external vendor; see `firmware/src/CMD Soft/R
 ## 6. Before you commit
 
 1. Firmware changes → `pio run -e wemos_d1_r32 -e esp32s3_v4` builds clean.
-2. Python changes → `pytest tools/ipt tools/position_checker -q` passes.
+2. Python changes → `pytest -q` passes (runs every suite under `tools/`).
 3. Commit in small, coherent chunks with a clear message (see `git log` for the style).
 4. Don't commit build artifacts — `.gitignore` already excludes `.pio/`, `__pycache__/`, `bin/`,
    KiCad backups, etc.

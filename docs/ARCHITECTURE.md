@@ -101,6 +101,7 @@ All commands are newline-terminated; replies mirror to serial and the active tra
 |---|---|---|
 | `ZERO` / `ZERO_T` / `ZERO_P` / `ZERO_W` | `ACK:ZERO…` | Re-zero all / theta / phi / wire |
 | `PING` | `ACK:PONG` | Liveness |
+| `BLINK` | `ACK:BLINK` | Flash status LED white ~0.7 s (RGB on v4; GPIO2 pulse on classic) — connection test |
 | `STATUS` | `STATUS,<valid>,<frame>,<ts>,<r>,<θ>,<φ>,<x>,<y>,<z>` | Full snapshot (+`BATT,…` if enabled) |
 | `CONSTANTS` | `CONSTANTS,<ppr_rotary>,<ppr_wire>,<mm/pulse>,<deg/pulse>` | Current scale factors |
 | `CAL_W <mm>` | `CAL:WIRE,<factor>,<mm/pulse>,<ppr>` | Wire calibration trial |

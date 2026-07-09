@@ -59,6 +59,7 @@ deep as you need.
 | [hardware_design/encoders/](hardware_design/encoders/) | E40S6 + DWEM2 encoder datasheets/specs |
 | [hardware_design/assembly/](hardware_design/assembly/) | Assembly + individual hardware test plans |
 | [hardware_design/12v_legacy/](hardware_design/12v_legacy/) | Archived 12V/v2/v3 hardware docs (superseded) |
+| [../pcb_design/README.md](../pcb_design/README.md) | KiCad workspace index — which of v2–v5 is current (v4) and why |
 | `../pcb_design/EVKA_position_v4/` | **Current** KiCad workspace (+ FIRMWARE.md) |
 
 ## Troubleshooting — WiFi & stability
@@ -81,6 +82,7 @@ Read these **before** touching the WiFi/WebSocket/async code — they document h
 |---|---|
 | [../tools/README.md](../tools/README.md) | Overview of the Python tools |
 | [../tools/position_checker/README.md](../tools/position_checker/README.md) | Live 3D visualizer + CMD GUI |
+| [../tools/README.md](../tools/README.md#evka_gui--unified-control-gui-canonical) | evka_gui — unified control + 3D GUI |
 | [../tools/ipt/README.md](../tools/ipt/README.md) | Hidden-point ("Inverted Pen") tool |
 | [../tools/calibration/README.md](../tools/calibration/README.md) | Kabsch world↔sensor calibration |
 | [../tools/remote_tester/README.md](../tools/remote_tester/README.md) | Pendant test GUI |
