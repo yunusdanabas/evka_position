@@ -1,3 +1,8 @@
+// gui.cs — third-party "CMD" Windows CNC control panel (WinForms, .NET 8).
+// Connects to the ESP32 TCP CMD server at 192.168.1.50:8080, shows live X/Y/Z, and
+// sends ZERO/WIFI_SET/etc. Origin: external vendor (see ./README.md). The firmware
+// side of this protocol is firmware/src/CmdTcpServer.cpp.
+// Build/run (Windows): dotnet run --project CMDScanner.csproj  (see ../../../CONTRIBUTING.md §4).
 using System;
 using System.Drawing;
 using System.IO;

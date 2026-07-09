@@ -1,3 +1,7 @@
+// SphericalSensor.cpp — the measurement core: reads the three encoders, converts
+// counts -> (r, theta, phi) -> (X, Y, Z), applies the EMA filter, validates the
+// result, and persists calibration to NVS. Pure logic, no networking.
+// See docs/firmware/CODE_WALKTHROUGH.md ("SphericalSensor.cpp — the math").
 #include "SphericalSensor.h"
 #include <Preferences.h>
 

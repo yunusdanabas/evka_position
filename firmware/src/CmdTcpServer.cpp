@@ -1,3 +1,7 @@
+// CmdTcpServer.cpp — the raw TCP "CMD protocol" server on port 8080 that the
+// Windows CMD app (firmware/src/CMD Soft/) connects to. Accepts up to MAX_CLIENTS,
+// queues incoming command lines for the main loop, and broadcasts the 20 Hz X/Y/Z
+// + SENSOR stream. Protocol: docs/integration/CMD_SOFTWARE_INTEGRATION.md.
 #include "CmdTcpServer.h"
 
 #if ENABLE_WIFI && ENABLE_CMD_TCP

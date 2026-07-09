@@ -1,3 +1,7 @@
+// SphericalSensor.h — configuration + the SphericalPositioningSensor class.
+// ALL pins, PPR values, and feature flags live here: this is the single source of
+// truth for hardware configuration. Reference: docs/ARCHITECTURE.md.
+// Source tour: docs/firmware/CODE_WALKTHROUGH.md.
 #ifndef SPHERICAL_SENSOR_H
 #define SPHERICAL_SENSOR_H
 

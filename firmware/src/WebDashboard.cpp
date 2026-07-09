@@ -1,3 +1,7 @@
+// WebDashboard.cpp — WiFi AP/STA management, the browser dashboard (served HTML),
+// and the WebSocket data/command channel. Network callbacks only enqueue commands;
+// the main loop drains them (never call firmware logic from a WiFi callback — that
+// caused crashes, see docs/ASYNCTCP_STACK_OVERFLOW_ANALYSIS.md).
 #include "WebDashboard.h"
 
 #if ENABLE_WIFI
