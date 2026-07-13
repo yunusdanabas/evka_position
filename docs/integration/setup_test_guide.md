@@ -4,8 +4,8 @@ _Session: 2026-02-18_
 > **v4 PCB users:** this guide covers bench bring-up on the classic Wemos board with
 > breadboard dividers. For the **v4 PCB** (ESP32-S3, `pcb_design/EVKA_position_v4/`)
 > the dividers and wiring are on-board — you only connect the three encoder terminal
-> blocks (J1=Theta, J2=Phi, J3=Wire) and power. Build/flash with `pio run -e esp32s3_v4`.
-> Firmware pins: Theta 7/8, Phi 4/5, Wire 9/10, battery ADC GPIO1. See
+> blocks (J1=Wire, J2=Phi, J3=Theta) and power. Build/flash with `pio run -e esp32s3_v4`.
+> Firmware pins: Theta 9/10, Phi 4/5, Wire 7/8, battery ADC GPIO1. See
 > `pcb_design/EVKA_position_v4/FIRMWARE.md`.
 
 ---

@@ -1,0 +1,6 @@
+(sym_lib_table
+	(version 7)
+	(lib (name "ESP32-S3-DEVKITC-1-N16R8V") (type "KiCad") (uri "${KIPRJMOD}/libs/ESP32-S3-DEVKITC-1-N16R8V.kicad_sym") (options "") (descr "SnapEDA — ESP32-S3 DevKitC-1 N16R8"))
+	(lib (name "MT3608_DC-DC_STEP_UP_CONVERTER_2A_BOOSTER_MODULE") (type "KiCad") (uri "${KIPRJMOD}/libs/MT3608_DC-DC_STEP_UP_CONVERTER_2A_BOOSTER_MODULE.kicad_sym") (options "") (descr "SnapEDA — MT3608 boost module"))
+	(lib (name "TP4056_MICRO-USB_CHARGER_-_1A") (type "KiCad") (uri "${KIPRJMOD}/libs/TP4056_MICRO-USB_CHARGER_-_1A.kicad_sym") (options "") (descr "SnapEDA — TP4056 charger module"))
+)

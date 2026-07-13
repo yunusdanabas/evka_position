@@ -27,9 +27,19 @@ subsystems used by `evka_position`.
 
 ## Current Pin Map (source of truth: `SphericalSensor.h`)
 
+Classic ESP32 (`wemos_d1_r32`):
+
 - Theta A/B: GPIO `14` / `12`
 - Phi A/B: GPIO `32` / `35`
-- Draw-wire A/B/Z: GPIO `16` / `17` / `18`
+- Draw-wire A/B: GPIO `16` / `17`
+
+v4 PCB (`esp32s3_v4`):
+
+- Draw-wire on J1: A/B = GPIO `7` / `8`
+- Phi on J2: A/B = GPIO `4` / `5`
+- Theta on J3: A/B = GPIO `9` / `10`
+
+v4 connector pin order is `1=A, 2=GND, 3=B, 4=+5V`. Theta/Phi colors: Brown `V+`, Blue `GND`, Black `A`, White `B`. Draw-wire colors: Yellow `A`, Green `B`, Brown `+V`, White `GND`.
 
 ## Current Working Constants (before recalibration)
 

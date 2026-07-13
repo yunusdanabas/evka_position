@@ -70,8 +70,13 @@ Shield       --> GND (at MCU end only)
 ```
 
 Current pin assignments in `SphericalSensor.h`:
-- **Theta axis**: A = GPIO 14, B = GPIO 12
-- **Phi axis**: A = GPIO 32, B = GPIO 35
+
+| Board | Theta | Phi |
+|---|---|---|
+| Classic ESP32 | A = GPIO 14, B = GPIO 12 | A = GPIO 32, B = GPIO 35 |
+| v4 PCB | J3 pin 1 A = GPIO 9, pin 3 B = GPIO 10 | J2 pin 1 A = GPIO 4, pin 3 B = GPIO 5 |
+
+v4 screw-terminal pin order for theta/phi is `1=A, 2=GND, 3=B, 4=+5V`: Black -> pin 1, Blue -> pin 2, White -> pin 3, Brown -> pin 4.
 
 **Power**: Use an external regulated 5V supply for all encoders (~50 mA each). Share GND with ESP32 but do not power encoders from ESP32.
 

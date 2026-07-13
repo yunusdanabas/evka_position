@@ -8,13 +8,22 @@ tree as the classic board; the v4 pin map is compiled in by the `-DPCB_V4` flag
 
 | Signal | GPIO | Connector |
 |---|---|---|
-| Theta A / B | 7 / 8 | J1 (A=pin3, B=pin4) |
+| Theta A / B | 9 / 10 | J3 |
 | Phi A / B | 4 / 5 | J2 |
-| Wire A / B | 9 / 10 | J3 |
+| Wire A / B | 7 / 8 | J1 |
 | Battery ADC | 1 | 1S LiPo, on-board 100k/100k ÷2 |
 
-Each encoder connector is `GND, +5V, A, B`. Encoders run at 5 V; the on-board
-10k/20k dividers bring the signals to 3.3 V logic — nothing external to add.
+Each encoder connector pin order is `1=A, 2=GND, 3=B, 4=+5V`. Encoders run at
+5 V; the on-board 10k/20k dividers bring the signals to 3.3 V logic — nothing
+external to add.
+
+Encoder cable colors:
+
+| Encoder | A | B | +V | GND |
+|---|---|---|---|---|
+| Theta / Phi E40S6 | Black | White | Brown | Blue |
+| Draw-wire DWEM2 | Yellow | Green | Brown | White |
+
 There are **no onboard buttons** (GPIO17/18 are unconnected). The carrier has a
 hardwired green **power LED** only; status feedback uses the **ESP32-S3 DevKit
 onboard RGB LED** (WS2812 on GPIO48 — see §9).
@@ -74,7 +83,7 @@ should raise +Z, wire extension should raise `r`. If an axis is reversed:
 
 - Theta / Phi → flip `ENCODER_THETA_SIGN` / `ENCODER_PHI_SIGN` in `SphericalSensor.h`.
 - Wire has no sign flag → swap the wire `attachFullQuad(A, B)` argument order in
-  `SphericalSensor.cpp` (or swap the J3 A/B wires).
+  `SphericalSensor.cpp` (or swap the J1 A/B wires).
 
 ## 8. Accessories (work unchanged with v4)
 

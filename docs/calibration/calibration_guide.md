@@ -39,7 +39,7 @@ pio run -e test_drawwire --target upload
 pio device monitor -e test_drawwire
 ```
 
-Wire encoder pins: `A → GPIO 16`, `B → GPIO 17`.
+Wire encoder pins: classic `A → GPIO 16`, `B → GPIO 17`; v4 PCB J1 `A → GPIO 7`, `B → GPIO 8`.
 
 Repeat for at least 5 different known distances, both extend and retract:
 
@@ -85,7 +85,7 @@ pio run -e test_rotary --target upload
 pio device monitor -e test_rotary
 ```
 
-Theta encoder pins: `A → GPIO 32`, `B → GPIO 35`. Disconnect phi encoder for isolated test.
+Theta encoder pins: classic `A → GPIO 14`, `B → GPIO 12`; v4 PCB J3 `A → GPIO 9`, `B → GPIO 10`. Disconnect phi encoder for isolated test.
 
 ### 2.2 Trial procedure (interactive)
 
@@ -135,7 +135,7 @@ DEG_PER_PULSE    = 360 / PPR_ROTARY_THETA
 
 ### 3.1 Flash and connect
 
-Same `test_rotary` firmware. Phi encoder pins: `A → GPIO 14`, `B → GPIO 12`.
+Same `test_rotary` firmware. Phi encoder pins: classic `A → GPIO 32`, `B → GPIO 35`; v4 PCB J2 `A → GPIO 4`, `B → GPIO 5`.
 
 ### 3.2 Trial procedure
 

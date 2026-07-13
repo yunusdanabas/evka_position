@@ -18,13 +18,14 @@
 #if defined(PCB_V4)
 // EVKA_position_v4 — ESP32-S3-DevKitC-1. Encoders via on-board 10k/20k dividers
 // straight to GPIO (no Schmitt buffer). Verified against the v4 schematic AND PCB
-// pad-nets (THETA=DIVIDER_NODE_1/2, PHI=_3/4, WIRE=_5/6). GPIO17/18 are NOT wired.
-#define PIN_THETA_A   7     // DIVIDER_NODE_1 (J1.1 theta A)
-#define PIN_THETA_B   8     // DIVIDER_NODE_2 (J1.3 theta B)
+// pad-nets (WIRE=DIVIDER_NODE_1/2 on J1, PHI=_3/4 on J2, THETA=_5/6 on J3).
+// GPIO17/18 are NOT wired.
+#define PIN_THETA_A   9     // DIVIDER_NODE_5 (J3.1 theta A)
+#define PIN_THETA_B   10    // DIVIDER_NODE_6 (J3.3 theta B)
 #define PIN_PHI_A     4     // DIVIDER_NODE_3 (J2.2 phi A)
 #define PIN_PHI_B     5     // DIVIDER_NODE_4 (J2.4 phi B)
-#define PIN_WIRE_A    9     // DIVIDER_NODE_5 (J3.1 wire A)
-#define PIN_WIRE_B    10    // DIVIDER_NODE_6 (J3.3 wire B)
+#define PIN_WIRE_A    7     // DIVIDER_NODE_1 (J1.1 wire A)
+#define PIN_WIRE_B    8     // DIVIDER_NODE_2 (J1.3 wire B)
 #else
 // Classic ESP32 (Wemos D1 R32). Must stay interrupt/PCNT-capable.
 #define PIN_THETA_A   14    // Encoder pin (Theta azimuth axis)

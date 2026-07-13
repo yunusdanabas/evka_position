@@ -1,4 +1,4 @@
-# Draw-Wire Calibration (GPIO 16 / 17 / 18)
+# Draw-Wire Calibration (classic GPIO 16 / 17; v4 J1 GPIO 7 / 8)
 
 Calibrate linear scale (`MM_PER_PULSE`) using `test_drawwire` and known travel
 references.
@@ -6,9 +6,9 @@ references.
 ## 1. Wiring and Environment Pre-check
 
 - Connect draw-wire channels:
-  - A -> divider -> GPIO `16`
-  - B -> divider -> GPIO `17`
-  - Z -> divider -> GPIO `18`
+  - Classic ESP32: A -> divider -> GPIO `16`, B -> divider -> GPIO `17`
+  - v4 PCB: A (Yellow) -> J1 pin 1 -> GPIO `7`, B (Green) -> J1 pin 3 -> GPIO `8`
+  - Power: Brown -> `+5V`, White -> `GND`
 - External 5V supply and common GND with ESP32.
 - Prepare a physical distance reference (steel ruler/tape) with at least
   500 mm usable travel.

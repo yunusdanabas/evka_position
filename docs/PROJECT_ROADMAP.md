@@ -30,7 +30,7 @@
   - [x] Full diagnostic log: `docs/WIFI_PERFORMANCE_ISSUES_LOG.md`
 
 ## In Progress
-- [x] v4 PCB firmware port (2026-07-08) — ESP32-S3-DevKitC-1 board; new PlatformIO env `esp32s3_v4` (`-DPCB_V4`); pins THETA 7/8, PHI 4/5, WIRE 9/10, battery ADC GPIO1; switched both boards to `ESP32Encoder` (hardware PCNT); battery monitor enabled. Both envs build clean. Verified against v4 schematic + PCB pad-nets. Hardware bring-up pending.
+- [x] v4 PCB firmware port (2026-07-08) — ESP32-S3-DevKitC-1 board; new PlatformIO env `esp32s3_v4` (`-DPCB_V4`); pins THETA 9/10 on J3, PHI 4/5 on J2, WIRE 7/8 on J1, battery ADC GPIO1; switched both boards to `ESP32Encoder` (hardware PCNT); battery monitor enabled. Both envs build clean. Verified against v4 schematic + PCB pad-nets. Hardware bring-up pending.
 - [ ] Phase 5: Full 3-encoder integration test
   - [x] Firmware integration hardening (non-blocking serial + `PING`/`STATUS`)
   - [x] Backward-compatible serial protocol retained (`DATA,...` unchanged)

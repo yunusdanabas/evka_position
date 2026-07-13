@@ -42,9 +42,11 @@ A **Draw-Wire Encoder** (also known as a cable transducer or string pot) measure
 | +V (supply) | Brown | 5V rail |
 | 0 V (ground) | White | GND |
 | GND / Earth | Shield | GND |
-| Ch A | Yellow | GPIO 16 (via 10k/20k divider) |
-| Ch B | Green | GPIO 17 (via 10k/20k divider) |
+| Ch A | Yellow | Classic GPIO 16, v4 J1 pin 1 / GPIO 7 |
+| Ch B | Green | Classic GPIO 17, v4 J1 pin 3 / GPIO 8 |
 | Ch Z | Gray | (not connected — index unused) |
+
+v4 screw-terminal pin order for the draw-wire port is `1=A, 2=GND, 3=B, 4=+5V`: Yellow -> pin 1, White -> pin 2, Green -> pin 3, Brown -> pin 4.
 
 ## Recommended Specifications
 To match the system requirements (3D positioning with 2 angles):
@@ -131,7 +133,7 @@ From the encoder nameplate. Use **V** (Brown) and **0 V** (White) for power; **A
 | **Pins (ESP32)** | PIN_WIRE_CLK = 6, PIN_WIRE_DIR = 7 | PIN_WIRE_A = 16, PIN_WIRE_B = 17 |
 | **Why 6/7 changed** | GPIO 6–11 are reserved for SPI flash on ESP32-WROOM-32 (Wemos D1 R32) — must not be used as I/O | 16/17 are safe GPIOs with full I/O |
 | **Voltage** | Encoder 5 V outputs; direct connect risks ESP32 (3.3 V max) | Use 10 kΩ / 20 kΩ divider on A, B, Z before ESP32 |
-| **Rotary encoder final map** | Earlier intermediate remaps were part of bring-up | Final firmware map is Theta = GPIO 14/12, Phi = GPIO 32/35; see `firmware/src/SphericalSensor.h` |
+| **Rotary encoder final map** | Earlier intermediate remaps were part of bring-up | Classic map is Theta = GPIO 14/12, Phi = GPIO 32/35; v4 map is Theta = GPIO 9/10 on J3, Phi = GPIO 4/5 on J2. See `firmware/src/SphericalSensor.h`. |
 
 Current firmware uses the **Encoder** library (quadrature) for the draw-wire; legacy used a single ISR on the clock pin and read direction from the other pin.
 

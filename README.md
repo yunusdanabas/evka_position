@@ -37,8 +37,12 @@ The pin map is selected at build time by `PCB_V4` in `SphericalSensor.h`.
 
 | Pin | Signal | | Pin | Signal |
 |-----|--------|-|-----|--------|
-| 7 / 8 | Theta A / B | | 9 / 10 | Draw-wire A / B |
+| 9 / 10 | Theta A / B | | 7 / 8 | Draw-wire A / B |
 | 4 / 5 | Phi A / B | | 1 | Battery ADC (1S LiPo, ÷2) |
+
+v4 encoder ports: J1 = draw-wire, J2 = phi, J3 = theta. Each connector is
+`1=A, 2=GND, 3=B, 4=+5V`. Theta/Phi colors: Brown `V+`, Blue `GND`, Black `A`,
+White `B`. Draw-wire colors: Yellow `A`, Green `B`, Brown `+V`, White `GND`.
 
 > v4 has **no onboard buttons** (GPIO17/18 unconnected) and no firmware LED (only a hardwired power LED) — the WiFi-status-LED code is a harmless no-op there.
 

@@ -148,9 +148,9 @@ Safe zone for SMPS:
 │  ┌─────────────────────────────────────────────────────┐  │
 │  │ [ENCODER ZONE — Bottom Left]                        │  │
 │  │                                                     │  │
-│  │  J1 (Theta) ── FB1 ── 100nF ── dividers          │  │
+│  │  J1 (Wire)  ── FB1 ── 100nF ── dividers          │  │
 │  │  J2 (Phi)   ── FB2 ── 100nF ── dividers          │  │
-│  │  J3 (Wire)  ── FB3 ── 100nF ── dividers          │  │
+│  │  J3 (Theta) ── FB3 ── 100nF ── dividers          │  │
 │  │                                                     │  │
 │  │  Traces routed AROUND SMPS zone (right side)      │  │
 │  │  ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾              │  │

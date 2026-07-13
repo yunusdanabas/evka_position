@@ -49,14 +49,14 @@
 ### Encoder Connectors
 | Mistake | Consequence | Fix |
 |---------|-------------|-----|
-| **Screw terminals loose** | Intermittent contact, random encoder dropouts mid-test | Tighten all 3 connectors (J1=Theta, J2=Phi, J3=Wire) with small screwdriver; pull connector off, re-seat, re-tighten |
-| **Encoder wires reversed in connector** | Counts go backwards; worse, A/B swapped creates invalid quadrature | Verify wire order before soldering: Theta A→J1.1, B→J1.2; Phi A→J2.1, B→J2.2; Draw-wire A→J3.1, B→J3.2, Z→J3.3 |
+| **Screw terminals loose** | Intermittent contact, random encoder dropouts mid-test | Tighten all 3 connectors. v4 order is J1=Wire, J2=Phi, J3=Theta; pull connector off, re-seat, re-tighten. |
+| **Encoder wires reversed in connector** | Counts go backwards; worse, A/B swapped creates invalid quadrature | Verify v4 wire order: Wire A→J1.1, GND→J1.2, B→J1.3, +5V→J1.4; Phi A→J2.1, GND→J2.2, B→J2.3, +5V→J2.4; Theta A→J3.1, GND→J3.2, B→J3.3, +5V→J3.4. |
 | **Common ground not connected at board edge** | Encoder floating GND; quadrature counts unreliable | Ensure encoder GND wire connects to J1/J2/J3 GND pin; measure continuity from encoder GND to board GND star point |
 
 ### ESP32 Mount & Headers
 | Mistake | Consequence | Fix |
 |---------|-------------|-----|
-| **ESP32 header pins soldered wrong order** | GPIO numbering incorrect; all encoders fail or intermix | Verify header orientation: GPIO 14/12/32/35/16/17/18 match silk-screen labels; test with `pio device monitor` and check boot messages |
+| **ESP32 header pins soldered wrong order** | GPIO numbering incorrect; all encoders fail or intermix | Verify header orientation: v4 uses GPIO 7/8 for Wire, 4/5 for Phi, 9/10 for Theta; test with `pio device monitor` and check boot messages |
 | **VIN/GND swapped on ESP32** | No power to ESP32 or backwards polarity | Probe VIN pad with multimeter: should be 5V ±0.2V; GND should be 0V; if backwards, LED1 won't light |
 | **USB cable too short or damaged** | Serial upload fails; cannot debug | Use proper USB micro-B cable; test with known-good cable first; if upload times out, hold BOOT → RESET → release BOOT, retry |
 
@@ -161,35 +161,32 @@ Expected:
 
 #### 3a. Draw-Wire Encoder (DWEM2)
 ```bash
-# Connect only draw-wire to J3; leave J1 and J2 unconnected
+# v4: connect only draw-wire to J1; leave J2 and J3 unconnected
 # Apply external 5V to encoder (see wiring in setup_test_guide.md)
-# Upload draw-wire test:
-#   pio run -e test_drawwire --target upload
-#   pio device monitor -e test_drawwire
+# Upload v4 main firmware:
+#   pio run -e esp32s3_v4 --target upload
+#   pio device monitor -e esp32s3_v4
 
-# Expected: "DrawWireTest ready"
-# Pull wire 200 mm slowly: COUNT ~2000, DIST_mm ~200.0
-# Push wire back: COUNT ~0, DIST_mm ~0.0
+# Expected: DATA/SENSOR radius changes while pulling wire.
 
 If COUNT = 0 always:
-  □ Check GPIO 16/17 are receiving 0V/3.3V when encoder powered
+  □ Check GPIO 7/8 are receiving 0V/3.3V when encoder powered
   □ Verify external 5V supply is actually powering encoder
   □ Test voltage dividers with multimeter: 5V → ~3.3V at GPIO
 ```
 
 #### 3b. Theta Rotary Encoder (E40S6)
 ```bash
-# Connect only theta to J1; leave J2 and J3 unconnected
+# v4: connect only theta to J3; leave J1 and J2 unconnected
 # Apply external 5V to encoder
-# Upload rotary test:
-#   pio run -e test_rotary --target upload
-#   pio device monitor -e test_rotary
+# Upload v4 main firmware:
+#   pio run -e esp32s3_v4 --target upload
+#   pio device monitor -e esp32s3_v4
 
-# Expected: "THETA_counts=<n>  THETA_deg=<n*0.018> | PHI_counts=0"
-# Rotate encoder one full turn CW: THETA_counts → +20000, THETA_deg → +360
+# Expected: DATA/SENSOR theta changes while rotating theta.
 
 If THETA_counts = 0:
-  □ Verify GPIO 14/12 toggling with multimeter (should see 0V/3.3V alternating)
+  □ Verify GPIO 9/10 toggling with multimeter (should see 0V/3.3V alternating)
   □ Check ferrite FB1 is not broken
   □ Confirm R1/R2 divider resistors are soldered
 ```
@@ -198,12 +195,11 @@ If THETA_counts = 0:
 ```bash
 # Connect only phi to J2; leave J1 and J3 unconnected
 # Apply external 5V to encoder
-# Upload rotary test:
-#   pio run -e test_rotary --target upload
-#   pio device monitor -e test_rotary
+# Upload v4 main firmware:
+#   pio run -e esp32s3_v4 --target upload
+#   pio device monitor -e esp32s3_v4
 
-# Expected: "THETA_counts=0 | PHI_counts=<n>  PHI_deg=<n*0.018>"
-# Rotate encoder one full turn CW: PHI_counts → +20000, PHI_deg → +360
+# Expected: DATA/SENSOR phi changes while rotating phi.
 ```
 
 ### Phase 4: Full Integration Test
@@ -268,13 +264,12 @@ Expected:
 
 | GPIO | Encoder | Debug | Expected |
 |------|---------|-------|----------|
-| **16** (Wire A) | Draw-wire A line | Multimeter to GPIO 16 while pulling wire | Toggle 0V ↔ 3.3V |
-| **17** (Wire B) | Draw-wire B line | Multimeter to GPIO 17 while pulling wire | Toggle 0V ↔ 3.3V (opposite phase to GPIO 16) |
-| **18** (Wire Z) | Draw-wire index | GPIO 18 should pulse ~1 per 200 mm | Count in firmware increments Z_ticks |
-| **14** (Theta A) | Rotary A | GPIO 14 during rotation | Smooth quadrature pattern (1, 0 alternating) |
-| **12** (Theta B) | Rotary B | GPIO 12 during rotation | 90° out of phase with GPIO 14 |
-| **32** (Phi A) | Rotary A | GPIO 32 during rotation | Smooth quadrature pattern |
-| **35** (Phi B) | Rotary B | GPIO 35 during rotation | 90° out of phase with GPIO 32 |
+| **7** (Wire A) | Draw-wire A line | Multimeter to GPIO 7 while pulling wire | Toggle 0V ↔ 3.3V |
+| **8** (Wire B) | Draw-wire B line | Multimeter to GPIO 8 while pulling wire | Toggle 0V ↔ 3.3V (opposite phase to GPIO 7) |
+| **9** (Theta A) | Rotary A | GPIO 9 during rotation | Smooth quadrature pattern (1, 0 alternating) |
+| **10** (Theta B) | Rotary B | GPIO 10 during rotation | 90° out of phase with GPIO 9 |
+| **4** (Phi A) | Rotary A | GPIO 4 during rotation | Smooth quadrature pattern |
+| **5** (Phi B) | Rotary B | GPIO 5 during rotation | 90° out of phase with GPIO 4 |
 
 **If GPIO not toggling:**
 1. Check encoder is powered (measure encoder +5V)
@@ -289,8 +284,8 @@ Expected:
 
 | Encoder | Fix |
 |---------|-----|
-| Draw-wire (J3) | Swap A ↔ B wires on J3 terminal block |
-| Theta (J1) | Swap A ↔ B wires on J1 terminal block |
+| Draw-wire (J1) | Swap A ↔ B wires on J1 terminal block |
+| Theta (J3) | Swap A ↔ B wires on J3 terminal block |
 | Phi (J2) | Swap A ↔ B wires on J2 terminal block |
 
 ### If Counts Jump Randomly
@@ -309,8 +304,8 @@ Expected:
 
 | Scenario | Likely Cause | Fix |
 |----------|--------------|-----|
-| **Theta works, Phi doesn't** | Wrong GPIO or divider not soldered | Verify GPIO 32/35 are receiving correct voltage (multimeter); check R3/R10 and R4/R11 soldered |
-| **Wire works, both rotary encoders fail** | GPIOs 32/35/14/12 not connected or miswired | Re-check ESP32 header pins match silk-screen; use `DIAG` command to read raw GPIO state |
+| **Theta works, Phi doesn't** | Wrong GPIO or divider not soldered | Verify GPIO 4/5 are receiving correct voltage (multimeter); check the J2 divider parts. |
+| **Wire works, both rotary encoders fail** | GPIOs 4/5/9/10 not connected or miswired | Re-check ESP32 header pins match silk-screen; use `STATUS`/serial output to confirm axis changes. |
 | **Only one channel of rotary works** | One quadrature line missing | Verify both A and B wires are connected to J connector; measure both GPIO outputs |
 
 ### If Board Powers Off When Encoders Connected

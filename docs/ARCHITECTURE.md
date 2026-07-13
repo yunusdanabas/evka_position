@@ -67,7 +67,10 @@ Selected at build time by the `PCB_V4` macro (set via `-DPCB_V4` in the `esp32s3
 
 | θA/θB | φA/φB | rA/rB | Battery ADC |
 |---|---|---|---|
-| 7 / 8 | 4 / 5 | 9 / 10 | 1 (1S LiPo, ÷2) |
+| 9 / 10 | 4 / 5 | 7 / 8 | 1 (1S LiPo, ÷2) |
+
+v4 connector map: J1 = draw-wire, J2 = phi, J3 = theta. Physical connector pin
+order is `1=A, 2=GND, 3=B, 4=+5V`.
 
 v4 has no onboard buttons (GPIO17/18 unconnected) and no firmware LED (hardwired power LED only).
 Full v4 detail: [../pcb_design/EVKA_position_v4/FIRMWARE.md](../pcb_design/EVKA_position_v4/FIRMWARE.md).

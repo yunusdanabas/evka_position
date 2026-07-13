@@ -1,12 +1,13 @@
-# Phi Rotary Calibration (GPIO 14 / 12)
+# Phi Rotary Calibration (classic GPIO 32 / 35; v4 J2 GPIO 4 / 5)
 
 Calibrate phi counts-per-revolution using `test_rotary`.
 
 ## 1. Wiring and Environment Pre-check
 
 - Connect only phi encoder signals:
-  - A (black) -> divider -> GPIO `14`
-  - B (white) -> divider -> GPIO `12`
+  - Classic ESP32: A (black) -> divider -> GPIO `32`, B (white) -> divider -> GPIO `35`
+  - v4 PCB: A (black) -> J2 pin 1 -> GPIO `4`, B (white) -> J2 pin 3 -> GPIO `5`
+  - Brown -> `+5V`, Blue -> `GND`
 - Keep theta disconnected for isolated phi calibration.
 - Provide external 5V to encoder and common GND to ESP32.
 - Confirm voltage divider on every signal line (5V -> 3.3V safe input).

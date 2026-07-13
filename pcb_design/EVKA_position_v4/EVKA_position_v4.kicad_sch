@@ -2966,38 +2966,33 @@
 			(embedded_fonts no)
 		)
 		(symbol "MT3608_DC-DC_STEP_UP_CONVERTER_2A_BOOSTER_MODULE:MT3608_DC-DC_STEP_UP_CONVERTER_2A_BOOSTER_MODULE"
-			(pin_names
-				(offset 1.016)
-			)
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
 			(in_pos_files yes)
 			(duplicate_pin_numbers_are_jumpers no)
 			(property "Reference" "MOD_MT3608"
-				(at -1.2701 6.35 90)
+				(at 2.54 0 0)
 				(show_name no)
 				(do_not_autoplace no)
 				(effects
 					(font
 						(size 1.27 1.27)
 					)
-					(justify left)
 				)
 			)
-			(property "Value" "MT3608 Updated"
-				(at 1.2699 6.35 90)
-				(show_name yes)
+			(property "Value" "MT3608_DC-DC_STEP_UP_CONVERTER_2A_BOOSTER_MODULE"
+				(at 0 -2.54 0)
+				(show_name no)
 				(do_not_autoplace no)
 				(effects
 					(font
 						(size 1.27 1.27)
 					)
-					(justify left)
 				)
 			)
 			(property "Footprint" "MT3608_DC-DC_STEP_UP_CONVERTER_2A_BOOSTER_MODULE:MODULE_MT3608_DC-DC_STEP_UP_CONVERTER_2A_BOOSTER_MODULE"
-				(at 0 0 0)
+				(at 0 -5.08 0)
 				(show_name no)
 				(do_not_autoplace no)
 				(hide yes)
@@ -3005,11 +3000,10 @@
 					(font
 						(size 1.27 1.27)
 					)
-					(justify bottom)
 				)
 			)
 			(property "Datasheet" ""
-				(at 0 0 0)
+				(at 0 -7.62 0)
 				(show_name no)
 				(do_not_autoplace no)
 				(hide yes)
@@ -3019,8 +3013,8 @@
 					)
 				)
 			)
-			(property "Description" "MT3608-based step-up converter boosts 2V–24V input to 28V with up to 93% efficiency. Suitable for devices needing higher voltage than the source."
-				(at 0 0 0)
+			(property "Description" "MT3608 boost module, VIN+/VIN-, VOUT+/VOUT-. VOUT- is passive to avoid treating module ground as a power source."
+				(at 0 -10.16 0)
 				(show_name no)
 				(do_not_autoplace no)
 				(hide yes)
@@ -3028,190 +3022,9 @@
 					(font
 						(size 1.27 1.27)
 					)
-					(justify bottom)
 				)
 			)
-			(property "MF" "Generic"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify bottom)
-				)
-			)
-			(property "MAXIMUM_PACKAGE_HEIGHT" "6.45mm"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify bottom)
-				)
-			)
-			(property "CREATOR" "ASHISH"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify bottom)
-				)
-			)
-			(property "NOTES" "Drill the same as given in 3D model"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify bottom)
-				)
-			)
-			(property "Package" "Package"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify bottom)
-				)
-			)
-			(property "Check_prices" "https://www.snapeda.com/parts/MT3608%20DC-DC%20Step%20Up%20Converter%202A%20Booster%20Module/Generic/view-part/?ref=eda"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify bottom)
-				)
-			)
-			(property "STANDARD" "Manufacturer Recommendations"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify bottom)
-				)
-			)
-			(property "PARTREV" ""
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify bottom)
-				)
-			)
-			(property "VERIFIER" ""
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify bottom)
-				)
-			)
-			(property "SnapEDA_Link" "https://www.snapeda.com/parts/MT3608%20DC-DC%20Step%20Up%20Converter%202A%20Booster%20Module/Generic/view-part/?ref=snap"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify bottom)
-				)
-			)
-			(property "MP" "MT3608 DC-DC Step Up Converter 2A Booster Module"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify bottom)
-				)
-			)
-			(property "Availability" "Not in stock"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify bottom)
-				)
-			)
-			(property "Price" "None"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify bottom)
-				)
-			)
-			(property "UNIT" "mm"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify bottom)
-				)
-			)
-			(property "MANUFACTURER" "Generic"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(justify bottom)
-				)
-			)
-			(symbol "MT3608_DC-DC_STEP_UP_CONVERTER_2A_BOOSTER_MODULE_0_0"
+			(symbol "MT3608_DC-DC_STEP_UP_CONVERTER_2A_BOOSTER_MODULE_0_1"
 				(rectangle
 					(start -10.16 5.08)
 					(end 10.16 -5.08)
@@ -3223,20 +3036,22 @@
 						(type background)
 					)
 				)
+			)
+			(symbol "MT3608_DC-DC_STEP_UP_CONVERTER_2A_BOOSTER_MODULE_1_1"
 				(pin input line
 					(at -15.24 -2.54 0)
 					(length 5.08)
 					(name "VIN-"
 						(effects
 							(font
-								(size 1.016 1.016)
+								(size 1.27 1.27)
 							)
 						)
 					)
 					(number "VIN_N"
 						(effects
 							(font
-								(size 1.016 1.016)
+								(size 1.27 1.27)
 							)
 						)
 					)
@@ -3247,14 +3062,14 @@
 					(name "VIN+"
 						(effects
 							(font
-								(size 1.016 1.016)
+								(size 1.27 1.27)
 							)
 						)
 					)
 					(number "VIN_P"
 						(effects
 							(font
-								(size 1.016 1.016)
+								(size 1.27 1.27)
 							)
 						)
 					)
@@ -3265,34 +3080,32 @@
 					(name "VOUT-"
 						(effects
 							(font
-								(size 1.016 1.016)
+								(size 1.27 1.27)
 							)
 						)
 					)
 					(number "VOUT_N"
 						(effects
 							(font
-								(size 1.016 1.016)
+								(size 1.27 1.27)
 							)
 						)
 					)
 				)
-			)
-			(symbol "MT3608_DC-DC_STEP_UP_CONVERTER_2A_BOOSTER_MODULE_1_0"
 				(pin output line
 					(at 15.24 2.54 180)
 					(length 5.08)
 					(name "VOUT+"
 						(effects
 							(font
-								(size 1.016 1.016)
+								(size 1.27 1.27)
 							)
 						)
 					)
 					(number "VOUT_P"
 						(effects
 							(font
-								(size 1.016 1.016)
+								(size 1.27 1.27)
 							)
 						)
 					)
@@ -6536,7 +6349,7 @@
 		)
 		(uuid "fc51f25f-be34-49df-a5c0-1b22b7e848a2")
 	)
-	(label "WIRE_B_IN"
+	(label "THETA_B_IN"
 		(at 196.85 156.21 0)
 		(effects
 			(font
@@ -6546,7 +6359,7 @@
 		)
 		(uuid "0da7e9a7-f2a6-4828-b286-fcfb41c545cd")
 	)
-	(label "THETA_B_IN"
+	(label "WIRE_B_IN"
 		(at 185.42 53.34 0)
 		(effects
 			(font
@@ -6586,7 +6399,7 @@
 		)
 		(uuid "82f79ba1-526f-42b2-828d-c6df5bb33c4d")
 	)
-	(label "WIRE_A_IN"
+	(label "THETA_A_IN"
 		(at 200.66 166.37 0)
 		(effects
 			(font
@@ -6706,7 +6519,7 @@
 		)
 		(uuid "d483d154-1f11-41c6-a585-4e755253dcb3")
 	)
-	(label "THETA_A_IN"
+	(label "WIRE_A_IN"
 		(at 207.01 46.99 180)
 		(effects
 			(font
@@ -8520,7 +8333,7 @@
 				)
 			)
 		)
-		(property "Value" "THETA"
+		(property "Value" "WIRE"
 			(at 181.61 24.13 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10151,7 +9964,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "WIRE"
+		(property "Value" "THETA"
 			(at 196.85 130.8101 90)
 			(show_name no)
 			(do_not_autoplace no)
