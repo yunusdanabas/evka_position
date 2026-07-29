@@ -14,16 +14,35 @@ import serial  # pyserial
 
 from tools.position_checker.tcp_client import TcpClient  # noqa: F401  (re-exported)
 
+from .ws_client import WsClient  # noqa: F401  (re-exported)
+
 LineCallback = Callable[[str], None]
 DisconnectCallback = Callable[[str], None]
+
+RECONNECT_MIN_S = 1.0
+RECONNECT_MAX_S = 30.0
+
+
+def next_backoff(
+    prev_s: float,
+    *,
+    min_s: float = RECONNECT_MIN_S,
+    max_s: float = RECONNECT_MAX_S,
+) -> float:
+    """Exponential reconnect backoff: 1, 2, 4, 8, 16, 30, 30, … seconds.
+
+    ``prev_s`` is 0.0 for the first retry. Mirrors the web dashboard's
+    WebSocket backoff so both UIs behave the same on a dropped link.
+    """
+    return min(max(prev_s * 2.0, min_s), max_s)
 
 
 class SerialLineReader:
     """Threaded newline serial reader shaped exactly like ``TcpClient``.
 
-    ponytail: no auto-reconnect — matches TcpClient; a dropped port fires
-    ``on_disconnect`` and the GUI reconnects. Add a backoff-reopen loop only if
-    USB re-enumeration mid-session becomes a real annoyance.
+    No reconnect logic lives here: a dropped port fires ``on_disconnect`` and
+    ``EvkaWindow`` drives the retry with ``next_backoff`` above, so all three
+    transports reconnect through one code path.
     """
 
     def __init__(self) -> None:
@@ -120,6 +139,12 @@ class SerialLineReader:
                 if line and self._on_line is not None:
                     self._on_line(line)
         finally:
+            # Only report a *lost* link. On a requested stop (close() flipped
+            # _running before we got here) emitting would push a stray disconnect
+            # event after the user already disconnected — which the window would
+            # read as a dropped link and try to auto-reconnect.
+            with self._lock:
+                requested_stop = not self._running
             self.close(emit_disconnect=False)
-            if self._on_disconnect is not None:
+            if not requested_stop and self._on_disconnect is not None:
                 self._on_disconnect(reason)
