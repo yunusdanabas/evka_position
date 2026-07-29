@@ -1,12 +1,20 @@
 # CMD Protocol Integration — Changelog & Rationale
 
+> **Archive / implementation history.** This file records the original integration and contains
+> dated statements that are not the current handoff contract. The vendor C# application has been
+> deleted; paths below into `firmware/src/CMD Soft/` are historical and no longer exist. The TCP
+> protocol remains. Current main firmware uses `ESP32Encoder`, the canonical GUI is
+> `tools/evka_gui`, and the current protocol reference is [../PROTOCOL.md](../PROTOCOL.md).
+
 This document explains every change made to integrate the third-party CMD firmware/GUI protocol into the EvkaPosition system, and why each change was necessary.
 
 For a short operational guide, see `docs/integration/CMD_SOFTWARE_INTEGRATION.md`.
 
 ## Background
 
-A third-party firm (CMD) provided their own ESP32 firmware (`firmware/src/CMD Soft/main.cpp`) and a Windows C# GUI (`firmware/src/CMD Soft/gui.cs`). Their system uses:
+At the time of integration, a third-party firm (CMD) provided ESP32 firmware
+(`firmware/src/CMD Soft/main.cpp`) and a Windows C# GUI (`firmware/src/CMD Soft/gui.cs`). Those paths
+are now deleted. Their system used:
 
 - **WiFi AP**: SSID `CMDCNC`, password `cmdcnc1234`, static IP `192.168.1.50`
 - **Raw TCP server** on port `8080`
@@ -130,13 +138,15 @@ cmdTcp.broadcastSensorData(r, theta, phi, valid, frame);  // SENSOR format
 build_src_filter = +<src/> -<src/CMD Soft/>
 ```
 
-**Why?** The `CMD Soft/` folder contains reference code that uses `ESP32Encoder.h` (not in our dependencies). Without this exclusion, PlatformIO tries to compile it and fails.
+**Historical reason:** The `CMD Soft/` folder contained reference code that used
+`ESP32Encoder.h` (not then in the dependencies). Without this exclusion, PlatformIO attempted to
+compile it and failed. The folder has since been deleted.
 
 ---
 
 ## GUI Changes
 
-### C# GUI (`firmware/src/CMD Soft/gui.cs`) — Full Rewrite
+### C# GUI (`firmware/src/CMD Soft/gui.cs`) — Full Rewrite (Historical, Deleted)
 
 The original CMD GUI was in Turkish with minimal features. We rewrote it in English with feature parity to our web dashboard.
 
@@ -197,7 +207,8 @@ A Linux-native PyQt5 equivalent of the C# GUI, since the C# GUI only runs on Win
 | Encoder library | ESP32Encoder (PCNT) | PaulStoffregen Encoder (ISR) | Same quadrature math, different driver |
 | Blocking model | Single client, blocking loop | Multi-client, non-blocking poll | CMD GUI sees no difference |
 
-**Bottom line:** The original CMD C# GUI connects and works with our firmware without any modifications. Our updated GUIs add features on top of the same protocol.
+**Historical bottom line:** The original CMD C# GUI connected to the retained protocol. The vendor
+application has since been deleted; current clients use `tools/evka_gui`.
 
 ---
 
@@ -221,7 +232,7 @@ A Linux-native PyQt5 equivalent of the C# GUI, since the C# GUI only runs on Win
 | Serial command protocol | All serial commands work identically — TCP is an additional interface |
 | Coordinate math | Same spherical-to-Cartesian conversion, same EMA filter (alpha=0.2) |
 | Update rate | 20 Hz (50ms period) — same as CMD's `delay(50)` |
-| `CMD Soft/main.cpp` | Kept as reference code (excluded from build via `platformio.ini` filter) |
+| `CMD Soft/main.cpp` | Was kept as reference code during integration and was later deleted |
 
 ---
 

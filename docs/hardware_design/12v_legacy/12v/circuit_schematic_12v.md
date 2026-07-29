@@ -306,7 +306,7 @@ Scale factor: **V_in = V_adc × (120k + 27k) / 27k** = **V_adc × 5.444**
 Copy **verbatim** from [circuit_schematic.md](../5v/circuit_schematic.md):
 
 - **Section 3** — voltage dividers **10k / 20k / 1nF** + **1.5KE3.3CA** (or **SMBJ3.3CA**)
-- **Section 3b** — **J1 / J2 / J3** pin map to **GPIO 14, 12, 32, 35, 16, 17, 18** (same as [CLAUDE.md](../../../CLAUDE.md))
+- **Section 3b** — **J1 / J2 / J3** pin map to **GPIO 14, 12, 32, 35, 16, 17, 18** (same as [AGENTS.md](../../../AGENTS.md) and [docs/ARCHITECTURE.md](../../ARCHITECTURE.md))
 - **Sections 4–7** — ESP32 **VIN** from **5V_RAIL**, ferrites, LEDs, decoupling
 
 **Note:** All three encoders run on **5V from 5V_RAIL** — do NOT connect any encoder to the 12V rail. The DWEM2 accepts 8–24V (or 5V) but its output swings to the supply rail; powering it at 12V would produce 0–12V output signals that exceed the voltage divider design (3.33V target) and damage the ESP32.

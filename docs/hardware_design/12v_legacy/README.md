@@ -21,4 +21,4 @@ This folder contains all 12V hardware design work that was explored before the p
 
 ## Cross-References
 
-All internal links and external documentation references (`AGENTS.md`, `CLAUDE.md`, `firmware/src/SphericalSensor.h`, etc.) have been updated to point to this `12v_legacy/` path.
+All internal links and external documentation references (`AGENTS.md`, `AGENT_LOG.md`, `firmware/src/SphericalSensor.h`, etc.) have been updated to point to this `12v_legacy/` path.

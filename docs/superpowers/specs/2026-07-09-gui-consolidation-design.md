@@ -52,7 +52,7 @@
 **Main window (single page, no tabs):**
 - Left scroll panel: Connection (Serial/TCP, AP/STA presets) → Position (XYZ, Rθφ, min/max, zero) → Battery → Remote → WiFi → SYSINFO → Commands → Saved points → Export
 - Right: 3D + XY/XZ/YZ + trail controls
-- Menu/toolbar: Open Calibration, Export Session CSV
+- Menu/toolbar: Open Calibration, Quick IPT, Export Session CSV
 
 **Calibration window (separate):**
 - Tabs: Wire | Theta | Phi | Endpoint

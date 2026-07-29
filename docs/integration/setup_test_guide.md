@@ -1,12 +1,17 @@
-# Setup & Test Guide — OPKON DWEM2 on Wemos D1 R32 (ESP32)
+# Classic Wemos Bench Setup and v4 Routing Notice
 _Session: 2026-02-18_
 
-> **v4 PCB users:** this guide covers bench bring-up on the classic Wemos board with
+> **Status:** the detailed procedure below is a classic Wemos bench reference, not a v4 acceptance
+> record. For the **v4 PCB**, use [../ONBOARDING.md](../ONBOARDING.md) and
+> [../../pcb_design/EVKA_position_v4/FIRMWARE.md](../../pcb_design/EVKA_position_v4/FIRMWARE.md).
+> This guide covers bench bring-up on the classic Wemos board with
 > breadboard dividers. For the **v4 PCB** (ESP32-S3, `pcb_design/EVKA_position_v4/`)
 > the dividers and wiring are on-board — you only connect the three encoder terminal
-> blocks (J1=Wire, J2=Phi, J3=Theta) and power. Build/flash with `pio run -e esp32s3_v4`.
+> blocks and power after physical verification. J1/J3 are `1=A,2=GND,3=B,4=+5V`; J2 is
+> `1=+5V,2=A,3=GND,4=B`. Build/flash with `pio run -e esp32s3_v4`.
 > Firmware pins: Theta 9/10, Phi 4/5, Wire 7/8, battery ADC GPIO1. See
-> `pcb_design/EVKA_position_v4/FIRMWARE.md`.
+> [../../pcb_design/EVKA_position_v4/FIRMWARE.md](../../pcb_design/EVKA_position_v4/FIRMWARE.md).
+> The mapping is PCB-derived and was not physically reverified in the final documentation pass.
 
 ---
 
@@ -27,7 +32,7 @@ Do NOT connect encoder +V to ESP32. Power external supply before the ESP32.
 
 ### Signal Lines — Two Options
 
-#### Option A: Proper voltage divider (production)
+#### Option A: Proper voltage divider (recommended bench circuit)
 
 Build one per signal line (A, B, Z):
 
@@ -82,9 +87,11 @@ py -m platformio --version
 > Alternatively install the PlatformIO IDE extension in VS Code (search "PlatformIO IDE").
 > Classic Visual Studio (MSVC/.sln workflow) cannot build or flash this ESP32 firmware by itself.
 
-Board support (espressif32) and the `ESP32Encoder` library are declared in `platformio.ini` and downloaded automatically on first build — no manual installation required.
+Board support and each environment's encoder library are declared in `platformio.ini` and downloaded
+automatically on first build. Main firmware uses `ESP32Encoder`; classic standalone tests use
+Paul Stoffregen's `Encoder`.
 
-### If a vendor is using Visual Studio
+### If someone is using classic Visual Studio
 
 Use one of these supported workflows:
 
@@ -159,20 +166,19 @@ pio device monitor -e test_drawwire
 ### Expected output at rest
 
 ```
-DrawWireTest ready. (ESP32 / OPKON DWEM2 quadrature)
-Pull wire to increase count, push to decrease.
-200 mm pull -> COUNT ~2000, Z_ticks +1
---------------------------------------------
-COUNT=0  DIST_mm=0.0  Z_ticks=0
+DrawWireTest ready.
+  MM_PER_PULSE=0.0250
+  Commands: ZERO_W | ZERO | CAL_W <actual_mm>
+DIST=0.0 mm  (count=0)
 ```
 
 ### Acceptance criteria
 
 | Action | Expected result |
 |---|---|
-| Pull wire 200 mm | `COUNT≈2000  DIST_mm≈200.0  Z_ticks=1` |
-| Push wire back 200 mm | `COUNT≈0  DIST_mm≈0.0  Z_ticks=1` |
-| Pull 10 mm | COUNT changes by ≈100 |
+| Pull wire 200 mm | `DIST≈200.0 mm  (count≈8000)` |
+| Push wire back 200 mm | `DIST≈0.0 mm  (count≈0)` |
+| Pull 10 mm | COUNT changes by ≈400 |
 | Full back-and-forth | COUNT tracks in both directions |
 
 COUNT goes negative when pulling? → Swap A and B wires.
@@ -249,9 +255,7 @@ See `docs/hardware_design/remote/README.md` for hardware wiring and button maps.
 | Constant 3.3 V on A/B before powering encoder | Normal — pull-up with encoder unpowered | Power the encoder |
 | COUNT stays 0 after powering | Wrong GPIO / broken divider | Probe GPIO 16 — should toggle 0–3.3 V when pulling wire |
 | COUNT jumps erratically | GND not common between supply and ESP32 | Tie all GNDs together |
-| `raw_edges` rises fast but COUNT stays near 0/1 | One quadrature channel stuck or B/Z pin-map swap | Confirm draw-wire B -> GPIO 17 and Z -> GPIO 18, verify A/B/Z divider continuity, tie all grounds, then run `DIAG` while moving wire |
 | COUNT goes negative on pull | A and B swapped | Swap A↔B wires |
-| Z_ticks never increments | GPIO 18 not connected | Check Z wire and its divider |
 | Upload timeout | Board not entering bootloader | Hold BOOT → RESET → release BOOT → retry |
 | `Could not open /dev/ttyS0` (Linux) or `COMx` open failure (Windows) | Auto-selected wrong port or busy port | Run `pio device list` (or `py -m platformio device list` on Windows) and retry with explicit `--upload-port` |
 | `Encoder` not found on compile | Library missing | PlatformIO auto-installs from `platformio.ini`; run `pio lib install` if needed |

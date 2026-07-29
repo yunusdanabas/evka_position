@@ -1,132 +1,145 @@
-# Architecture & Reference
+# Architecture and Prototype Boundaries
 
-The canonical "how it works" reference for evka_position. Complements the math in
-[hardware_design/system_architecture.md](hardware_design/system_architecture.md) and the
-source-code tour in [firmware/CODE_WALKTHROUGH.md](firmware/CODE_WALKTHROUGH.md).
+This document describes the current repository implementation. It does not certify the assembled
+v4 prototype. Compile-time configuration is defined in `firmware/src/SphericalSensor.h`; runtime
+protocol behavior is defined in `firmware/src/EvkaPosition.cpp` and
+`firmware/src/CmdTcpServer.cpp`.
 
-> **Source of truth:** all pins, PPR values, and feature flags are `#define`s in
-> `firmware/src/SphericalSensor.h`. If this doc and that header ever disagree, **the header wins** —
-> update this doc.
+See [PROTOCOL.md](PROTOCOL.md) for the canonical telemetry and command/reply contract and
+[firmware/CODE_WALKTHROUGH.md](firmware/CODE_WALKTHROUGH.md) for source navigation.
 
----
+## Processing Pipeline
 
-## 1. The processing pipeline
+Every 50 ms, the main loop performs:
 
-Three layers, run every 50 ms (20 Hz) in `EvkaPosition.cpp::loop()`:
-
+```text
+PCNT encoder counters
+    -> subtract boot/command zero offsets
+    -> apply runtime PPR and encoder signs
+    -> spherical (r mm, theta deg, phi deg)
+    -> Cartesian sensor frame (X, Y, Z mm)
+    -> limits/finite validation
+    -> Cartesian EMA filter (alpha 0.2)
+    -> Serial, WebSocket, and TCP telemetry
 ```
-Encoder counts (raw int32, from hardware pulse counters)
-        │  countsToSpherical()      × DEG_PER_PULSE / MM_PER_PULSE, × sign
-        ▼
-Spherical (r mm, θ deg, φ deg)
-        │  sphericalToCartesian()   elevation-azimuth convention
-        ▼
-Cartesian (X, Y, Z mm)             + exponential moving-average filter (α = 0.2)
+
+- Theta and phi use Autonics E40S6-5000 encoders.
+- Radius uses an OPKON DWEM2 draw-wire encoder.
+- Main firmware uses `ESP32Encoder` hardware PCNT on classic and v4 targets.
+- `RAW_COUNTS` is zero-relative because `readRawEncoders()` subtracts stored offsets.
+- Invalid frames bypass Cartesian filtering; the filter is re-primed after zero operations.
+
+## Coordinate Frames
+
+Firmware uses elevation/azimuth spherical coordinates:
+
+```text
+x = r * cos(phi) * cos(theta)
+y = r * cos(phi) * sin(theta)
+z = r * sin(phi)
 ```
 
-- **θ / φ:** Autonics E40S6-5000 quadrature encoders.
-- **r:** OPKON DWEM2 draw-wire encoder (quadrature).
-- All three are counted by the **`ESP32Encoder`** library using the ESP32 **hardware pulse
-  counters (PCNT)** — no manual interrupt service routines.
-- The filter is a per-axis EMA applied to the Cartesian output; invalid frames bypass it.
+Theta is azimuth from +X in the XY plane. Phi is elevation from horizontal. Signs are board-specific:
+v4 uses theta `+1` / phi `-1`; classic uses theta `-1` / phi `+1`.
 
-Implemented in `firmware/src/SphericalSensor.cpp`. See the walkthrough for the function-by-function tour.
+The firmware output frame is the **sensor frame** established by the zero offsets. The canonical
+`tools/evka_gui` displays and records that frame. Its software-zero controls create a client-side
+display/session offset only. Quick IPT also returns a sensor-frame point.
 
-## 2. Configuration (`SphericalSensor.h`)
+The calibration tools can fit a candidate rigid transform:
 
-Key compile-time constants (abbreviated — read the header for the full set + comments):
+```text
+world = R @ sensor + t
+```
 
-| Constant | Value | Meaning |
+No transform or shared/default calibration JSON is currently accepted. `evka_gui` never applies a
+world transform to live telemetry. A passing session JSON may be supplied explicitly only to the
+legacy visualizer.
+
+## Current Configuration Summary
+
+| Constant | Current source value | Meaning |
+|---|---:|---|
+| `PPR_ROTARY` | 20000 | E40S6-5000 at X4 quadrature |
+| `PPR_WIRE` | 8000 | DWEM2 theoretical X4 count; mounted calibration pending |
+| `DRUM_CIRCUM_MM` | 200 | Draw-wire conversion basis |
+| `ENCODER_THETA_SIGN` | v4 +1; classic -1 | Count-to-theta sign |
+| `ENCODER_PHI_SIGN` | v4 -1; classic +1 | Count-to-phi sign |
+| `UPDATE_PERIOD_MS` | 50 | 20 Hz main update |
+| `ENABLE_WIFI` | 1 | AP/STA dashboard and WebSocket enabled |
+| `ENABLE_CMD_TCP` | 1 | TCP port 8080 enabled |
+| `ENABLE_ESPNOW_REMOTE` | 1 | Wireless pendant receiver enabled |
+| `ENABLE_BATTERY_MONITOR` | 1 | Battery/supply ADC reporting compiled in |
+| `BATTERY_ADC_12V_INPUT` | 0 | Current scaling is the 1S divider path |
+
+NVS values in namespace `evka_cal` override the PPR compile defaults. `CONSTANTS` reports the
+runtime values.
+
+## Board Pin Maps
+
+| Target | Theta A/B | Phi A/B | Wire A/B | Battery ADC | Status LED |
+|---|---|---|---|---|---|
+| Classic `wemos_d1_r32` | 14 / 12 | 32 / 35 | 16 / 17 | GPIO36 | GPIO2 monochrome |
+| v4 `esp32s3_v4` | 9 / 10 | 4 / 5 | 7 / 8 | GPIO1, 1S divide-by-2 source path | DevKit WS2812 GPIO48 by default |
+| v4 `esp32s3_v4_rgb38` | 9 / 10 | 4 / 5 | 7 / 8 | GPIO1 | DevKit WS2812 GPIO38 override |
+
+### v4 Physical Connector Order
+
+| Connector | Axis | PCB-derived order |
 |---|---|---|
-| `PPR_ROTARY` | 20000 | E40S6-5000 @ ×4 quadrature (5000 PPR × 4 edges) |
-| `PPR_WIRE` | 8000 | DWEM2 theoretical; run `CAL_W` after mounting to calibrate |
-| `DRUM_CIRCUM_MM` | 200 | Draw-wire drum circumference (mm/rev) |
-| `DEG_PER_PULSE` | 360/PPR_ROTARY ≈ 0.018° | Angle per rotary count |
-| `MM_PER_PULSE` | DRUM/PPR_WIRE = 0.025 mm | Distance per wire count |
-| `ENCODER_THETA_SIGN` / `ENCODER_PHI_SIGN` | −1 / +1 | Mounting-dependent count→angle sign; flip if a direction is reversed |
-| `RADIUS_MIN/MAX_MM` | 0 / 2950 | Radius range |
-| `THETA_MIN/MAX_DEG` | ±180 | Azimuth range |
-| `PHI_MIN/MAX_DEG` | ±180 | Elevation range |
-| `ENABLE_WIFI` | 1 | Serial-only (0) vs serial + AP + dashboard (1) |
-| `ENABLE_CMD_TCP` | 1 | Raw TCP CMD server on port 8080 |
-| `ENABLE_ESPNOW_REMOTE` | 1 | 2-button wireless pendant |
-| `ENABLE_BATTERY_MONITOR` | 1 | Battery ADC path (1S LiPo on v4) |
-| `UPDATE_PERIOD_MS` | 50 | 20 Hz loop period (in `EvkaPosition.cpp`) |
+| J1 | Wire | `1=A, 2=GND, 3=B, 4=+5V` |
+| J2 | Phi | `1=+5V, 2=A, 3=GND, 4=B` |
+| J3 | Theta | `1=A, 2=GND, 3=B, 4=+5V` |
 
-## 3. Pin maps
+J2 A/B therefore reach GPIO4/GPIO5 through pins 2/4, not pins 1/3. This mapping is derived from the
+current v4 KiCad PCB/pad nets and source pin comments. It was **not physically reverified in this
+final documentation pass**.
 
-Selected at build time by the `PCB_V4` macro (set via `-DPCB_V4` in the `esp32s3_v4` env).
+## Status LED and Battery
 
-**Classic ESP32 (env `wemos_d1_r32`):**
+Current source includes `StatusLed.{h,cpp}`:
 
-| θA/θB | φA/φB | rA/rB | Battery ADC | WiFi LED |
-|---|---|---|---|---|
-| 14 / 12 | 32 / 35 | 16 / 17 | 36 | 2 |
+- v4 default uses a DevKit NeoPixel on GPIO48; `esp32s3_v4_rgb38` selects GPIO38.
+- Source states include boot calibration, ESP-NOW fault, invalid position, STA reconnecting,
+  connected, AP-only, and transient zero/remote/blink overlays.
+- Classic builds retain the GPIO2 off/blink/on WiFi indication.
 
-**v4 PCB — ESP32-S3 (env `esp32s3_v4`):** verified against the fabricated schematic + PCB.
+These are source-defined behaviors, not newly physically verified LED behavior.
 
-| θA/θB | φA/φB | rA/rB | Battery ADC |
-|---|---|---|---|
-| 9 / 10 | 4 / 5 | 7 / 8 | 1 (1S LiPo, ÷2) |
+Battery monitoring is compiled in (`ENABLE_BATTERY_MONITOR=1`). With the current
+`BATTERY_ADC_12V_INPUT=0`, source interprets the ADC as a 1S LiPo divide-by-2 path and emits
+`BATT,...` after `STATUS`. This pass did not verify ADC scaling or battery accuracy on hardware.
 
-v4 connector map: J1 = draw-wire, J2 = phi, J3 = theta. Physical connector pin
-order is `1=A, 2=GND, 3=B, 4=+5V`.
+## Runtime Components
 
-v4 has no onboard buttons (GPIO17/18 unconnected) and no firmware LED (hardwired power LED only).
-Full v4 detail: [../pcb_design/EVKA_position_v4/FIRMWARE.md](../pcb_design/EVKA_position_v4/FIRMWARE.md).
+| Component | Responsibility |
+|---|---|
+| `EvkaPosition.cpp` | Setup/loop, zeroing, command dispatch, 20 Hz fan-out, ESP-NOW events |
+| `SphericalSensor.{h,cpp}` | Configuration, PCNT reads, conversions, validation, filter, NVS, battery |
+| `StatusLed.{h,cpp}` | Classic and RGB status state machine |
+| `WebDashboard.{h,cpp}` | AP/STA management, HTTP dashboard, WebSocket queue/fan-out |
+| `CmdTcpServer.{h,cpp}` | TCP port 8080, client limits, line framing, XYZ/SENSOR stream |
+| `tools/evka_gui` | Canonical sensor-frame host UI |
+| `tools/calibration` | Candidate sensor-to-world fitting/report tools |
 
-## 4. Coordinate convention
+The vendor C# application has been deleted from the supported architecture. `CMD` remains only as a
+compatibility name for the retained TCP protocol.
 
-**Pan-tilt elevation-azimuth** (matches the physical device — *not* physics-spherical):
+## Networking and Security
 
-- **φ** = elevation from horizontal: −90° straight down, 0° horizontal, +90° straight up.
-- **θ** = azimuth from +X in the XY-plane, wraps ±180°.
-- `x = r·cos φ·cos θ`, `y = r·cos φ·sin θ`, `z = r·sin φ`.
+The device runs AP+STA when STA credentials are configured and keeps the AP fallback available.
+Current AP is `CMDCNC_EVKA` / `cmdcnc1234` at `192.168.1.50`; current STA profile is
+`192.168.1.84/24` with gateway `192.168.1.254`.
 
-`ENCODER_THETA_SIGN` / `ENCODER_PHI_SIGN` map quadrature counts to θ/φ before these formulas. If lift
-drives −Z or forward drives −X at home, flip the corresponding sign and reflash.
+TCP and WebSocket commands are unauthenticated. Fixed credentials are trusted-lab-only, not a
+production security boundary. Do not expose ports 80/8080 to an untrusted network.
 
-## 5. Calibration workflow
+## Open Architecture Risks
 
-1. Move the machine to mechanical home (zero extension, zero angles).
-2. Power on — firmware auto-calls `setZeroPoint()` after a 2 s delay. All counts become relative.
-3. Re-zero without reflashing: send `ZERO` (or `ZERO_T`/`ZERO_P`/`ZERO_W` per axis).
-4. Calibrate PPR with `CAL_W`/`CAL_T`/`CAL_P`, apply with `SET_PPR_*`, persist with `SAVE_PPR`
-   (stored in NVS flash, namespace `evka_cal`, survives reboot).
-
-Step-by-step procedures: [calibration/](calibration/). Web CALIBRATE tab does the same guided flow.
-
-## 6. Command reference (serial + TCP + WebSocket)
-
-All commands are newline-terminated; replies mirror to serial and the active transport.
-
-| Command | Reply | Purpose |
-|---|---|---|
-| `ZERO` / `ZERO_T` / `ZERO_P` / `ZERO_W` | `ACK:ZERO…` | Re-zero all / theta / phi / wire |
-| `PING` | `ACK:PONG` | Liveness |
-| `BLINK` | `ACK:BLINK` | Flash status LED white ~0.7 s (RGB on v4; GPIO2 pulse on classic) — connection test |
-| `STATUS` | `STATUS,<valid>,<frame>,<ts>,<r>,<θ>,<φ>,<x>,<y>,<z>` | Full snapshot (+`BATT,…` if enabled) |
-| `CONSTANTS` | `CONSTANTS,<ppr_rotary>,<ppr_wire>,<mm/pulse>,<deg/pulse>` | Current scale factors |
-| `CAL_W <mm>` | `CAL:WIRE,<factor>,<mm/pulse>,<ppr>` | Wire calibration trial |
-| `CAL_T <turns>` / `CAL_P <turns>` | `CAL:THETA/PHI,<counts>,<ppr>` | Angle calibration |
-| `SET_PPR_WIRE <v>` / `SET_PPR_ROTARY <v>` | `ACK:PPR_…` | Update PPR in RAM |
-| `SAVE_PPR` | `ACK:SAVE_PPR` | Persist PPR to NVS |
-| `SAVE_POINT` / `DEL_POINT` | `POINT,…` / `DEL_POINT,<idx>` | Record / delete a captured point |
-| `GET_IP` | `STA_IP:<ip>` | Router-mode IP |
-| `SYSINFO` | `SYSINFO,<rssi>,<heap>,<uptime>,<clients>` | Diagnostics |
-| `WIFI_SET:<ssid>,<pass>` | `ACK:WIFI_SAVED` | Set router creds + reboot |
-| *(unknown)* | `ERR:UNKNOWN_CMD` | — |
-
-Protocol details for the CMD app: [integration/CMD_SOFTWARE_INTEGRATION.md](integration/CMD_SOFTWARE_INTEGRATION.md).
-
-## 7. Connectivity
-
-- **WiFi AP** `CMDCNC_EVKA` / `cmdcnc1234`, dashboard at **`http://192.168.1.50`**, TCP CMD server at
-  **`192.168.1.50:8080`**. The AP IP is **hardcoded** (the CMD app depends on it) and collides with
-  common home routers — if unreachable, disconnect from other WiFi first.
-- **Router (STA) mode:** static profile `192.168.1.84/24`, gw `192.168.1.254`; `GET_IP` reports it.
-- **ESP-NOW pendant:** 2-button ESP32-C3, broadcasts + auto-discovers the AP channel by SSID
-  (no MAC pairing) — works with any main board.
-
-WiFi reliability is subtle; the fixes are documented under
-[the troubleshooting docs](README.md#troubleshooting--wifi--stability).
+- Theta loses or fails to return counts; mechanical slip/backlash and signal integrity remain open.
+- v4 connector mapping needs a recorded physical re-verification.
+- Mounted encoder constants are not accepted.
+- No endpoint/world transform is accepted or applied by the canonical GUI.
+- Full three-encoder accuracy, repeatability, battery, LED, WiFi endurance, and system validation are
+  not signed off.
+- The repository has no redistribution license and no public production status.

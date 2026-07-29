@@ -1,69 +1,84 @@
-# Project Roadmap — evka_position
+# Prototype Completion Roadmap
 
-## Completed
-- [x] Phase 1: DWE3000 quadrature rework (GPIO 16/17/18)
-- [x] Phase 2: Individual hardware tests — draw-wire verified
-- [x] Phase 3: Pin remap (Theta→GPIO 14/12, Phi→GPIO 32/35)
-- [x] Phase 4: PlatformIO migration (.ino→.cpp), PPR correction (1480→20000 X4), test suite
-- [x] Phase 6 (software): Python visualization update
-  - [x] Serial auto-reconnect with status routing
-  - [x] Replay mode from CSV / raw `DATA,` dumps
-  - [x] Optional CSV logger and expanded CLI flags
-  - [x] In-place plot updates (no per-frame axis clear)
-  - [x] `unittest` coverage for parser/store/reconnect path
-- [x] Extensive code & documentation audit + remediation (2026-04-08)
-  - [x] Three-pass audit: Claude (all source files), Codex (read-only + build verify), Cursor (first-pass fixes)
-  - [x] Thread safety: WebSocket pending-command String race → `portMUX_TYPE` 4-slot queue; CmdTcpServer single-slot → 4-slot queue
-  - [x] Protocol: `ENABLE_REMOTE_WIFI_CONFIG` enforced centrally; `STATUS` replies to TCP/WS; `GET_IP` guarded for `ENABLE_WIFI=0`; `CAL_W` negative-count error improved; overflow discard state (serial + TCP); WS fragment guard
-  - [x] Math: EMA filter primed reset on all zero operations; consistent sph/cart validation
-  - [x] Docs: E30S6 → E40S6 across all files; dead links in `docs/resources.md` fixed
-  - [x] Build: `espressif32@6.12.0` pinned; exact library versions; library caret ranges removed
-  - [x] Full findings log: superseded by `docs/WIFI_PERFORMANCE_ISSUES_LOG.md` (2026-04-08 section)
-- [x] WiFi performance & stability hardening (2026-04-08)
-  - [x] Disabled modem sleep (`WiFi.setSleep(WIFI_PS_NONE)`) — primary cause of sluggishness in AP+STA mode
-  - [x] Pinned AP to channel 1 (`WiFi.softAP(..., ESPNOW_CHANNEL)`) — prevents channel drift during STA scans
-  - [x] Added `WIFI_FAST_SCAN` for STA — reduces radio contention on shared AP channel
-  - [x] Fixed WebSocket command buffer truncation (32 → 128 bytes) — `WIFI_SET` commands were silently corrupted
-  - [x] Moved `cleanupClients()` to connect/disconnect only — was firing 60×/sec on DATA events
-  - [x] Added JS `_dirty3d` dirty flag — 3D canvas now only repaints on new data or gesture, not 60 Hz unconditional
-  - [x] Documented 192.168.1.x subnet conflict in `SphericalSensor.h` and `README.md`
-  - [x] Full diagnostic log: `docs/WIFI_PERFORMANCE_ISSUES_LOG.md`
+This roadmap replaces older phase checklists that mixed software completion, historical board work,
+and unperformed hardware acceptance. The current target is an evidence-backed v4 prototype handoff,
+not a production release.
 
-## In Progress
-- [x] v4 PCB firmware port (2026-07-08) — ESP32-S3-DevKitC-1 board; new PlatformIO env `esp32s3_v4` (`-DPCB_V4`); pins THETA 9/10 on J3, PHI 4/5 on J2, WIRE 7/8 on J1, battery ADC GPIO1; switched both boards to `ESP32Encoder` (hardware PCNT); battery monitor enabled. Both envs build clean. Verified against v4 schematic + PCB pad-nets. Hardware bring-up pending.
-- [ ] Phase 5: Full 3-encoder integration test
-  - [x] Firmware integration hardening (non-blocking serial + `PING`/`STATUS`)
-  - [x] Backward-compatible serial protocol retained (`DATA,...` unchanged)
-  - [x] Battery monitoring made optional for 5V-adapter prototype (`ENABLE_BATTERY_MONITOR=0` default)
-  - [ ] Flash main firmware (`wemos_d1_r32` classic, or `esp32s3_v4` on the v4 PCB) on final wiring
-  - [ ] Verify all 3 encoders produce correct spherical + Cartesian output
-  - [ ] Test ZERO command and status lines on hardware
-  - [ ] Log sample DATA CSV output for visualization testing
+## Existing Baseline
 
-- [ ] Phase 5b: Circuit board design & fabrication
-  - [x] ASCII circuit schematic (`docs/hardware_design/5v/circuit_schematic.md`)
-  - [x] Bill of materials (`docs/hardware_design/5v/bill_of_materials.md`)
-  - [x] PCB layout guide (`docs/hardware_design/5v/pcb_layout_guide.md`)
-  - [x] Visual diagram (removed — superseded by ASCII schematic)
-  - [x] Battery monitoring firmware (GPIO 36 ADC, `readBattery()`)
-  - [ ] Solder Phase 1 — power section (D1, D2, caps, TP4056, MT3608, connectors)
-  - [ ] Test: Verify 5V_RAIL (external → 4.8V, LiPo → 5.1V)
-  - [ ] Solder Phase 2 — ESP32 mount (female headers, VIN + GND)
-  - [ ] Test: ESP32 boot + serial output
-  - [ ] Solder Phase 3 — signal conditioning (7× dividers, encoder connectors, ferrite beads)
-  - [ ] Test: Per-encoder count verification
-  - [ ] Solder Phase 4 — protection (TVS, reset btn, LEDs, test points)
-  - [ ] Full integration test: all 3 encoders on permanent board
+- [x] Shared classic ESP32 / ESP32-S3 main firmware structure exists.
+- [x] `esp32s3_v4` build environment and v4 GPIO mapping exist in source.
+- [x] Main firmware uses ESP32 PCNT through `ESP32Encoder`.
+- [x] Serial, WebSocket, and retained TCP telemetry implementations exist.
+- [x] `tools/evka_gui` is the canonical Serial/TCP/WebSocket/replay GUI.
+- [x] Quick IPT and calibration-report tooling exist in the repository.
+- [x] A v4 carrier has been assembled and earlier work observed live telemetry.
+- [x] Theta repeatability failure is documented.
 
-## Planned
-- [ ] Phase 7: Calibration refinement
-  - Compare measured PPR (20000 @ X4 quadrature) against multiple rotation counts
-  - PPR discrepancy resolved: X4 quadrature accounts for 5000×4=20000; wire calibrated to 8020
-  - Document final calibration procedure
-  - Run calibration pack and store finalized record in `docs/calibration/`
-  - Run software-assisted checklist in `docs/integration/final_integration_validation.md`
+These checkmarks describe repository or historical prototype facts. They are not current hardware
+acceptance and were not reverified during this documentation reconciliation.
 
-- [ ] Phase 8: System validation & documentation freeze
-  - End-to-end accuracy test at known positions
-  - Update `docs/hardware_design/system_architecture.md` with final measured accuracy
-  - Tag release version
+## Gate 1: Resolve Theta Count Loss
+
+- [ ] Reproduce the loss using zero-relative `RAW_COUNTS` without re-zeroing between visits.
+- [ ] Separate coupling slip/backlash from electrical count loss.
+- [ ] Inspect coupler, shaft, connector, divider, grounding, and A/B signal integrity.
+- [ ] Demonstrate repeatable return to home and repeated marked points.
+- [ ] Record the test setup, raw counts, direction, speed, and error per visit.
+
+Do not change PPR or fit a transform to conceal this defect.
+
+## Gate 2: Physically Reverify v4 Interfaces
+
+- [ ] Record continuity/polarity verification for J1: `1=A, 2=GND, 3=B, 4=+5V`.
+- [ ] Record continuity/polarity verification for J2: `1=+5V, 2=A, 3=GND, 4=B`.
+- [ ] Record continuity/polarity verification for J3: `1=A, 2=GND, 3=B, 4=+5V`.
+- [ ] Confirm the actual DevKit RGB GPIO selection.
+- [ ] Validate battery ADC scaling if the battery path is part of the intended prototype use.
+
+The connector mapping above is PCB-derived and was not physically reverified in the final docs pass.
+
+## Gate 3: Accept Encoder Scale
+
+- [ ] Run multi-distance draw-wire extend/retract trials.
+- [ ] Run theta and phi CW/CCW multi-turn trials after Gate 1 passes.
+- [ ] Check trial spread and hysteresis against the active calibration criteria.
+- [ ] Record runtime `CONSTANTS` and any NVS overrides.
+- [ ] Create a dated calibration record with approved values.
+
+## Gate 4: Fit and Accept a World Transform
+
+- [ ] Collect well-spread sensor/world calibration pairs.
+- [ ] Keep independent hold-out validation points.
+- [ ] Generate a report with `python -m tools.calibration.report`.
+- [ ] Pass calibration RMSE and validation maximum-error thresholds.
+- [ ] Archive the evidence and explicitly approve the transform.
+- [ ] Decide and implement how an accepted transform is consumed; current `evka_gui` remains
+  sensor-frame-only.
+
+No shared/default calibration JSON is checked in or accepted. A passing session JSON remains an
+optional explicit input to the legacy visualizer only; `tools/evka_gui` stays sensor-frame-only.
+
+## Gate 5: Full Prototype Validation
+
+- [ ] Verify all three encoders together over the required range and motion profile.
+- [ ] Validate hardware zero, per-axis zero, telemetry, saved-point, and reconnect behavior.
+- [ ] Validate accuracy and repeatability at known positions.
+- [ ] Run representative WiFi/TCP/WebSocket endurance and multi-client checks if required.
+- [ ] Record battery and status-LED results if those features are required.
+- [ ] Complete [integration/final_integration_validation.md](integration/final_integration_validation.md).
+
+## Gate 6: Legal and Release Decision
+
+- [ ] Resolve repository ownership and choose a redistribution license.
+- [x] Historical vendor C# material deleted from the repository.
+- [ ] Confirm retained TCP compatibility obligations.
+- [ ] Review documentation against final measured hardware.
+- [ ] Only then decide whether to create a release or make a production-readiness claim.
+
+## Archive and Research
+
+- `docs/hardware_design/12v_legacy/` is archived and not a current build direction.
+- `docs/gui_unification/` and `docs/integration/CMD_INTEGRATION_CHANGELOG.md` are implementation
+  history, not acceptance records.
+- `laser_radius/` and `docs/research/` are research only and are not part of the current v4 baseline.

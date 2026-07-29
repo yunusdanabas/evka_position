@@ -1,136 +1,136 @@
-# v4 PCB — Firmware Quickstart
+# v4 PCB Prototype Firmware Guide
 
-Firmware for the EVKA_position **v4 PCB** (ESP32-S3-DevKitC-1, N16R8). Same source
-tree as the classic board; the v4 pin map is compiled in by the `-DPCB_V4` flag
-(PlatformIO env `esp32s3_v4`).
+This is the board-specific guide for the assembled EVKA_position v4 prototype using an
+ESP32-S3-DevKitC-1. The shared source is selected by `-DPCB_V4` in PlatformIO environment
+`esp32s3_v4`.
 
-## 1. Pin map (as-fabricated — verified against schematic + PCB)
+This document reconciles source and PCB files only. Completed software-only results are recorded in
+[../../HANDOFF.md](../../HANDOFF.md); no new flash, continuity, power, encoder, battery, LED, or
+motion result is claimed here.
 
-| Signal | GPIO | Connector |
-|---|---|---|
-| Theta A / B | 9 / 10 | J3 |
-| Phi A / B | 4 / 5 | J2 |
-| Wire A / B | 7 / 8 | J1 |
-| Battery ADC | 1 | 1S LiPo, on-board 100k/100k ÷2 |
+## Prototype Status
 
-Each encoder connector pin order is `1=A, 2=GND, 3=B, 4=+5V`. Encoders run at
-5 V; the on-board 10k/20k dividers bring the signals to 3.3 V logic — nothing
-external to add.
+- Earlier work observed v4 telemetry at 20 Hz.
+- Theta count loss remains unresolved, with recorded return error up to about 1.1 degrees.
+- Full three-encoder integration and accuracy acceptance remain open.
+- No endpoint/world transform is accepted; `tools/evka_gui` remains sensor-frame-only.
+- This board/repository has no public production-readiness or redistribution claim.
 
-Encoder cable colors:
+## PCB-Derived Pin and Connector Map
 
-| Encoder | A | B | +V | GND |
+| Connector | Axis | Pin order | GPIO |
+|---|---|---|---|
+| J1 | Draw-wire | `1=A, 2=GND, 3=B, 4=+5V` | A=7, B=8 |
+| J2 | Phi | `1=+5V, 2=A, 3=GND, 4=B` | A=4, B=5 |
+| J3 | Theta | `1=A, 2=GND, 3=B, 4=+5V` | A=9, B=10 |
+
+| Other signal | GPIO/source definition |
+|---|---|
+| Battery ADC | GPIO1, current source selects 1S divide-by-2 scaling |
+| RGB status LED | GPIO48 by default; `esp32s3_v4_rgb38` selects GPIO38 |
+| GPIO17/18 | Not connected on the carrier |
+
+J2 differs from J1/J3. Its A/B signals are pins 2/4. This order is derived from the v4 KiCad
+PCB/pad nets and current `SphericalSensor.h` comments. It was **not physically reverified in this
+final pass**. Check the actual board before power.
+
+Cable colors:
+
+| Encoder | A | B | +5V | GND |
 |---|---|---|---|---|
-| Theta / Phi E40S6 | Black | White | Brown | Blue |
+| Theta/Phi E40S6 | Black | White | Brown | Blue |
 | Draw-wire DWEM2 | Yellow | Green | Brown | White |
 
-There are **no onboard buttons** (GPIO17/18 are unconnected). The carrier has a
-hardwired green **power LED** only; status feedback uses the **ESP32-S3 DevKit
-onboard RGB LED** (WS2812 on GPIO48 — see §9).
+The carrier includes 10k/20k encoder signal dividers. Do not bypass them with 5 V encoder outputs.
 
-## 2. Build & flash
+## Build Environment
 
 ```bash
-pio run -e esp32s3_v4                    # compile
-pio run -e esp32s3_v4 --target upload    # flash
-pio device monitor                       # serial, 115200 baud
+pio run -e esp32s3_v4
 ```
 
-## 3. First power-on (zeroing)
+Future upload/monitor, only after wiring and safety review:
 
-On boot the firmware prints a banner, waits **2 s**, then calls `setZeroPoint()`.
-The robot **must be at mechanical home** at that moment — all readings are relative
-to that snapshot. Re-zero any time without reflashing by sending `ZERO` (serial, or
-over WiFi/TCP). Selective: `ZERO_T`, `ZERO_P`, `ZERO_W`.
+```bash
+pio run -e esp32s3_v4 --target upload --upload-port /dev/ttyACM0
+pio device monitor -e esp32s3_v4
+```
 
-## 4. Reading position
+Use `esp32s3_v4_rgb38` only after identifying an actual DevKit revision that needs GPIO38. The
+`test_*` environments target classic Wemos pins and must not be flashed to v4.
 
-At 20 Hz the firmware streams position telemetry — the format differs per transport:
+## Boot Zero
 
-- **Serial** and **web dashboard WebSocket**:
-  `DATA,<x>,<y>,<z>,<r>,<theta>,<phi>,<is_valid>,<frame>,<ts_ms>`
-- **CMD TCP server** (`192.168.1.50:8080`): two separate lines —
-  `X<x>,Y<y>,Z<z>` and `SENSOR,<r>,<theta>,<phi>,<is_valid>,<frame>`
-  (it does **not** send `DATA,`).
+The main firmware initializes the sensor and network, waits two seconds, then calls
+`setZeroPoint()`. Keep the mechanism at mechanical home and motionless during that period. `ZERO`,
+`ZERO_T`, `ZERO_P`, and `ZERO_W` capture new counter offsets later.
 
-Query on demand with `STATUS` / `CONSTANTS` / `PING`. `BLINK` flashes the status LED
-(§9) so you can confirm a live link over any transport. Full command list is in the
-repo `CLAUDE.md` and `docs/integration/CMD_SOFTWARE_INTEGRATION.md`.
+`RAW_COUNTS` returns counts relative to those offsets; it is not an absolute PCNT dump.
 
-For a ready-made host GUI that handles both transports (live position, 3D trail,
-battery, ESP-NOW remote), use `tools/evka_gui`:
-`python -m tools.evka_gui --serial /dev/ttyUSB0` or `--tcp 192.168.1.50:8080`.
+## Telemetry and Commands
 
-## 5. WiFi dashboard
+Use [../../docs/PROTOCOL.md](../../docs/PROTOCOL.md) as the canonical reference.
 
-`ENABLE_WIFI=1` (default) → the board makes an AP:
+- Serial and WebSocket emit `DATA,...` at 20 Hz.
+- TCP port 8080 emits separate `X...,Y...,Z...` and `SENSOR,...` lines.
+- `STATUS` emits a snapshot and `BATT,...` when battery monitoring is compiled in.
+- Network commands and fixed credentials are trusted-lab-only.
 
-- SSID `CMDCNC_EVKA`, password `cmdcnc1234`
-- Dashboard: `http://192.168.1.50` (Live view + CALIBRATE tabs)
-- CMD TCP server: `192.168.1.50:8080`
+Run the canonical GUI:
 
-## 6. Battery monitor
+```bash
+python -m tools.evka_gui --serial /dev/ttyACM0 --baud 115200
+python -m tools.evka_gui --tcp 192.168.1.50:8080
+python -m tools.evka_gui --ws 192.168.1.50
+```
 
-`ENABLE_BATTERY_MONITOR=1` on v4. A `STATUS` command emits `BATT,<v>,<pct>,<is_low>`
-on serial and broadcasts it to TCP/WebSocket clients; `<v>` is the 1S cell voltage
-(~3.0–4.2 V, GPIO1 ÷2 divider). The `tools/evka_gui` GUI polls `STATUS` to keep
-its battery panel live.
+The GUI shows firmware sensor-frame values. Software zero is a client display/session offset. The
+calibration window can generate a candidate report/JSON but does not apply a world transform to live
+GUI data.
 
-## 7. Encoder direction (bring-up check)
+## Network Defaults and Security
 
-Rotate each axis by hand and watch the `DATA` line. Forward should raise +X, lift
-should raise +Z, wire extension should raise `r`. If an axis is reversed:
+- AP: `CMDCNC_EVKA` / `cmdcnc1234`
+- Dashboard: `http://192.168.1.50`
+- TCP: `192.168.1.50:8080`
+- WebSocket: `ws://192.168.1.50/ws`
+- STA static profile: `192.168.1.84/24`, gateway `192.168.1.254`
 
-- Theta / Phi → flip `ENCODER_THETA_SIGN` / `ENCODER_PHI_SIGN` in `SphericalSensor.h`.
-- Wire has no sign flag → swap the wire `attachFullQuad(A, B)` argument order in
-  `SphericalSensor.cpp` (or swap the J1 A/B wires).
+TCP/WebSocket commands have no application authentication. Do not expose the prototype to an
+untrusted LAN or the public internet.
 
-## 8. Accessories (work unchanged with v4)
+## Source-Defined Battery Behavior
 
-- **Wireless pendant** (`pio run -e button_remote`): ESP-NOW, auto-finds the AP
-  channel by SSID — no MAC pairing, board-independent. BTN0 (green) = `SAVE_POINT`,
-  BTN1 (red) = `DEL_POINT`.
-- **IPT hidden-point tool** (`python -m tools.ipt`): consumes the unchanged
-  DATA/TCP stream — needs no firmware change.
+Current source has `ENABLE_BATTERY_MONITOR=1` and `BATTERY_ADC_12V_INPUT=0`. It interprets GPIO1 as a
+1S LiPo divide-by-2 input, maps roughly 3.0-4.2 V to percentage, and marks values below 15% low.
+This is source behavior, not a new hardware accuracy verification.
 
-## 9. RGB status LED (DevKit onboard)
+## Source-Defined RGB Behavior
 
-The ESP32-S3-DevKitC-1 module carries a WS2812 RGB LED (default **GPIO48** on
-DevKit v1.0, **GPIO38** on v1.1). Firmware env `esp32s3_v4` drives it via
-`neopixelWrite(PIN_RGB_LED)` — not `RGB_BUILTIN`, so the pin is explicit in
-`SphericalSensor.h`. If the LED stays dark after flash, try env `esp32s3_v4_rgb38`
-or set `-DRGB_LED_GPIO=38` in `platformio.ini`.
+`StatusLed.cpp` defines these v4 states:
 
-Higher-priority states override lower ones. Transient flashes (100 ms) play on top
-of the base state, then restore it.
+| Priority | State | Source-defined indication |
+|---:|---|---|
+| 100 | Boot zero/calibration | Amber breathe |
+| 95 | ESP-NOW initialization fault | Magenta fast blink |
+| 85 | Invalid position | Orange blink |
+| 80 | STA reconnecting | Blue/cyan blink |
+| 70 | STA connected and position valid | Green solid |
+| 60 | AP-only and position valid | Cyan solid |
 
-| Priority | State | Color | Pattern | Meaning |
-|---:|---|---|---|---|
-| 100 | Boot calibrating | Amber | Slow breathe | Wait — robot must stay at mechanical home while zeroing |
-| 95 | ESP-NOW fault | Magenta | Fast blink (4 Hz) | Wireless pendant unavailable; position streaming still works |
-| 85 | Invalid position | Orange | Blink (1 Hz) | Position out of mechanical limits |
-| 80 | WiFi reconnecting | Blue | Blink (500 ms) | Joining / rejoining router (STA) |
-| 70 | WiFi connected | Green | Solid | Router connected and valid position |
-| 60 | AP only | Cyan | Solid (dim) | No STA credentials — use AP `CMDCNC_EVKA` @ 192.168.1.50 |
+Transient white flashes acknowledge zero and `BLINK`; purple acknowledges a remote button. Classic
+builds use GPIO2 instead. Actual v4 LED GPIO and visible colors still require physical confirmation.
 
-**Transient flashes**
+## Bring-Up Stop Conditions
 
-| Event | Color | Trigger |
-|---|---|---|
-| Zero ACK | White | Successful `ZERO`, `ZERO_T`, `ZERO_P`, or `ZERO_W` |
-| Connection test | White (~0.7 s) | `BLINK` command (serial / TCP / WebSocket) |
-| Remote button | Purple | ESP-NOW pendant button processed |
+Stop before calibration or endpoint collection if:
 
-### Troubleshooting the RGB LED
+- any connector order or supply polarity is uncertain;
+- an idle channel changes counts;
+- movement changes the wrong channel;
+- theta does not return to the same zero-relative count;
+- a connector, divider, regulator, or DevKit becomes warm;
+- battery/LED behavior is being inferred without measurement.
 
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| `ACK:BLINK` in serial/TCP but LED stays dark | Wrong DevKit revision GPIO | Reflash with `esp32s3_v4_rgb38` (`-DRGB_LED_GPIO=38`) or set `RGB_LED_GPIO` in `SphericalSensor.h` |
-| No `ACK:BLINK` at all | Stale firmware image | `pio run -e esp32s3_v4 --target upload` |
-| GUI shows `ERR:UNKNOWN_CMD` on Blink | Same as above | Reflash, then retry |
-
-On boot the firmware briefly flashes the RGB LED white (~100 ms) so you can
-confirm the GPIO choice before sending `BLINK`.
-
-Classic ESP32 builds (`wemos_d1_r32`) keep the original GPIO2 monochrome WiFi LED
-behavior (off / blink / solid). `BLINK` holds GPIO2 high for ~700 ms.
+Continue with [../../docs/calibration/README.md](../../docs/calibration/README.md) and
+[../../docs/integration/final_integration_validation.md](../../docs/integration/final_integration_validation.md).

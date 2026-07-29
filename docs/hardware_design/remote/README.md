@@ -13,7 +13,7 @@ EvkaPosition board via ESP-NOW. Works with classic ESP32 and v4 ESP32-S3 firmwar
 | Power mode | Always-awake (ESP-NOW init once at boot) |
 | MCU | ESP32-C3 Mini / SuperMini (ESP32C3FN4) |
 | Expansion board | ESP32 C3 SuperMini Expansion Board (LiPo + USB charging) |
-| Buttons | 2 in production use / 5 wired for test firmware |
+| Buttons | 2 assigned in the main prototype firmware / 5 readable in test firmware |
 | Main AP SSID | `CMDCNC_EVKA` (scanned at boot for WiFi channel) |
 | Firmware version | `ButtonRemote v1.1` |
 

@@ -50,7 +50,7 @@
 | Mistake | Consequence | Fix |
 |---------|-------------|-----|
 | **Screw terminals loose** | Intermittent contact, random encoder dropouts mid-test | Tighten all 3 connectors. v4 order is J1=Wire, J2=Phi, J3=Theta; pull connector off, re-seat, re-tighten. |
-| **Encoder wires reversed in connector** | Counts go backwards; worse, A/B swapped creates invalid quadrature | Verify v4 wire order: Wire A→J1.1, GND→J1.2, B→J1.3, +5V→J1.4; Phi A→J2.1, GND→J2.2, B→J2.3, +5V→J2.4; Theta A→J3.1, GND→J3.2, B→J3.3, +5V→J3.4. |
+| **Encoder wires reversed in connector** | Counts go backwards; worse, A/B swapped creates invalid quadrature | Verify PCB-derived v4 order: Wire A→J1.1, GND→J1.2, B→J1.3, +5V→J1.4; Phi +5V→J2.1, A→J2.2, GND→J2.3, B→J2.4; Theta A→J3.1, GND→J3.2, B→J3.3, +5V→J3.4. Physically reverify before power. |
 | **Common ground not connected at board edge** | Encoder floating GND; quadrature counts unreliable | Ensure encoder GND wire connects to J1/J2/J3 GND pin; measure continuity from encoder GND to board GND star point |
 
 ### ESP32 Mount & Headers

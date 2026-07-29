@@ -9,7 +9,7 @@ Status: approved for implementation.
 | Canonical Python package | `tools/evka_gui` |
 | Canonical command | `python -m tools.evka_gui` |
 | Console script | `evka-gui` |
-| Baseline | `tools/evka_gui_v2` |
+| Baseline | former `tools/evka_gui_v2` (removed 2026-07-16; now only `tools/evka_gui`) |
 | Work style | Single agent only |
 | Battery parity | Broadcast existing `BATT,<voltage>,<pct>,<is_low>` over TCP/WebSocket after `STATUS` |
 | Keep separate | `tools/ipt`, `tools/remote_tester` |
@@ -18,19 +18,20 @@ Status: approved for implementation.
 
 One unified desktop GUI for daily operator use, plus firmware WebDashboard parity for field/phone use.
 
-Main desktop page must show, without tab switching:
+Main desktop page must show (Connection, Live position and Views always visible; the
+rest in left-column tabs — the original "without tab switching" wording did not
+survive contact with a 1366×768 screen):
 
 | Area | Required Features |
 |---|---|
-| Connection | Serial or TCP, ASMETAL STA `192.168.1.84`, AP fallback `192.168.1.50`, persisted last endpoint |
-| Live position | X/Y/Z, R/theta/phi, validity, frame/timestamp |
-| Views | 3D trail plus XY/XZ/YZ projections, clear trail |
-| Zeroing | Hardware zero, software zero all, per-axis software zero, clear software zero |
-| Session | Saved points, origin, min/max, distance from origin, distance between last two points, CSV export |
-| Diagnostics | Router IP, RSSI, heap, uptime, TCP clients, command status |
-| Remote | ESP-NOW button LEDs and heartbeat when available |
-| Battery | Serial and TCP/WebSocket when firmware reports `BATT` |
-| Quick commands | `PING`, `BLINK`, `STATUS`, `SYSINFO`, `ZERO*`, save/delete point |
+| Connection | Serial, TCP, WebSocket (`ws://host/ws`), CSV replay, named connection profiles; **auto-reconnect with backoff** |
+| Live position | X/Y/Z, R/theta/phi, validity, frame/timestamp; copy coords shortcuts |
+| Views | 3D trail (rotate + **wheel zoom**) + XY/XZ/YZ; layer toggles; IPT on 2D + 3D; adjustable trail cap |
+| Session | Saved points, snapshots (capture/export), origin, min/max, distances, CSV exports; **record the live stream** |
+| Diagnostics | SYSINFO strip, CONSTANTS/PPR strip, `RAW_COUNTS`, compact protocol log (left column, **not** a dock) |
+| Remote | ESP-NOW button LEDs; optional **Remote Tester…** window (ButtonRemoteTest firmware) |
+| Replay | Pause, speed, step, slider seek |
+| Stream | **FREEZE** pauses the view; recording keeps tapping the wire |
 
 Calibration must be a separate dialog/window:
 
@@ -39,12 +40,24 @@ Calibration must be a separate dialog/window:
 | Wire | `ZERO_W`, `CAL_W <mm>`, mean/spread, `SET_PPR_WIRE`, optional `SAVE_PPR` |
 | Theta | `ZERO_T`, turn count, `CAL_T <n>`, `SET_PPR_ROTARY` |
 | Phi | `ZERO_P`, turn count, `CAL_P <n>`, `SET_PPR_ROTARY` |
-| Endpoint | Capture world/sensor pairs, export CSV, optionally write `tools/calibration/calibration.json` |
+| Endpoint | Capture world/sensor pairs and write a session candidate report/JSON; no shared default transform |
+
+Quick IPT is an **inline panel** on the main page plus optional **IPT plots…** pop-out:
+
+| Item | Notes |
+|---|---|
+| Main panel | **Quick IPT** group: L input, ARM/STOP/SOLVE/CLEAR, result labels |
+| 2D overlays | Green capture cloud + orange target + sphere on XY/XZ/YZ session plots |
+| Optional pop-out | Toolbar **IPT plots…** — full-height projections (shared `IptPanel` state) |
+| WiFi | Toolbar **WiFi Settings…** secondary window (credentials off main scroll panel) |
+| Transport | Reuse main connection; feed raw protocol lines in `_drain` |
+| Coordinates | Sensor-frame mm only (not software-zero offsets) |
+| Standalone | `python -m tools.ipt` unchanged for IPT-only operators |
 
 ## Implementation Steps
 
-1. Create `tools/evka_gui` as the canonical package from the `tools/evka_gui_v2` baseline.
-2. Keep old entry points as shims with deprecation messages.
+1. Create `tools/evka_gui` as the canonical package from the former `tools/evka_gui_v2` baseline.
+2. Keep old `position_checker` entry points as shims with deprecation messages (`evka_gui_v2` shim later removed).
 3. Move missing operator features from `position_checker/cmd_gui.py` and WebDashboard into the unified GUI.
 4. Add the calibration dialog using existing firmware commands.
 5. Add TCP/WebSocket `BATT` parity in firmware with compatible clients.

@@ -1,97 +1,98 @@
-# Documentation Index
+# Documentation Status Index
 
-Everything in `docs/` (and the key root docs), grouped by purpose. Start at the top and go as
-deep as you need.
+This index separates the active v4 prototype handoff from historical material and research. A file
+in the repository is not automatically a current requirement.
 
-> Lost? The absolute entry points are **[../HANDOFF.md](../HANDOFF.md)** (project tour) and
-> **[../CONTRIBUTING.md](../CONTRIBUTING.md)** (get your machine set up).
+## Active Prototype Handoff
 
----
-
-## Getting started
-
-| Doc | What it gives you |
+| Document | Role |
 |---|---|
-| [../HANDOFF.md](../HANDOFF.md) | Project tour, status, repo map, reading order |
-| [../CONTRIBUTING.md](../CONTRIBUTING.md) | Dev setup for Ubuntu **and** Windows |
-| [../README.md](../README.md) | Overview, quickstart, WiFi, protocol summary |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | **How the system works**: pipeline, config, pin maps, commands |
-| [../pcb_design/EVKA_position_v4/FIRMWARE.md](../pcb_design/EVKA_position_v4/FIRMWARE.md) | Current board pin map + bring-up |
-| [integration/setup_test_guide.md](integration/setup_test_guide.md) | Bench wiring + first-run test guide |
+| [../AGENTS.md](../AGENTS.md) | Shared agent guide: working rules, safety boundaries, validation commands |
+| [../AGENT_LOG.md](../AGENT_LOG.md) | Historical multi-agent activity log |
+| [../HANDOFF.md](../HANDOFF.md) | Approved existing-repository status, blockers, and reading order |
+| [ONBOARDING.md](ONBOARDING.md) | Self-contained workstation, safety, and first-session baseline |
+| [../CONTRIBUTING.md](../CONTRIBUTING.md) | Supported toolchain and contribution boundaries |
+| [../README.md](../README.md) | Short project and operator overview |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Runtime design, coordinate frames, pins, LED, and battery behavior |
+| [PROTOCOL.md](PROTOCOL.md) | **Canonical source-derived telemetry and command/reply contract** |
+| [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md) | Remaining prototype gates in approved order |
+| [firmware/CODE_WALKTHROUGH.md](firmware/CODE_WALKTHROUGH.md) | Guided map of current firmware source |
+| [../pcb_design/EVKA_position_v4/FIRMWARE.md](../pcb_design/EVKA_position_v4/FIRMWARE.md) | v4 PCB-derived pin map and firmware quickstart |
+| [../README_TR.md](../README_TR.md) | Turkish operator guide |
 
-## Architecture & firmware reference
+## Active Calibration
 
-| Doc | Topic |
+Theta count loss is unresolved and there is no accepted endpoint/world transform. Treat generated
+transforms as candidates until the required repeatability, calibration, and hold-out gates pass.
+
+| Document | Role |
 |---|---|
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Coordinate pipeline, config `#define`s, pin maps, command reference |
-| [hardware_design/system_architecture.md](hardware_design/system_architecture.md) | Kinematics + coordinate math |
-| [firmware/CODE_WALKTHROUGH.md](firmware/CODE_WALKTHROUGH.md) | Guided tour of `firmware/src/` |
-| [firmware/firmware_rework_log.md](firmware/firmware_rework_log.md) | History of firmware changes |
-| [firmware/ESP32_PCNT_REFERENCE.md](firmware/ESP32_PCNT_REFERENCE.md) | Hardware pulse-counter (encoder) reference |
-| [firmware/ESP32_NVS_CALIBRATION_GUIDE.md](firmware/ESP32_NVS_CALIBRATION_GUIDE.md) | Persisting calibration to flash |
-| [firmware/FreeRTOS_Dual_Core_Architecture.md](firmware/FreeRTOS_Dual_Core_Architecture.md) · [firmware/QUICK_REFERENCE_DualCore.md](firmware/QUICK_REFERENCE_DualCore.md) | Task/core layout |
+| [calibration/README.md](calibration/README.md) | Calibration order and current stop conditions |
+| [calibration/calibration_guide.md](calibration/calibration_guide.md) | Encoder-scale and candidate endpoint workflow |
+| [calibration/report_workflow.md](calibration/report_workflow.md) | CSV/report workflow and acceptance thresholds |
+| [calibration/sessions/README.md](calibration/sessions/README.md) | Session inputs, candidate outputs, and archiving |
+| [calibration/sessions/2026-07-17_repeatability.md](calibration/sessions/2026-07-17_repeatability.md) | Current theta count-loss evidence |
+| [calibration/draw_wire_calibration.md](calibration/draw_wire_calibration.md) | Draw-wire scale procedure |
+| [calibration/theta_rotary_calibration.md](calibration/theta_rotary_calibration.md) | Theta procedure and repeatability gate |
+| [calibration/phi_rotary_calibration.md](calibration/phi_rotary_calibration.md) | Phi procedure and J2 mapping |
 
-## Calibration
+## Active Integration and Operations
 
-| Doc | Topic |
+| Document | Role |
 |---|---|
-| [calibration/README.md](calibration/README.md) | Calibration overview + encoder-sign check |
-| [calibration/calibration_guide.md](calibration/calibration_guide.md) | End-to-end calibration procedure |
-| [calibration/draw_wire_calibration.md](calibration/draw_wire_calibration.md) | Radius (draw-wire) PPR calibration |
-| [calibration/theta_rotary_calibration.md](calibration/theta_rotary_calibration.md) · [calibration/phi_rotary_calibration.md](calibration/phi_rotary_calibration.md) | Angle PPR calibration |
+| [integration/CMD_SOFTWARE_INTEGRATION.md](integration/CMD_SOFTWARE_INTEGRATION.md) | Retained TCP compatibility integration; vendor C# app has been deleted |
+| [integration/final_integration_validation.md](integration/final_integration_validation.md) | Pending prototype acceptance checklist |
+| [integration/setup_test_guide.md](integration/setup_test_guide.md) | Classic-board bench reference plus v4 routing notice |
+| [WIFI_PERFORMANCE_ISSUES_LOG.md](WIFI_PERFORMANCE_ISSUES_LOG.md) | Historical WiFi fixes and open validation notes |
+| [WIFI_AP_STA_RECONNECT_PATTERNS.md](WIFI_AP_STA_RECONNECT_PATTERNS.md) | AP/STA implementation reference |
+| [ASYNCTCP_STACK_OVERFLOW_ANALYSIS.md](ASYNCTCP_STACK_OVERFLOW_ANALYSIS.md) | AsyncTCP implementation risk reference |
+| [ESPASYNCHACK_NOTES.md](ESPASYNCHACK_NOTES.md) | Installed ESPAsyncWebServer behavior notes |
 
-## CMD software integration
+## Hardware Reference
 
-| Doc | Topic |
+| Document | Status |
 |---|---|
-| [integration/CMD_SOFTWARE_INTEGRATION.md](integration/CMD_SOFTWARE_INTEGRATION.md) | TCP protocol quick reference for the CMD app |
-| [integration/CMD_INTEGRATION_CHANGELOG.md](integration/CMD_INTEGRATION_CHANGELOG.md) | Why each integration change was made |
-| [integration/final_integration_validation.md](integration/final_integration_validation.md) | Integration validation record |
+| [../pcb_design/README.md](../pcb_design/README.md) | PCB workspace index; v4 is the current assembled prototype |
+| [hardware_design/encoders/](hardware_design/encoders/) | Active encoder references |
+| [hardware_design/remote/](hardware_design/remote/) | ESP-NOW pendant reference |
+| [hardware_design/assembly/](hardware_design/assembly/) | Bench/assembly reference; verify revision before use |
+| [hardware_design/5v/](hardware_design/5v/) | Older classic-board design reference |
+| [hardware_design/12v_legacy/](hardware_design/12v_legacy/) | **Archive:** superseded 12 V/v2/v3 designs, not the v4 baseline |
 
-## Hardware & PCB
+## Host Tools
 
-| Doc | Topic |
+| Document | Status |
 |---|---|
-| [hardware_design/system_architecture.md](hardware_design/system_architecture.md) | System-level hardware architecture |
-| [hardware_design/PCB_EMI_LAYOUT_GUIDE.md](hardware_design/PCB_EMI_LAYOUT_GUIDE.md) | EMI-aware PCB layout guidance |
-| [hardware_design/5v/](hardware_design/5v/) | Original 5V board schematic/BOM/layout |
-| [hardware_design/remote/](hardware_design/remote/) | ESP-NOW pendant hardware |
-| [hardware_design/encoders/](hardware_design/encoders/) | E40S6 + DWEM2 encoder datasheets/specs |
-| [hardware_design/assembly/](hardware_design/assembly/) | Assembly + individual hardware test plans |
-| [hardware_design/12v_legacy/](hardware_design/12v_legacy/) | Archived 12V/v2/v3 hardware docs (superseded) |
-| [../pcb_design/README.md](../pcb_design/README.md) | KiCad workspace index — which of v2–v5 is current (v4) and why |
-| `../pcb_design/EVKA_position_v4/` | **Current** KiCad workspace (+ FIRMWARE.md) |
+| [../tools/evka_gui/README.md](../tools/evka_gui/README.md) | **Active canonical GUI**, sensor-frame-only |
+| [../tools/calibration/README.md](../tools/calibration/README.md) | Active candidate transform/report tooling |
+| [../tools/ipt/README.md](../tools/ipt/README.md) | Active Quick IPT tooling; result remains sensor-frame |
+| [../tools/remote_tester/README.md](../tools/remote_tester/README.md) | Development-only pendant tester |
+| [../tools/position_checker/README.md](../tools/position_checker/README.md) | Legacy standalone tools plus shared libraries |
 
-## Troubleshooting — WiFi & stability
+## Archive and History
 
-Read these **before** touching the WiFi/WebSocket/async code — they document hard-won fixes.
+These explain how the current repository evolved; they are not current acceptance statements:
 
-| Doc | Topic |
-|---|---|
-| [WIFI_PERFORMANCE_ISSUES_LOG.md](WIFI_PERFORMANCE_ISSUES_LOG.md) | 8 documented WiFi issues + fixes |
-| [WIFI_AP_STA_RECONNECT_PATTERNS.md](WIFI_AP_STA_RECONNECT_PATTERNS.md) | AP+STA reconnect recovery patterns |
-| [ASYNCTCP_STACK_OVERFLOW_ANALYSIS.md](ASYNCTCP_STACK_OVERFLOW_ANALYSIS.md) | AsyncTCP/lwIP stack-overflow analysis |
-| [ESPASYNCHACK_NOTES.md](ESPASYNCHACK_NOTES.md) | ESPAsyncWebServer allocation notes |
-| [ESP32_WIFI_AP_STA_HEAP_DRAIN_GUIDE.md](ESP32_WIFI_AP_STA_HEAP_DRAIN_GUIDE.md) | Heap-drain guide |
-| [ESP32_WDT_20HZ_QUICK_REFERENCE.md](ESP32_WDT_20HZ_QUICK_REFERENCE.md) | Watchdog @ 20 Hz reference |
-| [BLE_WIFI_COEXISTENCE.md](BLE_WIFI_COEXISTENCE.md) | BLE/WiFi coexistence notes |
+- [integration/CMD_INTEGRATION_CHANGELOG.md](integration/CMD_INTEGRATION_CHANGELOG.md)
+- [firmware/firmware_rework_log.md](firmware/firmware_rework_log.md)
+- [gui_unification/](gui_unification/)
+- [superpowers/specs/](superpowers/specs/)
 
-## Host tools
+Historical mentions of `tools/evka_gui_v2` or the deleted vendor C# application remain historical
+only; referenced vendor paths no longer exist in the worktree.
+The supported GUI is `tools/evka_gui`; the retained protocol is [PROTOCOL.md](PROTOCOL.md).
 
-| Doc | Topic |
-|---|---|
-| [../tools/README.md](../tools/README.md) | Overview of the Python tools |
-| [../tools/position_checker/README.md](../tools/position_checker/README.md) | Live 3D visualizer + CMD GUI |
-| [../tools/README.md](../tools/README.md#evka_gui--unified-control-gui-canonical) | evka_gui — unified control + 3D GUI |
-| [../tools/ipt/README.md](../tools/ipt/README.md) | Hidden-point ("Inverted Pen") tool |
-| [../tools/calibration/README.md](../tools/calibration/README.md) | Kabsch world↔sensor calibration |
-| [../tools/remote_tester/README.md](../tools/remote_tester/README.md) | Pendant test GUI |
+## Research
 
-## Research & planning
+Research documents describe alternatives, not implemented or accepted hardware:
 
-| Doc | Topic |
-|---|---|
-| [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md) | Phase plan + current status |
-| [research/laser_radius_research.md](research/laser_radius_research.md) · [../laser_radius/](../laser_radius/) | Laser-based radius alternative (exploratory) |
-| [research/hardware_redesign_research.md](research/hardware_redesign_research.md) · [research/improvement_research.md](research/improvement_research.md) | Redesign/improvement studies |
-| [resources.md](resources.md) | External links & references |
+- [research/](research/)
+- [../laser_radius/](../laser_radius/)
+- [BLE_WIFI_COEXISTENCE.md](BLE_WIFI_COEXISTENCE.md)
+- [resources.md](resources.md)
+
+## Legal and Security Boundary
+
+The repository has no redistribution license and makes no public production-readiness claim. The
+current fixed credentials and unauthenticated TCP/WebSocket commands are trusted-lab-only. See
+[PROTOCOL.md](PROTOCOL.md#security-boundary).

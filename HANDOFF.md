@@ -1,130 +1,116 @@
-# Project Handoff — evka_position
+# Existing-Repository Prototype Handoff
 
-Welcome. This document is the **starting point for the new maintainer**. Read it top to
-bottom once; it explains what the project is, what state it's in, where everything lives,
-and the order to read the rest of the docs.
+This is the approved maintainer handoff for the current repository state. It is self-contained and
+does not depend on a private onboarding repository.
 
-> New to the repo? Set up your machine first with **[CONTRIBUTING.md](CONTRIBUTING.md)**
-> (Ubuntu **and** Windows), then come back here for the tour.
+## What Is Being Handed Off
 
----
+Evka Position reads theta, phi, and draw-wire quadrature encoders, converts the zero-relative counts
+to spherical coordinates, and emits sensor-frame Cartesian XYZ at 20 Hz. The current board is the
+assembled ESP32-S3 v4 carrier in `pcb_design/EVKA_position_v4/`; the classic Wemos build remains a
+compatibility and test reference.
 
-## 1. What this is
+`tools/evka_gui` is the canonical operator application. It supports Serial, TCP, WebSocket, replay,
+Quick IPT, recording, diagnostics, snapshots, and calibration-session data collection. Its live XYZ,
+recordings, snapshots, saved points, and IPT results are sensor-frame values. Software zero changes
+only the displayed/session frame. No accepted world transform is applied.
 
-**evka_position** is an ESP32 firmware system that measures the **3D position (X, Y, Z in mm)**
-of a target using three encoders in a spherical arrangement:
+The vendor C# application has been deleted from the supported workflow. Keep the raw TCP protocol:
+existing equipment may depend on port 8080 and its line formats. The source-derived contract is
+[docs/PROTOCOL.md](docs/PROTOCOL.md).
 
-- **Theta (θ)** — azimuth, an Autonics E40S6 rotary encoder
-- **Phi (φ)** — elevation, a second Autonics E40S6 rotary encoder
-- **Radius (r)** — an OPKON DWEM2 draw-wire encoder
+## Current Status
 
-The firmware reads quadrature pulses, converts **counts → (r, θ, φ) → (X, Y, Z)**, smooths the
-result, and streams it over serial, a WiFi web dashboard, and a raw TCP protocol that a
-third-party Windows CNC app ("CMD") consumes.
-
-```
-   ┌─────────────┐   ┌─────────────┐   ┌──────────────┐
-   │ θ  E40S6    │   │ φ  E40S6    │   │ r  DWEM2     │   3 quadrature encoders
-   │ rotary      │   │ rotary      │   │ draw-wire    │
-   └──────┬──────┘   └──────┬──────┘   └──────┬───────┘
-          └──────────────┬──┴─────────────────┘
-                         ▼  (dividers / v4 PCB → 3.3 V)
-            ┌───────────────────────────────┐
-            │  ESP32 firmware (PlatformIO)   │
-            │  counts → (r,θ,φ) → (X,Y,Z)mm  │
-            │  20 Hz, EMA-filtered           │
-            └───┬───────────┬───────────┬────┘
-     Serial 115200│   WiFi AP │           │ ESP-NOW
-                  ▼   192.168.1.50        ▼
-        pio monitor /   ├─ Web dashboard (browser)   2-button pendant
-        Python tools    └─ TCP :8080 ──► CMD C# GUI  (ESP32-C3)
-                                          + Python tools
-```
-
-## 2. Current status (as of handoff)
-
-| Area | State |
+| Area | Handoff status |
 |---|---|
-| Firmware — classic ESP32 (Wemos D1 R32) | ✅ Working, builds (`wemos_d1_r32`) |
-| Firmware — **v4 PCB (ESP32-S3)** | ✅ **Ported & builds** (`esp32s3_v4`); **hardware bring-up pending** |
-| v4 PCB | ✅ **Fabricated**; assembly + bring-up not yet done |
-| WiFi dashboard + TCP CMD protocol | ✅ Working, hardened (see troubleshooting docs) |
-| ESP-NOW wireless pendant | ✅ Working (`button_remote`, verified on ESP32-C3 USB) |
-| Python tools (evka_gui, position_checker shims, ipt) | ✅ Working |
-| CMD C# Windows app | ✅ Builds (`CMDScanner.csproj`, .NET 8) |
-| Full 3-encoder hardware integration test | ⬜ **Next milestone** (Phase 5) |
+| v4 PCB | Current assembled prototype; not production-qualified |
+| Firmware | Main source supports classic ESP32 and v4 ESP32-S3; all 10 configured environments build, with no new flash or hardware claim |
+| Host tools | Package version `0.2.0`; Python 3.10+ required |
+| Software checks | 191 Python tests, 45 dashboard checks, compileall, IPT solver self-check, and all PlatformIO builds pass |
+| Earlier hardware observations | v4 telemetry and individual radius/phi behavior were observed before this pass |
+| Blocking defect | Theta count loss/return error remains unresolved; about 1.1 degrees or 35 mm at 2 m was recorded |
+| Encoder calibration | Compile defaults exist; final mounted-system constants are not accepted |
+| Endpoint/world calibration | No accepted transform and no checked-in shared/default calibration JSON |
+| Full integration | Open; no final three-encoder accuracy or repeatability sign-off |
+| Release/legal | No redistribution license and no public production claim |
 
-**The single most important next task** is bringing up the fabricated v4 board: flash
-`esp32s3_v4`, verify each encoder counts in the right direction, read the battery, and confirm
-the dashboard. See `pcb_design/EVKA_position_v4/FIRMWARE.md` for the step-by-step.
+Do not interpret previous flashes, successful software tests, or a generated calibration report as
+final system validation.
 
-Roadmap detail: **[docs/PROJECT_ROADMAP.md](docs/PROJECT_ROADMAP.md)**.
+Software-only verification completed on 2026-07-29:
 
-## 3. Repo map
-
-```
-evka_position/
-├── HANDOFF.md              ← you are here
-├── README.md               Project overview + quickstart
-├── README_TR.md            Turkish end-user WiFi guide (for operators, not devs)
-├── CONTRIBUTING.md         Dev environment setup (Ubuntu + Windows) — read this first
-├── platformio.ini          Firmware build environments (classic ESP32 + v4 S3 + tests)
-├── pyproject.toml / requirements.txt   Python tool dependencies
-│
-├── firmware/
-│   ├── src/                Production firmware (main sensor board)
-│   │   ├── EvkaPosition.cpp     setup()/loop(), 20 Hz, command dispatch
-│   │   ├── SphericalSensor.*    coordinate math, filtering, calibration, config
-│   │   ├── WebDashboard.cpp     WiFi AP + web dashboard + WebSocket
-│   │   ├── CmdTcpServer.cpp     raw TCP CMD protocol server
-│   │   └── CMD Soft/            third-party Windows C# CNC app (CMDScanner.csproj)
-│   ├── remote/             ESP-NOW wireless pendant (ESP32-C3)
-│   └── tests/              Standalone encoder test sketches
-│
-├── tools/                  Python host-side tools (see docs/README.md → Tools)
-│   ├── position_checker/   Live 3D visualizer + CMD-protocol GUI
-│   ├── evka_gui/           Unified control + 3D GUI (canonical)
-│   ├── evka_gui_v2/        Deprecated shim
-│   ├── ipt/                Hidden-point ("Inverted Pen") measurement tool
-│   ├── calibration/        Kabsch world↔sensor calibration (calibrate.py)
-│   └── remote_tester/      Pendant test GUI
-│
-├── pcb_design/             KiCad workspaces: v2, v3, v4 (current/fabricated), v5
-│   └── EVKA_position_v4/    ← current board (+ FIRMWARE.md quickstart)
-│
-├── docs/                   All documentation — start at docs/README.md (index)
-│   └── gui_unification/     GUI consolidation plan + implementation log
-└── laser_radius/           Research: laser-based radius alternative (exploratory)
+```text
+QT_QPA_PLATFORM=offscreen pytest -q                         191 passed
+npm ci && npm test (tools/webdash_harness)                  45 passed
+python -m compileall tools -q                               passed
+python -m tools.ipt.solver                                  0.405 mm target error
+pio run (all 10 configured environments)                    10 passed
 ```
 
-## 4. Reading order
+## v4 Wiring Baseline
 
-1. **[CONTRIBUTING.md](CONTRIBUTING.md)** — get your machine building & running.
-2. **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — how the system works: pipeline, config,
-   pin maps, coordinate convention, command reference.
-3. **[README.md](README.md)** — overview + quickstart, WiFi, protocol summary.
-4. **[docs/README.md](docs/README.md)** — the documentation index; find any topic from here.
-5. **[pcb_design/EVKA_position_v4/FIRMWARE.md](pcb_design/EVKA_position_v4/FIRMWARE.md)** —
-   the current board's pin map + bring-up.
-6. **[docs/firmware/CODE_WALKTHROUGH.md](docs/firmware/CODE_WALKTHROUGH.md)** — a guided tour of
-   the firmware source.
+| Connector | Axis | PCB-derived pin order | GPIO |
+|---|---|---|---|
+| J1 | Draw-wire | `1=A, 2=GND, 3=B, 4=+5V` | 7 / 8 |
+| J2 | Phi | `1=+5V, 2=A, 3=GND, 4=B` | 4 / 5 |
+| J3 | Theta | `1=A, 2=GND, 3=B, 4=+5V` | 9 / 10 |
 
-## 5. Known issues & gotchas
+The J2 order differs from J1/J3. This mapping comes from the v4 PCB/pad nets and current firmware;
+it was **not physically reverified in this final pass**. Verify board markings, continuity, cable
+colors, and supply polarity before future power-up.
 
-- **WiFi/networking** were the hardest part historically — all fixed, but read
-  `docs/WIFI_PERFORMANCE_ISSUES_LOG.md` and `docs/ASYNCTCP_STACK_OVERFLOW_ANALYSIS.md` before
-  touching the WiFi/WebSocket code.
-- **AP IP `192.168.1.50` is hardcoded** and collides with common home routers — the CMD app
-  depends on it. See the subnet-conflict note in README/ARCHITECTURE.
-- **v4 pin map differs from earlier boards** and was verified against the schematic + PCB
-  (not the old v2 netlist, which is NOT a valid proxy). Trust `SphericalSensor.h` / FIRMWARE.md.
-- **The best working notes used to live in `CLAUDE.md`/`AGENTS.md`** (AI-assistant guides,
-  git-ignored). Their content has been mirrored into tracked docs (ARCHITECTURE, this file,
-  CONTRIBUTING); those two files remain only as assistant hints.
+## Blocking Work, In Order
 
-## 6. Ownership & license
+1. Reproduce theta count loss while recording zero-relative raw counts.
+2. Inspect and correct coupling slip, backlash, connector integrity, and quadrature signal quality.
+3. Repeat return-to-home and multi-point repeatability checks until theta is stable.
+4. Calibrate draw-wire and rotary scale without using PPR to mask mechanical loss.
+5. Collect sensor/world pairs and generate a candidate endpoint report with hold-outs.
+6. Accept a world transform only after calibration and validation thresholds pass.
+7. Run the full integration checklist and resolve licensing before any release claim.
 
-This repository currently carries **no license file** — it is unlicensed ("all rights reserved"
-by default). The incoming owner should decide on a license. Third-party components (the "CMD"
-C# app and its original ESP32 firmware under `firmware/src/CMD Soft/`) originate from an external
-vendor; confirm their terms before redistribution.
+Primary evidence:
+[docs/calibration/sessions/2026-07-17_repeatability.md](docs/calibration/sessions/2026-07-17_repeatability.md).
+Roadmap: [docs/PROJECT_ROADMAP.md](docs/PROJECT_ROADMAP.md).
+
+## Repository Map
+
+```text
+firmware/src/                         Main shared firmware
+firmware/tests/                       Classic-pin standalone test sketches
+pcb_design/EVKA_position_v4/          Current prototype KiCad workspace and board guide
+tools/evka_gui/                       Canonical operator GUI
+tools/calibration/                    Candidate sensor-to-world report tooling
+tools/ipt/                            Quick IPT solver and standalone UI
+tools/position_checker/               Legacy tools and shared parsing/transport code
+docs/PROTOCOL.md                      Canonical runtime protocol
+docs/calibration/                     Active calibration procedures and evidence
+docs/integration/                     Active integration guide plus marked history
+docs/hardware_design/12v_legacy/      Archive, not the current board
+laser_radius/ and docs/research/       Research only, not implemented baseline
+```
+
+## Reading Order
+
+1. [AGENTS.md](AGENTS.md) — shared agent guide (working rules, safety boundaries, validation commands)
+2. [docs/ONBOARDING.md](docs/ONBOARDING.md)
+3. [CONTRIBUTING.md](CONTRIBUTING.md)
+4. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+5. [docs/PROTOCOL.md](docs/PROTOCOL.md)
+6. [pcb_design/EVKA_position_v4/FIRMWARE.md](pcb_design/EVKA_position_v4/FIRMWARE.md)
+7. [docs/calibration/README.md](docs/calibration/README.md)
+8. [docs/firmware/CODE_WALKTHROUGH.md](docs/firmware/CODE_WALKTHROUGH.md)
+
+## Network and Credential Boundary
+
+The checked-in AP and STA defaults are unchanged. The AP is `CMDCNC_EVKA` with password
+`cmdcnc1234`; AP address is `192.168.1.50`, TCP is port 8080, and WebSocket is `/ws` on port 80.
+Remote commands are not application-authenticated. Use only on an isolated, trusted lab network;
+do not expose the device to an untrusted LAN or the internet.
+
+## Ownership Boundary
+
+The repository has no license file. Do not redistribute it or describe it as a public production
+release. Historical vendor C# content had separate ownership risk and has been deleted from the
+supported handoff. The protocol behavior implemented by the current firmware remains part of this
+prototype handoff.
