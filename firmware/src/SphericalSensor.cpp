@@ -69,13 +69,25 @@ void SphericalPositioningSensor::loadPPRFromNVS() {
     Serial.printf("[Cal] NVS load: PPR_R=%.2f PPR_W=%.2f\n", _ppr_rotary, _ppr_wire);
 }
 
-void SphericalPositioningSensor::savePPRToNVS() {
+bool SphericalPositioningSensor::savePPRToNVS() {
     Preferences prefs;
-    prefs.begin("evka_cal", false);
+    if (!prefs.begin("evka_cal", false)) {
+        Serial.println("[Cal] NVS save failed: namespace unavailable");
+        return false;
+    }
     prefs.putFloat("ppr_rotary", _ppr_rotary);
     prefs.putFloat("ppr_wire",   _ppr_wire);
+    const float saved_rotary = prefs.getFloat("ppr_rotary", NAN);
+    const float saved_wire = prefs.getFloat("ppr_wire", NAN);
     prefs.end();
+    if (!isfinite(saved_rotary) || !isfinite(saved_wire) ||
+        fabsf(saved_rotary - _ppr_rotary) > 0.01f ||
+        fabsf(saved_wire - _ppr_wire) > 0.01f) {
+        Serial.println("[Cal] NVS save verification failed");
+        return false;
+    }
     Serial.printf("[Cal] NVS save: PPR_R=%.2f PPR_W=%.2f\n", _ppr_rotary, _ppr_wire);
+    return true;
 }
 
 void SphericalPositioningSensor::setZeroPoint() {

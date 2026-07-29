@@ -14,6 +14,8 @@
 // CONFIGURATION SECTION
 // ============================================================================
 
+#define EVKA_FIRMWARE_VERSION "0.2.0-prototype"
+
 // Pin Definitions — board selected at build time (-DPCB_V4 for the ESP32-S3 v4 PCB)
 #if defined(PCB_V4)
 // EVKA_position_v4 — ESP32-S3-DevKitC-1. Encoders via on-board 10k/20k dividers
@@ -70,6 +72,11 @@
 #define WIFI_WEB_PORT          80
 #define CMD_TCP_PORT           8080
 
+static_assert(sizeof(WIFI_STA_DEFAULT_SSID) - 1 <= 32, "Default STA SSID exceeds 32 chars");
+static_assert(sizeof(WIFI_STA_DEFAULT_PASS) - 1 <= 63, "Default STA password exceeds WPA2 limit");
+static_assert(sizeof(WIFI_AP_PASSWORD) - 1 >= 8 && sizeof(WIFI_AP_PASSWORD) - 1 <= 63,
+              "AP password must be 8-63 chars");
+
 // WiFi AP static IP — DO NOT CHANGE: CMD CNC software is hardcoded to 192.168.1.50:8080.
 // KNOWN SUBNET CONFLICT: 192.168.1.x collides with most home/office routers.
 // If the dashboard is unreachable after connecting to CMDCNC_EVKA, disconnect from
@@ -117,10 +124,20 @@
 #define DEG_PER_PULSE  (360.0 / PPR_ROTARY)          // ≈ 0.018 deg per pulse
 #define MM_PER_PULSE   (DRUM_CIRCUM_MM / PPR_WIRE)   // = 0.025 mm/count (theoretical; NVS overrides after CAL_W)
 
-// Encoder count → angle sign (mounting-dependent; tune at integration)
-// Forward motion at home should increase +X (ENCODER_THETA_SIGN); lift should increase +Z (ENCODER_PHI_SIGN).
-#define ENCODER_THETA_SIGN  (-1.0f)   // +1 or -1
-#define ENCODER_PHI_SIGN    (+1.0f)   // was implicit -1; +1 for current rig (up → +Z)
+// Encoder count -> angle sign. The v4 values are field-verified; the classic
+// board retains its committed mounting convention.
+#if defined(PCB_V4)
+#define ENCODER_THETA_SIGN  (+1.0f)   // desired +Y -> +theta
+#define ENCODER_PHI_SIGN    (-1.0f)   // lift -> +phi/+Z
+#else
+#define ENCODER_THETA_SIGN  (-1.0f)
+#define ENCODER_PHI_SIGN    (+1.0f)
+#endif
+
+static_assert(PPR_ROTARY > 0.0f && PPR_WIRE > 0.0f, "Encoder PPR must be positive");
+static_assert((ENCODER_THETA_SIGN == 1.0f || ENCODER_THETA_SIGN == -1.0f) &&
+              (ENCODER_PHI_SIGN == 1.0f || ENCODER_PHI_SIGN == -1.0f),
+              "Encoder signs must be +1 or -1");
 
 // Mechanical Limits (safety constraints)
 #define THETA_MIN_DEG    -180.0   // Min azimuth angle
@@ -211,6 +228,7 @@ public:
     void zeroWire();
     void updatePosition();
 
+    // Encoder counts relative to the latest ZERO/ZERO_T/ZERO_P/ZERO_W offsets.
     void readRawEncoders(int32_t& theta_counts, int32_t& phi_counts, int32_t& radius_counts);
 
     // Runtime PPR adjustment (RAM only — update SphericalSensor.h #defines to persist)
@@ -219,7 +237,7 @@ public:
     float getPPRWire() const { return _ppr_wire; }
     float getPPRRotary() const { return _ppr_rotary; }
     void getConstants(char* buf, size_t buf_size);
-    void savePPRToNVS();
+    bool savePPRToNVS();
     void loadPPRFromNVS();
 
     CartesianCoords getPosition();

@@ -1,6 +1,7 @@
 #include "SphericalSensor.h"
 #include "StatusLed.h"
 #include <Preferences.h>
+#include <stdlib.h>
 
 #if ENABLE_WIFI
 #include <WiFi.h>
@@ -77,6 +78,8 @@ static bool g_espnow_fault = false;
 #define UPDATE_PERIOD_MS  50  // 20 Hz position update rate
 
 static String serial_buffer;
+static bool g_restart_pending = false;
+static uint32_t g_restart_at_ms = 0;
 
 static StatusLedInputs buildStatusLedInputs() {
     StatusLedInputs in = {};
@@ -128,14 +131,15 @@ static String buildBatteryLine() {
 }
 #endif
 
-static String printStatusLine() {
-    String statusLine = buildStatusLine();
-    Serial.println(statusLine);
+static bool parseFiniteFloat(const String& text, float& value) {
+    String arg(text);
+    arg.trim();
+    if (arg.length() == 0) return false;
 
-#if ENABLE_BATTERY_MONITOR
-    Serial.println(buildBatteryLine());
-#endif
-    return statusLine;
+    const char* start = arg.c_str();
+    char* end = nullptr;
+    value = strtof(start, &end);
+    return end != start && *end == '\0' && isfinite(value);
 }
 
 static void sendBatteryLineToWireless() {
@@ -148,18 +152,16 @@ static void sendBatteryLineToWireless() {
 #endif
 }
 
-// Returns the reply line (also printed to Serial). Empty string = no reply needed.
+// Returns exactly one primary protocol reply. The ingress dispatcher emits it once.
 static String processCommand(String cmd) {
     cmd.trim();
     static uint32_t pt_idx = 0;  // shared across SAVE_POINT and DEL_POINT
     if (cmd == "ZERO") {
         sensor.setZeroPoint();
-        Serial.println("ACK:ZERO");
         statusLed.flashZeroAck();
         return "ACK:ZERO";
 
     } else if (cmd == "PING") {
-        Serial.println("ACK:PONG");
         return "ACK:PONG";
 
     } else if (cmd == "BLINK") {
@@ -167,51 +169,60 @@ static String processCommand(String cmd) {
         // operator can visually confirm the ESP32 received a command (works over
         // serial, TCP, and WebSocket). No-op on boards without the RGB LED.
         statusLed.flashOverlay(255, 255, 255, 700);
-        Serial.println("ACK:BLINK");
         return "ACK:BLINK";
 
     } else if (cmd == "STATUS") {
-        return printStatusLine();
+        return buildStatusLine();
 
     } else if (cmd == "ZERO_T") {
         sensor.zeroTheta();
-        Serial.println("ACK:ZERO_T");
         statusLed.flashZeroAck();
         return "ACK:ZERO_T";
 
     } else if (cmd == "ZERO_P") {
         sensor.zeroPhi();
-        Serial.println("ACK:ZERO_P");
         statusLed.flashZeroAck();
         return "ACK:ZERO_P";
 
     } else if (cmd == "ZERO_W") {
         sensor.zeroWire();
-        Serial.println("ACK:ZERO_W");
         statusLed.flashZeroAck();
         return "ACK:ZERO_W";
 
     } else if (cmd == "CONSTANTS") {
         char buf[96];
         sensor.getConstants(buf, sizeof(buf));
-        Serial.println(buf);
+        return String(buf);
+
+    } else if (cmd == "RAW_COUNTS") {
+        // readRawEncoders() subtracts the latest hardware-zero offsets.
+        int32_t tc, pc, wc;
+        sensor.readRawEncoders(tc, pc, wc);
+        char buf[64];
+        snprintf(buf, sizeof(buf), "RAW,%ld,%ld,%ld", (long)tc, (long)pc, (long)wc);
         return String(buf);
 
     } else if (cmd.startsWith("CAL_W ")) {
-        float actual_mm = cmd.substring(6).toFloat();
-        if (actual_mm <= 0) return "ERR:CAL_W bad value";
+        float actual_mm = 0.0f;
+        if (!parseFiniteFloat(cmd.substring(6), actual_mm) || actual_mm <= 0.0f) {
+            return "ERR:CAL_W bad value";
+        }
         int32_t tc, pc, wc;
         sensor.readRawEncoders(tc, pc, wc);
         if (wc == 0) return "ERR:CAL_W zero counts";
         const float cur_mm_pp = DRUM_CIRCUM_MM / sensor.getPPRWire();  // use runtime-calibrated value
-        float measured_mm = (float)wc * cur_mm_pp;
+        const float measured_mm = fabsf((float)wc) * cur_mm_pp;
         float factor = actual_mm / measured_mm;
-        if (factor < 0.1f || factor > 10.0f) return "ERR:CAL_W factor out of range";
+        if (!isfinite(factor) || factor < 0.1f || factor > 10.0f) {
+            return "ERR:CAL_W factor out of range";
+        }
         float new_mm_pp = cur_mm_pp * factor;
         float new_ppr_w = DRUM_CIRCUM_MM / new_mm_pp;
+        if (!isfinite(new_ppr_w) || new_ppr_w < 100.0f || new_ppr_w > 500000.0f) {
+            return "ERR:CAL_W PPR out of range";
+        }
         char buf[96];
         snprintf(buf, sizeof(buf), "CAL:WIRE,%.4f,%.6f,%.2f", factor, new_mm_pp, new_ppr_w);
-        Serial.println(buf);
         return String(buf);
 
     } else if (cmd.startsWith("CAL_T ")) {
@@ -223,7 +234,6 @@ static String processCommand(String cmd) {
         float ppr = (float)abs(tc) / (float)n_turns;
         char buf[64];
         snprintf(buf, sizeof(buf), "CAL:THETA,%ld,%.2f", (long)tc, ppr);
-        Serial.println(buf);
         return String(buf);
 
     } else if (cmd.startsWith("CAL_P ")) {
@@ -235,31 +245,30 @@ static String processCommand(String cmd) {
         float ppr = (float)abs(pc) / (float)n_turns;
         char buf[64];
         snprintf(buf, sizeof(buf), "CAL:PHI,%ld,%.2f", (long)pc, ppr);
-        Serial.println(buf);
         return String(buf);
 
     } else if (cmd.startsWith("SET_PPR_ROTARY ")) {
-        float v = cmd.substring(15).toFloat();
-        if (v <= 0) return "ERR:SET_PPR_ROTARY bad value";
+        float v = 0.0f;
+        if (!parseFiniteFloat(cmd.substring(15), v) || v < 100.0f || v > 500000.0f) {
+            return "ERR:SET_PPR_ROTARY bad value";
+        }
         sensor.setPPRRotary(v);
         char buf[48];
         snprintf(buf, sizeof(buf), "ACK:PPR_ROTARY,%.2f", v);
-        Serial.println(buf);
         return String(buf);
 
     } else if (cmd.startsWith("SET_PPR_WIRE ")) {
-        float v = cmd.substring(13).toFloat();
-        if (v <= 0) return "ERR:SET_PPR_WIRE bad value";
+        float v = 0.0f;
+        if (!parseFiniteFloat(cmd.substring(13), v) || v < 100.0f || v > 500000.0f) {
+            return "ERR:SET_PPR_WIRE bad value";
+        }
         sensor.setPPRWire(v);
         char buf[48];
         snprintf(buf, sizeof(buf), "ACK:PPR_WIRE,%.2f", v);
-        Serial.println(buf);
         return String(buf);
 
     } else if (cmd == "SAVE_PPR") {
-        sensor.savePPRToNVS();
-        Serial.println("ACK:SAVE_PPR");
-        return "ACK:SAVE_PPR";
+        return sensor.savePPRToNVS() ? "ACK:SAVE_PPR" : "ERR:SAVE_PPR_FAILED";
 
     } else if (cmd == "SAVE_POINT") {
         SystemStatus st = sensor.getStatus();
@@ -269,18 +278,15 @@ static String processCommand(String cmd) {
             pt_idx++,
             st.position.x_mm, st.position.y_mm, st.position.z_mm,
             st.spherical.r_mm, st.spherical.theta_deg, st.spherical.phi_deg);
-        Serial.println(buf);
         return String(buf);
 
     } else if (cmd == "DEL_POINT") {
         if (pt_idx == 0) {
-            Serial.println("ERR:NO_POINTS");
             return "ERR:NO_POINTS";
         }
         pt_idx--;
         char buf[32];
         snprintf(buf, sizeof(buf), "DEL_POINT,%u", pt_idx);
-        Serial.println(buf);
         return String(buf);
 
     } else if (cmd == "GET_IP") {
@@ -291,7 +297,6 @@ static String processCommand(String cmd) {
         } else {
             reply = "STA_IP:NOT_CONNECTED";
         }
-        Serial.println(reply);
         return reply;
 #else
         return "ERR:WIFI_DISABLED";
@@ -314,21 +319,19 @@ static String processCommand(String cmd) {
         bool clear_request = (ssid.length() == 0 && pass.length() == 0);
         if (!clear_request && (ssid.length() == 0 || ssid.length() > 32)) return "ERR:SSID_INVALID";
         if (pass.length() > 0 && pass.length() < 8) return "ERR:PASS_TOO_SHORT";
+        if (pass.length() > 63) return "ERR:PASS_TOO_LONG";
         Preferences prefs;
-        prefs.begin("wifi_cfg", false);
+        if (!prefs.begin("wifi_cfg", false)) return "ERR:WIFI_SAVE_FAILED";
         prefs.putString("ssid", ssid);
         prefs.putString("pass", pass);
+        const bool saved = prefs.getString("ssid", "") == ssid &&
+                           prefs.getString("pass", "") == pass;
         prefs.end();
-        Serial.println("ACK:WIFI_SAVED");
-#if ENABLE_WIFI
-        dashboard.broadcast("ACK:WIFI_SAVED");
-#if ENABLE_CMD_TCP
-        cmdTcp.sendToAllClients("ACK:WIFI_SAVED");
-#endif
-#endif
-        delay(500);  // allow async sends to flush before restart
-        ESP.restart();
-        return "ACK:WIFI_SAVED";  // unreachable
+        if (!saved) return "ERR:WIFI_SAVE_FAILED";
+        // Let the ingress dispatcher deliver one ACK before the reboot timer starts.
+        g_restart_pending = true;
+        g_restart_at_ms = millis() + 500;
+        return "ACK:WIFI_SAVED";
 #endif
 
     } else if (cmd == "SYSINFO") {
@@ -343,15 +346,23 @@ static String processCommand(String cmd) {
         snprintf(buf, sizeof(buf), "SYSINFO,%ld,%lu,%lu,%u",
                  (long)rssi, (unsigned long)ESP.getFreeHeap(),
                  (unsigned long)(millis() / 1000), tcpCount);
-        Serial.println(buf);
         return String(buf);
 #else
-        return "";
+        return "ERR:WIFI_DISABLED";
 #endif
     }
 
-    Serial.println("ERR:UNKNOWN_CMD");
     return "ERR:UNKNOWN_CMD";
+}
+
+static String executeCommand(String cmd) {
+    cmd.trim();
+    String reply = processCommand(cmd);
+    if (reply.length() > 0) Serial.println(reply);
+#if ENABLE_BATTERY_MONITOR
+    if (cmd == "STATUS") Serial.println(buildBatteryLine());
+#endif
+    return reply;
 }
 
 static void handleSerialCommands() {
@@ -362,7 +373,7 @@ static void handleSerialCommands() {
             if (!serial_overflow) {
                 serial_buffer.trim();
                 if (serial_buffer.length() > 0) {
-                    processCommand(serial_buffer);
+                    executeCommand(serial_buffer);
                 }
             }
             serial_buffer = "";
@@ -385,7 +396,8 @@ void setup() {
     
     Serial.println("\n========================================");
     Serial.println("  Spherical 3D Positioning System");
-    Serial.println("  Firmware v1.1  (BLINK connection test)");
+    Serial.print("  Firmware ");
+    Serial.println(EVKA_FIRMWARE_VERSION);
 #if defined(PCB_V4)
     Serial.println("  Board: EVKA v4 / ESP32-S3");
 #else
@@ -445,7 +457,7 @@ void loop() {
             if (cmd == nullptr) return;  // unassigned button — ignore silently
             Serial.printf("[ESP-NOW] Button %d -> %s\n", btn, cmd);
             statusLed.flashRemoteButton();
-            String reply = processCommand(String(cmd));
+            String reply = executeCommand(String(cmd));
             if (reply.length() > 0) {
                 dashboard.broadcast(reply.c_str());
 #if ENABLE_CMD_TCP
@@ -472,7 +484,7 @@ void loop() {
     {
         String wsCmd = dashboard.takePendingCommand();
         if (wsCmd.length() > 0) {
-            String reply = processCommand(wsCmd);
+            String reply = executeCommand(wsCmd);
             if (reply.length() > 0) {
                 dashboard.broadcast(reply.c_str());
                 if (wsCmd == "STATUS") sendBatteryLineToWireless();
@@ -491,7 +503,7 @@ void loop() {
     {
         String tcpCmd = cmdTcp.takePendingCommand();
         if (tcpCmd.length() > 0) {
-            String reply = processCommand(tcpCmd);
+            String reply = executeCommand(tcpCmd);
             if (reply.length() > 0) {
                 cmdTcp.sendToAllClients(reply.c_str());
                 if (tcpCmd == "STATUS") sendBatteryLineToWireless();
@@ -504,6 +516,11 @@ void loop() {
 #endif
 
 #endif // ENABLE_WIFI
+
+    if (g_restart_pending && (int32_t)(millis() - g_restart_at_ms) >= 0) {
+        ESP.restart();
+        return;
+    }
 
     tickStatusLed();
 
