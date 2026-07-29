@@ -1,236 +1,94 @@
-# tools/
+# Host Tools
 
-Python utilities for the evka_position project.
+The supported operator path is `tools/evka_gui`. Host tools are package version `0.2.0` and require
+Python 3.10+. All current GUI telemetry, recordings, snapshots, and Quick IPT results are sensor-frame
+values. No endpoint/world transform is accepted or applied by the canonical GUI.
 
-## ipt
-
-Quick IPT hidden-point measurement tool. Recovers a target point that the pen
-cannot touch directly (around a corner, behind an obstacle, inside a recess)
-using the Prodim Proliner's "Quick IPT" (Inverted Pen Technology) method.
+## evka_gui: Canonical Operator GUI
 
 ```bash
-# WiFi (AP fallback)
-python -m tools.ipt --tcp 192.168.1.50:8080
-
-# Serial
-python -m tools.ipt --serial /dev/ttyUSB0 --baud 115200
-
-# No flag → opens disconnected
-python -m tools.ipt
-```
-
-Hold the pen **tip** on the hidden target, sweep the **handle** in a wide spiral,
-and fit a sphere to recover the target. See `tools/ipt/README.md` for full
-workflow, quality flags, and troubleshooting.
-
-## position_checker
-
-Real-time 3D position visualiser that reads the `DATA,` CSV stream from the
-firmware and renders a live 3D trajectory view.
-
-Single source of truth for visualizer protocol/format conventions:
-- `tools/position_checker/cmd_main.py`
-
-### Install dependencies
-
-```bash
-cd tools/position_checker
-pip install -r requirements.txt
-```
-
-### Run
-
-```bash
-# From the repo root
-python -m tools.position_checker.main --port /dev/ttyUSB0
-
-# Or from inside tools/
-python -m position_checker.main --port /dev/ttyUSB0 --baud 115200 --maxpoints 1000
-
-# Replay mode (no hardware needed)
-python -m tools.position_checker.main --replay-file /path/to/frames.csv --fps 20
-```
-
-### Options
-
-| Flag | Default | Description |
-|---|---|---|
-| `--port` | required in live mode | Serial port (`/dev/ttyUSB0`, `COM3`, …) |
-| `--baud` | 115200 | Baud rate |
-| `--maxpoints` | 500 | Rolling history length |
-| `--fps` | 10 | GUI refresh rate (and replay speed) |
-| `--reconnect` / `--no-reconnect` | enabled | Auto-reconnect policy in live mode |
-| `--reconnect-interval` | 1.0 | Initial reconnect delay (seconds) |
-| `--csv-log` | disabled | Optional parsed-frame CSV output file |
-| `--replay-file` | disabled | Use recorded CSV / `DATA,` dump as input |
-
-### GUI features
-
-- **3-D view** — trajectory line + head marker; current position in red.
-- **Text panel** — X, Y, Z (mm), R, θ, φ, validity flag, frame counter,
-  timestamp, total point count, and live connection/command status.
-- **Firmware-authoritative angles** — θ/φ values displayed from firmware stream
-  (phi sign is not recomputed in visualizer transforms).
-- **Zero button** — sends `ZERO\n` to the firmware; firmware responds
-  with `ACK:ZERO` and resets the zero point.
-- **Ping button** — sends `PING\n`; firmware responds with `ACK:PONG`.
-- **Reconnect loop** — keeps trying to restore serial after disconnects.
-
-### Expected firmware output
-
-The firmware emits two lines per update cycle (plus optional status lines):
-
-```
-Cartesian: X=123.4 Y=-56.7 Z=890.1 mm | Spherical: R=900.0 mm, Theta=25.00 deg, Phi=10.00 deg
-DATA,123.40,-56.70,890.10,900.00,25.000,10.000,1,42,12345
-```
-
-The `DATA` field order is fixed as:
-`x_mm,y_mm,z_mm,r_mm,theta_deg,phi_deg,is_valid,frame_count,ts_ms`.
-
-The Python parser ignores all lines that do not begin with `DATA,`.
-
-### Test command
-
-Run built-in tests:
-
-```bash
-python -m unittest discover -s tools/position_checker/tests -v
-```
-
-## Linux TCP CMD GUI
-
-Linux-native control panel equivalent of `firmware/src/CMD Soft/gui.cs`.
-It connects to ESP32 over Wi-Fi TCP and displays live `X,Y,Z` values.
-Quick integration notes: `docs/integration/CMD_SOFTWARE_INTEGRATION.md`.
-
-For a Turkish WiFi connection guide: [`README_TR.md`](../README_TR.md)
-
-### Run
-
-```bash
-# From repo root
-python -m tools.position_checker.cmd_main
-```
-
-Default endpoint is:
-- IP: `192.168.1.84` (example STA target)
-- Port: `8080`
-
-AP fallback remains `192.168.1.50` when connected directly to `CMDCNC_EVKA`.
-
-### Features
-
-- Connect / disconnect to ESP32 TCP server
-- Live `X,Y,Z` display from streamed telemetry line:
-  - `X12.34,Y-56.78,Z90.12`
-- Live `SENSOR,...` panel (R, θ, φ, valid, frame)
-- Per-axis **software zero** (`X=0`, `Y=0`, `Z=0`) — display-only offset
-- **Software Zero (All)** — zeros all axes in the display frame (no firmware command)
-- **Clear Software Zero** — return to world coordinates without sending `ZERO`
-- **Hardware Zero (Encoder)** — sends `ZERO` to firmware at mechanical home
-- **Reset Min/Max** — clears session min/max stats only (not zero offsets)
-- Saved points (`SAVE_POINT` / `DEL_POINT`) with session-local list
-- ESP-NOW remote button indicators (`REMOTE_BTN`, `REMOTE_HB`)
-- Router IP query (`GET_IP` -> `STA_IP:*`)
-- System info polling (`SYSINFO` — RSSI, heap, uptime, TCP clients)
-- Wi-Fi credential save/forget:
-  - Save: `WIFI_SET:<ssid>,<password>` (empty password = open network)
-  - Forget: `WIFI_SET:,`
-- Local settings persistence via `settings.txt` in current working directory
-
-**Zero semantics:** Software zero subtracts the current raw XYZ as a client-side
-offset so the display shows relative position. R/θ/φ are recomputed from the
-zeroed Cartesian values. Hardware zero sends `ZERO` and resets encoders. Software
-zero is cleared on disconnect.
-
-### TCP Protocol Quick Reference
-
-GUI -> ESP32 (newline-delimited ASCII):
-
-```text
-GET_IP
-ZERO
-BLINK
-SAVE_POINT
-DEL_POINT
-SYSINFO
-WIFI_SET:<ssid>,<password>
-WIFI_SET:,
-```
-
-`BLINK` → `ACK:BLINK`; the board flashes its status LED white for ~0.7 s (a connection check; no-op on boards without the RGB LED).
-
-ESP32 -> GUI (newline-delimited ASCII):
-
-```text
-STA_IP:<ipv4>
-STA_IP:NOT_CONNECTED
-X<value>,Y<value>,Z<value>
-SENSOR,<r>,<theta>,<phi>,<valid>,<frame>
-SYSINFO,<rssi>,<heap>,<uptime_s>,<tcp_clients>
-POINT,<idx>,<x>,<y>,<z>,<r>,<theta>,<phi>
-DEL_POINT,<idx>
-REMOTE_BTN:<0|1>
-REMOTE_HB
-ACK:<cmd>
-ERR:<reason>
-```
-
-WiFi credential validation: SSID must be 1–32 chars (`ERR:SSID_INVALID`); password must be empty or ≥8 chars (`ERR:PASS_TOO_SHORT`). Unrecognized commands return `ERR:UNKNOWN_CMD`.
-
-## evka_gui — unified control GUI (canonical)
-
-Single-window host GUI for **EVKA Position v4** (ESP32-S3, env `esp32s3_v4`).
-Combines the serial visualizer, Linux CMD panel, and v4 control GUI. One
-connection drives everything: Serial, WiFi/TCP, or CSV replay.
-
-**Main page** — live position, 3D trail, min/max, software/hardware zero,
-saved points, WiFi config, SYSINFO, ESP-NOW remote, battery when firmware reports it.
-
-**Calibration window** (toolbar) — wire multi-trial PPR, theta/phi turn-count,
-endpoint pair export.
-
-### Run
-
-```bash
-python -m tools.evka_gui                              # open disconnected
-python -m tools.evka_gui --serial /dev/ttyUSB0 --baud 115200
-python -m tools.evka_gui --tcp 192.168.1.50:8080      # AP (CMDCNC_EVKA)
-python -m tools.evka_gui --tcp 192.168.1.84:8080      # STA (ASMETAL)
+python -m tools.evka_gui
+python -m tools.evka_gui --serial /dev/ttyACM0 --baud 115200
+python -m tools.evka_gui --tcp 192.168.1.50:8080
+python -m tools.evka_gui --ws 192.168.1.50
 python -m tools.evka_gui --replay frames.csv
 ```
 
-AP/STA quick-select buttons in the connection panel. Settings persist via `QSettings`.
+It provides Serial/TCP/WebSocket/replay connections, 3D and 2D views, recording, snapshots,
+saved-point events, diagnostics, zero-relative raw counts, Quick IPT, and calibration-session tools.
 
-### Transport → feature matrix
+Coordinate rules:
 
-| Feature | Serial | WiFi/TCP | Replay |
-|---|:--:|:--:|:--:|
-| Live position (X/Y/Z, R/θ/φ) | ✓ | ✓ | ✓ |
-| 3D trail + 2D plots | ✓ | ✓ | ✓ |
-| Battery | ✓ | ✓ via `STATUS` | — |
-| ESP-NOW remote | — | ✓ | — |
-| WiFi config | — | ✓ | — |
-| Calibration | ✓ | ✓ | — |
-| Commands | ✓ | ✓ | — |
+- Software Zero is a display/session offset only.
+- Hardware Zero sends a firmware `ZERO*` command.
+- Recordings and calibration capture use raw sensor-frame telemetry, not software-zeroed display
+  values.
+- The calibration window can generate a candidate session JSON after report PASS, but that does not
+  establish project acceptance or change the live GUI frame.
 
-### Tests
+Full guide: [evka_gui/README.md](evka_gui/README.md).
+
+## calibration
+
+Candidate Kabsch sensor-to-world fitting with separate calibration and hold-out sets:
 
 ```bash
-python -m pytest tools/evka_gui/tests -v
+python -m tools.calibration.gui
+python -m tools.calibration.report
 ```
 
-### Deprecated shims
+Theta repeatability must pass before collecting endpoint pairs. No shared/default calibration JSON
+is checked in or accepted.
 
-| Old command | Replacement |
+Operator workflow: [../docs/calibration/report_workflow.md](../docs/calibration/report_workflow.md).
+Tool details: [calibration/README.md](calibration/README.md).
+
+## Quick IPT
+
+Quick IPT is inline in `evka_gui`. A standalone UI remains available:
+
+```bash
+python -m tools.ipt --tcp 192.168.1.50:8080
+python -m tools.ipt --serial /dev/ttyACM0 --baud 115200
+python -m tools.ipt.solver
+```
+
+The recovered point is in the sensor frame. See [ipt/README.md](ipt/README.md).
+
+## Remote Tester
+
+Development-only direct TCP/serial tester for `button_remote_test` firmware:
+
+```bash
+python tools/remote_tester/remote_test_gui.py
+```
+
+It is also available from the canonical GUI's **Remote Tester...** action, using a separate test
+connection. See [remote_tester/README.md](remote_tester/README.md).
+
+## Legacy position_checker
+
+`tools/position_checker` retains shared parsing/transport/view code and legacy standalone entry
+points. New operator instructions should use `tools/evka_gui`.
+
+A passing session JSON may be supplied explicitly only to the legacy visualizer:
+
+```bash
+python -m tools.position_checker.main --legacy-visualizer --port /dev/ttyUSB0 \
+  --calibration docs/calibration/sessions/current/calibration.json
+```
+
+| Legacy command | Canonical replacement |
 |---|---|
-| `python -m tools.evka_gui_v2` | `python -m tools.evka_gui` |
-| `python -m tools.position_checker.cmd_main` | `python -m tools.evka_gui --tcp …` |
-| `python -m tools.position_checker.main --port …` | `python -m tools.evka_gui --serial …` |
+| `python -m tools.position_checker.main --legacy-visualizer --port ...` | `python -m tools.evka_gui --serial ...` |
+| `python -m tools.position_checker.cmd_main` | `python -m tools.evka_gui --tcp ...` |
 
-Pass `--legacy-cmd-gui` or `--legacy-visualizer` to run the old standalone tools.
+Historical migration documents may mention older GUI package names as archive history.
 
-## evka_gui_v2 (deprecated)
+## Protocol and Security
 
-Shim only — use `tools.evka_gui` instead.
+[../docs/PROTOCOL.md](../docs/PROTOCOL.md) is the canonical protocol reference. Do not treat
+`cmd_main.py`, a GUI parser, or a historical vendor application as the wire-contract source.
+
+Current fixed credentials and unauthenticated state-changing commands are trusted-lab-only. Do not
+expose the device's TCP/WebSocket services to an untrusted network.
