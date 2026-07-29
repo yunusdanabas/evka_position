@@ -73,6 +73,13 @@ laser_radius/report/*.toc
 laser_radius/report/*.synctex.gz
 laser_radius/report/*.fls
 laser_radius/report/*.fdb_latexmk
+docs/reports/**/*.aux
+docs/reports/**/*.log
+docs/reports/**/*.out
+docs/reports/**/*.toc
+docs/reports/**/*.synctex.gz
+docs/reports/**/*.fls
+docs/reports/**/*.fdb_latexmk
 
 # .NET / C# build artifacts
 bin/
@@ -82,13 +89,14 @@ obj/
 *.deps.json
 *.runtimeconfig.json
 *.cache
-# Explicitly ignore legacy Windows GUI publish output in this repo
-firmware/src/CMD Soft/bin/
-firmware/src/CMD Soft/obj/
-
 # Root-level calibration folder (moved to firmware/tests/) — anchored so it does
 # NOT match docs/calibration/
 /calibration/
+
+# Generated endpoint-report session artifacts (keep CSV templates trackable)
+docs/calibration/sessions/**/report.md
+docs/calibration/sessions/**/calibration.json
+docs/calibration/sessions/**/*_errors.csv
 
 # Experimental tools
 tools/analysis/
