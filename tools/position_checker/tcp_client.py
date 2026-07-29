@@ -141,6 +141,12 @@ class TcpClient:
         except Exception as exc:
             reason = f"Receive error: {exc}"
         finally:
+            # Only report a *lost* link. On a requested stop (close() flipped
+            # _running before we got here) emitting would push a stray disconnect
+            # event after the user already disconnected — which the GUI would read
+            # as a dropped link and try to auto-reconnect.
+            with self._lock:
+                requested_stop = not self._running
             self.close(emit_disconnect=False)
-            if self._on_disconnect is not None:
+            if not requested_stop and self._on_disconnect is not None:
                 self._on_disconnect(reason)

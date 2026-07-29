@@ -4,6 +4,7 @@ import math
 import sys
 
 import numpy as np
+from typing import Optional
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 from .cmd_main import get_visualizer_conventions
@@ -13,25 +14,61 @@ from .data_store import DataStore
 class _View3D(QtWidgets.QWidget):
     """Software-rendered 3D trail view — no OpenGL required.
 
-    Z-axis-up perspective projection. Left-click + drag rotates the view.
+    Z-axis-up perspective projection. Left-click + drag rotates, wheel zooms.
     """
 
-    def __init__(self, parent=None):
+    CAM_DIST_MIN = 200.0
+    CAM_DIST_MAX = 5000.0
+
+    def __init__(self, parent=None, *, rot_x: float = -30.0, rot_y: float = 45.0):
         super().__init__(parent)
-        self._rot_x = -30.0   # elevation tilt (degrees)
-        self._rot_y = 45.0    # azimuth spin   (degrees)
+        self._rot_x = rot_x   # elevation tilt (degrees)
+        self._rot_y = rot_y   # azimuth spin   (degrees)
+        self._cam_dist = 800.0  # perspective distance; wheel zooms by moving the camera
         self._drag_start = None
         self._pts: list[tuple[float, float, float]] = []
+        self._ipt_cloud: list[tuple[float, float, float]] = []
+        self._ipt_marker: Optional[tuple[float, float, float]] = None
+        self._ipt_sphere_c: Optional[tuple[float, float, float]] = None
+        self._ipt_sphere_r: float = 0.0
+        self._show_ipt = False
+        self._show_trail = True
         self.setMinimumSize(200, 200)
         self.setMouseTracking(True)
         self.setStyleSheet("background-color: #0f0f23;")
 
     def set_data(self, xs, ys, zs):
-        self._pts = list(zip(xs.tolist(), ys.tolist(), zs.tolist()))
+        self._pts = list(zip(xs, ys, zs))
+        self.update()
+
+    def set_show_trail(self, visible: bool) -> None:
+        self._show_trail = visible
+        self.update()
+
+    def set_ipt_overlay(
+        self,
+        cloud_pts,
+        marker_p,
+        sphere_center,
+        sphere_r: float,
+        visible: bool,
+    ) -> None:
+        self._show_ipt = visible
+        if cloud_pts is not None and len(cloud_pts):
+            self._ipt_cloud = [tuple(p) for p in cloud_pts]
+        else:
+            self._ipt_cloud = []
+        self._ipt_marker = tuple(marker_p) if marker_p is not None else None
+        self._ipt_sphere_c = tuple(sphere_center) if sphere_center is not None else None
+        self._ipt_sphere_r = float(sphere_r) if sphere_r else 0.0
         self.update()
 
     def clear(self):
         self._pts = []
+        self._ipt_cloud = []
+        self._ipt_marker = None
+        self._ipt_sphere_c = None
+        self._ipt_sphere_r = 0.0
         self.update()
 
     # ------------------------------------------------------------------
@@ -45,7 +82,10 @@ class _View3D(QtWidgets.QWidget):
         y1 = x * sz + y * cz
         y2 = y1 * cx - z * sx            # tilt around X  (y2 = depth)
         z1 = y1 * sx + z * cx            #                (z1 = screen-up)
-        s = W * 0.6 / (y2 + 800)
+        denom = y2 + self._cam_dist
+        if denom < 1.0:      # point is behind the camera — clamp instead of inverting
+            denom = 1.0
+        s = W * 0.6 / denom
         return W / 2 + x1 * s, H / 2 - z1 * s
 
     def paintEvent(self, _event):
@@ -85,7 +125,7 @@ class _View3D(QtWidgets.QWidget):
         n = len(pts)
 
         # Trail
-        if n > 1:
+        if self._show_trail and n > 1:
             for i in range(1, n):
                 alpha = int(51 + 204 * (i / n))
                 pen = QtGui.QPen(QtGui.QColor(30, 200, 120, alpha))
@@ -96,13 +136,46 @@ class _View3D(QtWidgets.QWidget):
                 painter.drawLine(QtCore.QLineF(x0, y0, x1, y1))
 
         # Head dot
-        if n > 0:
+        if self._show_trail and n > 0:
             hx, hy = self._project(*pts[-1])
             painter.setPen(QtCore.Qt.NoPen)
             painter.setBrush(QtGui.QBrush(QtGui.QColor("#ff3333")))
             painter.drawEllipse(QtCore.QPointF(hx, hy), 14, 14)
             painter.setBrush(QtGui.QBrush(QtGui.QColor("#ff8888")))
             painter.drawEllipse(QtCore.QPointF(hx, hy),  7,  7)
+
+        # IPT overlay
+        if self._show_ipt:
+            painter.setPen(QtCore.Qt.NoPen)
+            painter.setBrush(QtGui.QBrush(QtGui.QColor("#00ff88")))
+            for pt in self._ipt_cloud:
+                cx, cy = self._project(*pt)
+                painter.drawEllipse(QtCore.QPointF(cx, cy), 3, 3)
+            if self._ipt_marker is not None:
+                mx, my = self._project(*self._ipt_marker)
+                painter.setBrush(QtGui.QBrush(QtGui.QColor("#ff6600")))
+                painter.drawEllipse(QtCore.QPointF(mx, my), 8, 8)
+            if self._ipt_sphere_c is not None and self._ipt_sphere_r > 0:
+                pen = QtGui.QPen(QtGui.QColor("#2980b9"))
+                pen.setStyle(QtCore.Qt.DashLine)
+                pen.setWidthF(1.5)
+                painter.setPen(pen)
+                painter.setBrush(QtCore.Qt.NoBrush)
+                cx, cy, cz = self._ipt_sphere_c
+                r = self._ipt_sphere_r
+                for axis in ("xy", "xz", "yz"):
+                    circle_pts = []
+                    for i in range(41):
+                        t = 2 * math.pi * i / 40
+                        if axis == "xy":
+                            px, py, pz = cx + r * math.cos(t), cy + r * math.sin(t), cz
+                        elif axis == "xz":
+                            px, py, pz = cx + r * math.cos(t), cy, cz + r * math.sin(t)
+                        else:
+                            px, py, pz = cx, cy + r * math.cos(t), cz + r * math.sin(t)
+                        circle_pts.append(QtCore.QPointF(*self._project(px, py, pz)))
+                    for i in range(1, len(circle_pts)):
+                        painter.drawLine(circle_pts[i - 1], circle_pts[i])
 
         painter.end()
 
@@ -122,6 +195,16 @@ class _View3D(QtWidgets.QWidget):
 
     def mouseReleaseEvent(self, _event):
         self._drag_start = None
+
+    def wheelEvent(self, event):
+        steps = event.angleDelta().y() / 120.0
+        if not steps:
+            return
+        self._cam_dist = max(
+            self.CAM_DIST_MIN,
+            min(self.CAM_DIST_MAX, self._cam_dist * (0.85 ** steps)),
+        )
+        self.update()
 
 
 # ==============================================================================

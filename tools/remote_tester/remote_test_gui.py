@@ -19,6 +19,7 @@ import queue
 import socket
 import sys
 import threading
+from typing import Tuple
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
@@ -67,7 +68,8 @@ class _RemoteTcpThread(threading.Thread):
         self._host = host
         self._port = port
         self._q    = q
-        self._stop = threading.Event()
+        self._stop_event = threading.Event()
+        self._sock_lock = threading.Lock()
         self._sock: socket.socket | None = None
 
     def run(self) -> None:
@@ -76,10 +78,11 @@ class _RemoteTcpThread(threading.Thread):
             sock.settimeout(30.0)
             sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-            self._sock = sock
+            with self._sock_lock:
+                self._sock = sock
             self._q.put(("connected",))
             reader = sock.makefile("r", encoding="ascii", newline="\n")
-            while not self._stop.is_set():
+            while not self._stop_event.is_set():
                 line = reader.readline()
                 if line == "":
                     self._q.put(("error", "Connection closed by remote"))
@@ -97,15 +100,29 @@ class _RemoteTcpThread(threading.Thread):
             self._close_sock()
 
     def stop(self) -> None:
-        self._stop.set()
+        self._stop_event.set()
         self._close_sock()
 
-    def _close_sock(self) -> None:
+    def send_line(self, text: str) -> Tuple[bool, str]:
+        payload = (text.strip() + "\n").encode("ascii", errors="ignore")
+        with self._sock_lock:
+            sock = self._sock
+        if sock is None:
+            return False, "not connected"
         try:
-            if self._sock is not None:
-                self._sock.shutdown(socket.SHUT_RDWR)
-                self._sock.close()
-                self._sock = None
+            sock.sendall(payload)
+            return True, "sent"
+        except OSError as exc:
+            return False, str(exc)
+
+    def _close_sock(self) -> None:
+        with self._sock_lock:
+            sock = self._sock
+            self._sock = None
+        try:
+            if sock is not None:
+                sock.shutdown(socket.SHUT_RDWR)
+                sock.close()
         except Exception:
             pass
 
@@ -116,8 +133,8 @@ class _RemoteTcpThread(threading.Thread):
 
 class RemoteTestWindow(QtWidgets.QMainWindow):
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
         self._q: queue.Queue[tuple] = queue.Queue()
         self._thread: _RemoteTcpThread | None = None
 
@@ -129,11 +146,16 @@ class RemoteTestWindow(QtWidgets.QMainWindow):
 
         self._build_ui()
         self.setWindowTitle("Remote Button Tester")
-        self.resize(500, 580)
+        self.setMinimumSize(480, 520)
+        self.resize(520, 640)
 
     # -----------------------------------------------------------------------
     # UI construction
     # -----------------------------------------------------------------------
+
+    def _header_widget(self) -> QtWidgets.QWidget | None:
+        """Optional banner above connection row (override in subclasses)."""
+        return None
 
     def _build_ui(self) -> None:
         central = QtWidgets.QWidget()
@@ -142,10 +164,14 @@ class RemoteTestWindow(QtWidgets.QMainWindow):
         root.setSpacing(8)
         root.setContentsMargins(10, 10, 10, 10)
 
+        header = self._header_widget()
+        if header is not None:
+            root.addWidget(header)
+
         root.addWidget(self._build_connection_group())
         root.addWidget(self._build_buttons_group())
         root.addWidget(self._build_hb_group())
-        root.addWidget(self._build_log_group())
+        root.addWidget(self._build_log_group(), stretch=1)
 
     def _build_connection_group(self) -> QtWidgets.QGroupBox:
         gb = QtWidgets.QGroupBox("Connection")
@@ -173,12 +199,17 @@ class RemoteTestWindow(QtWidgets.QMainWindow):
         self._btn_disconnect.clicked.connect(self._on_disconnect)
         grid.addWidget(self._btn_disconnect, 0, 5)
 
-        grid.setColumnStretch(6, 1)
+        self._btn_pins = QtWidgets.QPushButton("READ PINS")
+        self._btn_pins.setEnabled(False)
+        self._btn_pins.clicked.connect(self._on_read_pins)
+        grid.addWidget(self._btn_pins, 0, 6)
+
+        grid.setColumnStretch(7, 1)
 
         self._lbl_status = QtWidgets.QLabel("Status: Disconnected")
         self._lbl_status.setFont(QtGui.QFont("Segoe UI", 10, QtGui.QFont.Bold))
         self._set_status("Disconnected", "#888888")
-        grid.addWidget(self._lbl_status, 1, 0, 1, 7)
+        grid.addWidget(self._lbl_status, 1, 0, 1, 8)
 
         return gb
 
@@ -217,6 +248,10 @@ class RemoteTestWindow(QtWidgets.QMainWindow):
         self._lbl_hb.setStyleSheet("color: #aaaaaa;")
         hbox.addWidget(self._lbl_hb)
         hbox.addStretch()
+        self._lbl_pins = QtWidgets.QLabel("Pins: —")
+        self._lbl_pins.setWordWrap(True)
+        self._lbl_pins.setFont(QtGui.QFont("Consolas", 8))
+        hbox.addWidget(self._lbl_pins, stretch=1)
         return gb
 
     def _build_log_group(self) -> QtWidgets.QGroupBox:
@@ -225,8 +260,8 @@ class RemoteTestWindow(QtWidgets.QMainWindow):
         self._log = QtWidgets.QTextEdit()
         self._log.setReadOnly(True)
         self._log.setFont(QtGui.QFont("Consolas", 9))
-        self._log.setMinimumHeight(200)
-        vbox.addWidget(self._log)
+        self._log.setMinimumHeight(160)
+        vbox.addWidget(self._log, stretch=1)
         return gb
 
     # -----------------------------------------------------------------------
@@ -252,10 +287,20 @@ class RemoteTestWindow(QtWidgets.QMainWindow):
         self._set_status("Disconnected", "#888888")
         self._btn_connect.setEnabled(True)
         self._btn_disconnect.setEnabled(False)
+        self._btn_pins.setEnabled(False)
+
+    def _on_read_pins(self) -> None:
+        if self._thread is None:
+            self._append_log("[ERROR] Not connected")
+            return
+        ok, info = self._thread.send_line("PINS")
+        if not ok:
+            self._append_log(f"[ERROR] PINS send failed: {info}")
 
     def _cleanup_thread(self) -> None:
         if self._thread is not None:
             self._thread.stop()
+            self._thread.join(timeout=1.0)
             self._thread = None
 
     # -----------------------------------------------------------------------
@@ -273,6 +318,7 @@ class RemoteTestWindow(QtWidgets.QMainWindow):
 
             if kind == "connected":
                 self._btn_disconnect.setEnabled(True)
+                self._btn_pins.setEnabled(True)
                 self._append_log("=== Connected ===")
 
             elif kind == "error":
@@ -281,6 +327,7 @@ class RemoteTestWindow(QtWidgets.QMainWindow):
                 self._cleanup_thread()
                 self._btn_connect.setEnabled(True)
                 self._btn_disconnect.setEnabled(False)
+                self._btn_pins.setEnabled(False)
 
             elif kind == "line":
                 line: str = item[1]
@@ -306,6 +353,9 @@ class RemoteTestWindow(QtWidgets.QMainWindow):
 
         elif line.startswith("ERR:"):
             self._set_status(f"Error: {line}", "#c0392b")
+
+        elif line.startswith("PINS"):
+            self._lbl_pins.setText("Pins: " + line[5:].lstrip(","))
 
     # -----------------------------------------------------------------------
     # Helpers

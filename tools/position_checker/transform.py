@@ -22,12 +22,24 @@ def load_calibration(path: str) -> Optional[Tuple[np.ndarray, np.ndarray]]:
     try:
         with open(path) as f:
             data = json.load(f)
+        verdict = data.get("verdict")
+        if str(verdict).upper() != "PASS":
+            raise ValueError(
+                "calibration verdict is missing" if verdict is None
+                else f"calibration verdict is {verdict}"
+            )
         R = np.array(data["R"], dtype=float)
         t = np.array(data["t"], dtype=float)
         if R.shape != (3, 3) or t.shape != (3,):
             raise ValueError("Unexpected shape in calibration JSON")
+        if not np.isfinite(R).all() or not np.isfinite(t).all():
+            raise ValueError("Calibration transform contains non-finite values")
+        if not np.allclose(R.T @ R, np.eye(3), atol=1e-5):
+            raise ValueError("Calibration rotation is not orthonormal")
+        if not math.isclose(float(np.linalg.det(R)), 1.0, abs_tol=1e-5):
+            raise ValueError("Calibration rotation is not a proper rotation")
         return R, t
-    except (FileNotFoundError, KeyError, ValueError) as exc:
+    except (FileNotFoundError, KeyError, OverflowError, TypeError, ValueError) as exc:
         logger.warning("Could not load calibration from %s: %s", path, exc)
         return None
 

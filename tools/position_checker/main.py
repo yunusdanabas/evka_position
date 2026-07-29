@@ -9,7 +9,6 @@ Usage (from project root):
 
 import argparse
 import logging
-import os
 import sys
 
 logger = logging.getLogger(__name__)
@@ -21,7 +20,7 @@ from .gui import run_gui
 from .transform import load_calibration
 
 
-def main() -> None:
+def main(argv=None) -> None:
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(name)s %(levelname)s %(message)s",
@@ -72,16 +71,11 @@ def main() -> None:
         "--replay-file",
         help="Read frames from CSV/raw DATA file instead of serial port",
     )
-    _default_cal = os.path.join(
-        os.path.dirname(__file__), "..", "calibration", "calibration.json"
-    )
     parser.add_argument(
         "--calibration",
-        default=_default_cal,
-        help="Path to calibration.json (default: tools/calibration/calibration.json). "
-             "Pass 'none' to disable.",
+        help="Explicit calibration.json path (default: sensor frame, no transform).",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     if not args.legacy_visualizer:
         import warnings

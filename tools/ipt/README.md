@@ -11,6 +11,10 @@ centred on the target**. Fitting that sphere returns the target. evka_position h
 the same sensor topology as the Proliner V9 (one wire + two angle encoders), so the
 method transfers directly — this tool needs **no firmware change**.
 
+Prototype limitation: theta count loss is unresolved, so real IPT accuracy is not accepted. Results
+are sensor-frame points. `tools/evka_gui` does not apply an endpoint/world transform, and no current
+transform has been accepted.
+
 ```
             measured attachment points  M_i  (on a sphere of radius L)
                       .  .  .
@@ -24,6 +28,10 @@ method transfers directly — this tool needs **no firmware change**.
 ## Quick start
 
 ```bash
+# Unified GUI (recommended) — connect once, then use inline Quick IPT
+python -m tools.evka_gui --tcp 192.168.1.50:8080
+
+# Standalone IPT (own connection UI)
 # WiFi (raw CMD server, default port 8080) — AP CMDCNC_EVKA @ 192.168.1.50
 python -m tools.ipt --tcp 192.168.1.50:8080
 
@@ -33,6 +41,10 @@ python -m tools.ipt --serial /dev/ttyUSB0 --baud 115200
 # No flag → opens disconnected; pick TCP/serial in the panel
 python -m tools.ipt
 ```
+
+When using `evka-gui` / `python -m tools.evka_gui`, use the inline **Quick IPT**
+group on the main panel (ARM/STOP/SOLVE). Optional toolbar **IPT plots…** opens
+full-height projections. No second connection is needed.
 
 **Dependencies:** `numpy`, `PyQt5`, `pyqtgraph`, `pyserial` (all in `pyproject.toml`).
 
@@ -69,6 +81,10 @@ invalid-frame dropping, and TCP XYZ/SENSOR pairing.
 
 ### Option C: Connect to a real EVKA device over WiFi (TCP)
 
+**Recommended:** use the unified GUI and the inline **Quick IPT** panel after
+connecting (no second socket). Standalone steps below still apply if you
+prefer `python -m tools.ipt`.
+
 1. **Power on the EVKA device.** It creates a WiFi AP:
    - SSID: `CMDCNC_EVKA`
    - Password: `cmdcnc1234`
@@ -77,9 +93,14 @@ invalid-frame dropping, and TCP XYZ/SENSOR pairing.
 
 3. **Run the tool:**
    ```bash
+   # Unified GUI (recommended)
+   python -m tools.evka_gui --tcp 192.168.1.50:8080
+   # Connect, then use inline Quick IPT
+
+   # Standalone IPT
    python -m tools.ipt --tcp 192.168.1.50:8080
    ```
-   Or open without arguments and fill in the panel:
+   Or open standalone without arguments and fill in the panel:
    ```bash
    python -m tools.ipt
    ```
@@ -315,16 +336,20 @@ When you leave `L` blank:
 |---|---|
 | `solver.py` | Sphere-fit estimators + `solve_ipt()` entry point. Pure numpy; no I/O. |
 | `capture.py` | Armed buffer: dedup + TCP XYZ/SENSOR pairing + serial frame ingest. |
-| `gui.py` | pyqtgraph GUI: live cloud, fitted sphere, recovered point, controls. |
+| `gui.py` | Standalone pyqtgraph GUI (own connection panel). |
+| `../evka_gui/ipt_panel.py` | Embedded IPT panel for unified GUI (shared connection). |
+| `../evka_gui/ipt_window.py` | Optional IPT projection plot pop-out. |
 | `__main__.py` | CLI entry point (`python -m tools.ipt`). |
 | `tests/` | Offline pytest suite (no hardware): `test_solver.py`, `test_capture.py`. |
 
 ```mermaid
 flowchart LR
-    FW[ESP32 firmware<br>unchanged] -->|XYZ stream 20 Hz| CAP[capture.py<br>armed buffer]
+    FW[ESP32 firmware<br>unchanged] -->|raw lines| EVKA[evka_gui _drain]
+    FW -->|XYZ stream 20 Hz| STAND[standalone ipt/gui.py]
+    EVKA --> CAP[capture.py<br>armed buffer]
+    STAND --> CAP
     CAP -->|point cloud| SOL[solver.py<br>sphere fit]
-    SOL --> GUI[gui.py<br>PyQt5 + pyqtgraph]
-    GUI --> OUT[Result: P, L, flags]
+    SOL --> OUT[Result: P, L, flags]
 ```
 
 `solve_ipt(M, L=None)` is usable headlessly on any `(n, 3)` array of mm points:
