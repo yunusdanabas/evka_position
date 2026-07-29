@@ -26,6 +26,7 @@
 #define AP_START_RETRIES      5
 // Lower AP TX power reduces supply spikes on weak Type-C extension boards.
 #define TEST_AP_WIFI_TX_POWER WIFI_POWER_8_5dBm
+#define RX_BUF_LEN            64
 
 // GPIO 8 = built-in blue LED on ESP32-C3 SuperMini, active HIGH
 #define PIN_LED               8
@@ -50,6 +51,11 @@
 // BTN3=GPIO1, BTN4=GPIO3
 static const uint8_t BTN_PINS[BTN_COUNT] = {4, 5, 0, 1, 3};
 
+// Readable ESP32-C3 SuperMini pins for bench testing. Excludes flash pins 11–17
+// and USB D-/D+ 18/19 so flashing/USB serial stays alive.
+static const uint8_t PIN_SCAN_PINS[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 21};
+static const uint8_t PIN_SCAN_COUNT = sizeof(PIN_SCAN_PINS) / sizeof(PIN_SCAN_PINS[0]);
+
 struct ButtonState {
     uint8_t  pin;
     bool     last_raw;        // last raw digitalRead() result (true = pressed = LOW)
@@ -60,6 +66,8 @@ struct ButtonState {
 struct ClientSlot {
     WiFiClient client;
     bool       active;
+    char       rx[RX_BUF_LEN];
+    uint8_t    rx_len;
 };
 
 static ButtonState g_buttons[BTN_COUNT];
@@ -69,6 +77,8 @@ static WiFiServer  g_server(TCP_PORT);
 static uint32_t g_last_hb_ms = 0;
 static uint32_t g_led_off_ms = 0;
 static bool     g_led_on     = false;
+static char     g_serial_rx[RX_BUF_LEN];
+static uint8_t  g_serial_rx_len = 0;
 
 // ============================================================================
 // HELPERS
@@ -95,6 +105,55 @@ static void sendToAll(const char* msg) {
     }
 }
 
+static bool isButtonPin(uint8_t pin) {
+    for (uint8_t i = 0; i < BTN_COUNT; i++) {
+        if (BTN_PINS[i] == pin) return true;
+    }
+    return false;
+}
+
+static void sendPins(Print& out) {
+    out.print("PINS");
+    for (uint8_t i = 0; i < PIN_SCAN_COUNT; i++) {
+        uint8_t pin = PIN_SCAN_PINS[i];
+        out.printf(",GPIO%u=%d", pin, digitalRead(pin));
+    }
+    out.print("\n");
+}
+
+static void handleCommand(const char* raw, Print& out) {
+    String cmd(raw);
+    cmd.trim();
+    cmd.toUpperCase();
+    if (!cmd.length()) return;
+
+    if (cmd == "PING") {
+        out.print("ACK:PONG\n");
+    } else if (cmd == "PINS") {
+        sendPins(out);
+    } else if (cmd == "HELP") {
+        out.print("HELP:PING,PINS,HELP\n");
+    } else {
+        out.printf("ERR:UNKNOWN_CMD,%s\n", cmd.c_str());
+    }
+}
+
+static void feedCommandByte(char c, char* buf, uint8_t& len, Print& out) {
+    if (c == '\r') return;
+    if (c == '\n') {
+        buf[len] = '\0';
+        handleCommand(buf, out);
+        len = 0;
+        return;
+    }
+    if (len < RX_BUF_LEN - 1) {
+        buf[len++] = c;
+    } else {
+        len = 0;
+        out.print("ERR:CMD_TOO_LONG\n");
+    }
+}
+
 // ============================================================================
 // INIT
 // ============================================================================
@@ -106,6 +165,15 @@ static void initButtons() {
         g_buttons[i].confirmed      = false;
         g_buttons[i].last_change_ms = 0;
         pinMode(BTN_PINS[i], INPUT_PULLUP);
+    }
+}
+
+static void initPinScanner() {
+    for (uint8_t i = 0; i < PIN_SCAN_COUNT; i++) {
+        uint8_t pin = PIN_SCAN_PINS[i];
+        if (!isButtonPin(pin) && pin != PIN_LED) {
+            pinMode(pin, INPUT_PULLUP);
+        }
     }
 }
 
@@ -177,6 +245,7 @@ static void pollClients() {
             g_clients[i].client = incoming;
             g_clients[i].client.setNoDelay(true);
             g_clients[i].active = true;
+            g_clients[i].rx_len = 0;
             g_clients[i].client.print("HELLO:REMOTE_TEST\n");
             Serial.printf("[TEST] Client slot %d connected from %s\n",
                           i, incoming.remoteIP().toString().c_str());
@@ -191,13 +260,20 @@ static void pollClients() {
 }
 
 static void drainClientRx() {
-    // Discard all inbound bytes to prevent WiFiClient rx buffer overflow.
     for (uint8_t i = 0; i < MAX_CLIENTS; i++) {
         if (g_clients[i].active) {
             while (g_clients[i].client.available()) {
-                g_clients[i].client.read();
+                char c = (char)g_clients[i].client.read();
+                feedCommandByte(c, g_clients[i].rx, g_clients[i].rx_len, g_clients[i].client);
             }
         }
+    }
+}
+
+static void drainSerialRx() {
+    while (Serial.available()) {
+        char c = (char)Serial.read();
+        feedCommandByte(c, g_serial_rx, g_serial_rx_len, Serial);
     }
 }
 
@@ -253,18 +329,21 @@ void setup() {
     digitalWrite(PIN_LED, LOW);
 
     initButtons();
+    initPinScanner();
     initWiFiAP();
     initTcpServer();
 
     Serial.println("[TEST] Ready — waiting for TCP clients...");
     Serial.println("[TEST] Buttons:");
     Serial.println("  BTN0 GPIO4  BTN1 GPIO5  BTN2 GPIO0  BTN3 GPIO1  BTN4 GPIO3");
+    Serial.println("[TEST] Commands: PING, PINS, HELP (TCP or USB serial)");
 }
 
 void loop() {
     reapDeadClients();
     pollClients();
     drainClientRx();
+    drainSerialRx();
     pollButtons();
     pollHeartbeat();
     pollLed();
