@@ -6,13 +6,14 @@ Finds the best-fit rotation R (3x3) and translation t (3,) such that:
 
 Usage (from project root):
     python -m tools.calibration.calibrate
-    python -m tools.calibration.calibrate --out tools/calibration/calibration.json
+    python -m tools.calibration.calibrate --out calibration_candidate.json
 """
 
 import argparse
 import json
 import math
 import os
+from datetime import datetime
 
 import numpy as np
 
@@ -80,18 +81,18 @@ def kabsch(P: np.ndarray, Q: np.ndarray):
     return R, t
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(
         description="Compute sensor→world calibration transform and save to JSON."
     )
     default_out = os.path.join(
-        os.path.dirname(__file__), "calibration.json"
+        os.path.dirname(__file__), "calibration_candidate.json"
     )
     parser.add_argument(
         "--out", default=default_out,
         help=f"Output path for calibration JSON (default: {default_out})",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     R, t = kabsch(SENSOR_PTS, WORLD_PTS)
 
@@ -126,12 +127,15 @@ def main():
     calib = {
         "R": R.tolist(),
         "t": t.tolist(),
+        "verdict": "CANDIDATE",
+        "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "session": "calibrate.py embedded 2026-03-25 full 3D session v2",
         "rmse_mm": round(rmse, 3),
         "n_points": len(LABELS),
     }
     with open(args.out, "w") as f:
         json.dump(calib, f, indent=2)
-    print(f"\nCalibration saved to: {args.out}")
+    print(f"\nCalibration candidate saved to: {args.out}")
 
 
 if __name__ == "__main__":
