@@ -21,9 +21,45 @@ static const char INDEX_HTML[] PROGMEM = R"rawliteral(
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>EvkaPosition</title>
 <style>
+/* Design tokens — canonical spec: docs/gui_unification/DESIGN_TOKENS.md
+   (the desktop GUI carries the same values in tools/evka_gui/tokens.py).
+   New UI uses these vars; the older hard-coded hexes are retrofitted in Phase 3. */
+:root{
+ --ok:#00ff88; --danger:#ff4444; --warn:#ffd700; --accent:#00ffff; --info:#4488ff;
+ --ipt:#00ff88; --ipt-target:#ff8c00; --muted:#8899aa; --text:#eef;
+ --bg-deep:#0a0a1a; --bg-canvas:#0f0f23; --bg-panel:#1a1a2e; --border:#2a3550;
+}
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#1a1a2e;color:#e0e0e0;font-family:monospace;overflow:hidden;touch-action:none}
-#app{display:grid;height:100vh;grid-template-rows:32px 1fr;grid-template-columns:1fr 220px 300px}
+/* --- Recording --- */
+#btn-rec.active{border-color:var(--danger);color:var(--danger);
+ animation:recpulse 1.2s ease-in-out infinite}
+@keyframes recpulse{0%,100%{opacity:1}50%{opacity:.45}}
+/* --- Protocol log --- */
+.log-filters{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0;font-size:10px;color:var(--muted)}
+.log-filters label{display:flex;align-items:center;gap:3px;min-height:28px}
+#log-out{max-height:150px;overflow-y:auto;font-size:10px;line-height:1.5;
+ background:var(--bg-deep);border:1px solid var(--border);border-radius:4px;
+ padding:5px;margin-top:4px;white-space:pre-wrap;word-break:break-all}
+#log-out .l-data{color:var(--muted)}
+#log-out .l-ack{color:var(--ok)}
+#log-out .l-err{color:var(--danger)}
+#log-out .l-other{color:var(--accent)}
+/* --- Quick IPT --- */
+#ipt-panel{display:none;max-width:520px;margin:0 auto}
+#btn-ipt.active{border-color:var(--ipt);color:var(--ipt)}
+/* 16px keeps iOS Safari from zooming the page when the field takes focus */
+#ipt-panel input[type=number]{width:100%;min-height:44px;padding:10px;font-size:16px;
+ font-family:monospace;background:var(--bg-deep);border:1px solid #446;color:var(--text);border-radius:4px}
+#ipt-panel .vcard-value{font-size:14px;word-break:break-all}
+.ipt-help{font-size:10px;color:var(--muted);line-height:1.5;margin:4px 0 10px}
+.ipt-hint{font-size:12px;font-weight:bold;margin:8px 0;min-height:32px;line-height:1.4;color:var(--muted)}
+.ipt-hint.ok{color:var(--ok)}.ipt-hint.warn{color:var(--warn)}.ipt-hint.reject{color:var(--danger)}
+.val.ok{color:var(--ok)}.val.warn{color:var(--warn)}.val.reject{color:var(--danger)}
+/* 50/50 like the desktop GUI: views on the left (3D over the XY/XZ/YZ strip),
+   controls on the right in two sub-columns — wide enough that nothing scrolls
+   on a normal screen. */
+#app{display:grid;height:100vh;grid-template-rows:32px minmax(0,1fr) 150px;grid-template-columns:1fr 1fr}
 #hdr{grid-column:1/-1;grid-row:1;display:flex;align-items:center;height:32px;padding:0 10px;
      background:#0d1226;border-bottom:1px solid #2a3550;font-size:12px;gap:10px}
 #hdr-title{color:#00ffff;font-size:13px;font-weight:bold;letter-spacing:2px;flex:1}
@@ -37,11 +73,13 @@ body{background:#1a1a2e;color:#e0e0e0;font-family:monospace;overflow:hidden;touc
 #hdr button.active{border-color:#00ffff;color:#00ffff}
 #btn-freeze.active{border-color:#ff8c00;color:#ff8c00}
 #cv{grid-column:1;grid-row:2;background:#0f0f23;touch-action:none;display:block;width:100%;height:100%}
-#views2d{grid-column:2;grid-row:2;display:flex;flex-direction:column;gap:2px;background:#0a0a1a}
-.v2d-section{flex:1;min-height:0;display:flex;flex-direction:column}
+#views2d{grid-column:1;grid-row:3;display:flex;flex-direction:row;gap:2px;background:#0a0a1a}
+.v2d-section{flex:1;min-height:0;min-width:0;display:flex;flex-direction:column}
 .v2d-title{font-size:10px;color:#8899aa;text-align:center;padding:2px 0;flex-shrink:0}
 #views2d canvas{flex:1;width:100%;min-height:0;display:block;background:#0f0f23}
-#panel{grid-column:3;grid-row:2;padding:10px;overflow-y:auto;background:#16213e}
+#panel{grid-column:2;grid-row:2/4;padding:10px;overflow-y:auto;background:#16213e}
+#panel-main{display:flex;gap:14px;align-items:flex-start}
+.panel-col{flex:1;min-width:0}
 .sep{border-top:1px solid #2a3550;margin:6px 0}
 .section-lbl{font-size:10px;color:#8899aa;letter-spacing:1px;margin:4px 0 3px;font-weight:bold}
 .row{display:flex;justify-content:space-between;padding:2px 0;font-size:12px}
@@ -67,10 +105,18 @@ button.is-set{border-color:#44ff44;color:#44ff44;opacity:0.65}
 button:disabled{opacity:0.35;pointer-events:none}
 #status{font-size:11px;color:#8899aa;margin-top:6px;min-height:16px}
 @media(orientation:portrait),(max-width:767px){
- #app{grid-template-rows:32px 55vh 1fr;grid-template-columns:1fr 1fr}
+ #app{grid-template-rows:32px 45vh 1fr;grid-template-columns:1fr 1fr}
  #cv{grid-column:1/-1;grid-row:2}
  #views2d{grid-column:1;grid-row:3;flex-direction:row}
  #panel{grid-column:2;grid-row:3}
+ #panel-main{flex-direction:column}   /* no room for two sub-columns on a phone */
+ /* IPT mode gets its own portrait stack: the 2-up grid above leaves #panel at
+    ~50vw (~195px on a 390px phone) — too narrow for the ARM/STOP/SOLVE/CLEAR row.
+    Higher specificity (#app.ipt #panel) so it wins over the rule above. */
+ #app.ipt{grid-template-rows:32px 44vh 13vh 1fr}
+ #app.ipt #cv{grid-column:1/-1;grid-row:2}
+ #app.ipt #views2d{grid-column:1/-1;grid-row:3;flex-direction:row}
+ #app.ipt #panel{grid-column:1/-1;grid-row:4}
 }
 #cal-view{grid-column:1/-1;grid-row:2;display:none;overflow-y:auto;
   background:#0f0f23;padding:16px;touch-action:pan-y}
@@ -134,8 +180,10 @@ button:disabled{opacity:0.35;pointer-events:none}
   <span id="hdr-title">EVKAPOSITION</span>
   <span style="color:#445566;font-size:9px;font-style:italic">Yunus Emre Danabaş</span>
  <div id="conn-led"></div>
+ <button id="btn-rec" onclick="toggleRecord()">REC</button>
  <button id="btn-freeze" onclick="toggleFreeze()">FREEZE</button>
  <button id="btn-axes" onclick="toggleAxes()">AXES</button>
+ <button id="btn-ipt" onclick="toggleIpt()">IPT</button>
  <button id="btn-cal" onclick="toggleCal()">CALIBRATE</button>
  <span id="hdr-ts"></span>
 </div>
@@ -146,6 +194,8 @@ button:disabled{opacity:0.35;pointer-events:none}
  <div class="v2d-section"><div class="v2d-title">YZ</div><canvas id="cv_yz"></canvas></div>
 </div>
 <div id="panel">
+<div id="panel-main">
+<div class="panel-col"><!-- operate: position, session, control -->
  <div class="section-lbl">POSITION</div>
  <div class="vcard" id="card-x">
   <div class="vcard-label">X AXIS <button class="sz-btn" onclick="softZero('x')">X=0</button></div>
@@ -182,7 +232,7 @@ button:disabled{opacity:0.35;pointer-events:none}
  <div class="sep"></div>
  <div class="section-lbl">SESSION</div>
  <div class="btn-row">
-  <button id="btn-origin" onclick="saveOrigin()" class="btn-amber">SAVE ORIGIN</button>
+  <button id="btn-origin" onclick="saveOrigin()" class="btn-amber">SET ORIGIN</button>
   <button id="btn-point" onclick="savePoint()" class="btn-green" disabled>SAVE POINT</button>
   <button id="btn-del-point" onclick="delPoint()" class="btn-danger" disabled>DEL LAST POINT</button>
  </div>
@@ -197,14 +247,15 @@ button:disabled{opacity:0.35;pointer-events:none}
  <div class="btn-row">
   <button onclick="sendCmd('ZERO')">ZERO (HW)</button>
   <button onclick="softZeroAll()">ZERO (SW)</button>
-  <button onclick="clearTrail()">CLEAR</button>
+  <button onclick="clearTrail()">CLEAR TRAIL</button>
  </div>
  <div class="btn-row">
   <button onclick="resetMinMax()" class="btn-amber">RESET MIN/MAX</button>
   <button onclick="sendCmd('PING')">PING</button>
    <button onclick="sendCmd('BLINK')" style="flex:0 0 auto;padding:12px 12px;font-size:10px">BLINK LED</button>
  </div>
- <div class="sep"></div>
+</div><!-- /panel-col -->
+<div class="panel-col"><!-- support: remote, snapshots, wifi, diagnostics -->
  <div class="section-lbl">REMOTE BUTTONS</div>
  <div class="rbtn-row">
   <div class="rbtn-item">
@@ -223,13 +274,18 @@ button:disabled{opacity:0.35;pointer-events:none}
  <div class="sep"></div>
  <div class="section-lbl">SNAPSHOTS</div>
  <div class="btn-row">
-  <button onclick="captureSnapshot()">CAPTURE</button>
+  <button onclick="captureSnapshot()">CAPTURE SNAPSHOT</button>
   <button onclick="exportSnapshots()" class="btn-amber" id="btn-snap-export" disabled>EXPORT CSV</button>
   <button onclick="clearSnapshots()" class="btn-danger">CLEAR</button>
  </div>
  <div id="snap-count" style="font-size:11px;color:#8899aa;margin-top:3px">0 snapshots</div>
  <div id="snap-list" style="max-height:100px;overflow-y:auto;font-size:10px;color:#7fffd4;
       font-family:monospace;line-height:1.6;margin-top:3px"></div>
+ <div class="sep"></div>
+ <div class="section-lbl">RECORDING</div>
+ <div class="ipt-help">REC (header) writes the live stream to a file the desktop GUI
+  replays as-is. Press again to stop and download.</div>
+ <div class="row"><span class="lbl">Recorded</span><span class="val" id="rec-count">—</span></div>
  <div class="sep"></div>
  <div class="section-lbl">WIFI SETTINGS</div>
   <div class="vcard">
@@ -238,8 +294,8 @@ button:disabled{opacity:0.35;pointer-events:none}
    <div class="row"><span class="lbl">Battery</span><span class="val" id="v-batt">--</span></div>
   </div>
  <div style="display:flex;gap:4px;margin:4px 0">
-  <input type="text" id="wifi-ssid" placeholder="Network SSID" style="flex:1;padding:6px;font-size:11px;font-family:monospace;background:#0a0a1a;border:1px solid #446;color:#eef;border-radius:3px">
-  <input type="password" id="wifi-pass" placeholder="Password" style="flex:1;padding:6px;font-size:11px;font-family:monospace;background:#0a0a1a;border:1px solid #446;color:#eef;border-radius:3px">
+   <input type="text" id="wifi-ssid" maxlength="32" placeholder="Network SSID" style="flex:1;padding:6px;font-size:11px;font-family:monospace;background:#0a0a1a;border:1px solid #446;color:#eef;border-radius:3px">
+   <input type="password" id="wifi-pass" maxlength="63" placeholder="Password" style="flex:1;padding:6px;font-size:11px;font-family:monospace;background:#0a0a1a;border:1px solid #446;color:#eef;border-radius:3px">
  </div>
  <div class="btn-row">
   <button onclick="saveWifi()" class="btn-amber">SAVE &amp; REBOOT</button>
@@ -250,9 +306,67 @@ button:disabled{opacity:0.35;pointer-events:none}
  <div class="row"><span class="lbl">Free Heap</span><span class="val" id="v-heap">--</span></div>
  <div class="row"><span class="lbl">Uptime</span><span class="val" id="v-uptime">--</span></div>
  <div class="row"><span class="lbl">TCP Clients</span><span class="val" id="v-tcp">--</span></div>
+ <div class="row"><span class="lbl">Zero-relative counts</span><span class="val" id="v-raw">--</span></div>
+ <div class="btn-row"><button onclick="sendCmd('RAW_COUNTS')">READ ZERO-RELATIVE COUNTS</button></div>
+ <div class="sep"></div>
+ <!-- Protocol log. <details> gives the collapse for free — no JS, and it starts shut
+      so it costs a phone nothing until asked for. -->
+ <details id="log-pane">
+  <summary class="section-lbl" style="cursor:pointer">PROTOCOL LOG</summary>
+  <div class="log-filters">
+   <label><input type="checkbox" id="lf-data" onchange="logRender()"> DATA</label>
+   <label><input type="checkbox" id="lf-ack" checked onchange="logRender()"> ACK</label>
+   <label><input type="checkbox" id="lf-err" checked onchange="logRender()"> ERR</label>
+   <label><input type="checkbox" id="lf-other" checked onchange="logRender()"> Other</label>
+  </div>
+  <div class="btn-row">
+   <button id="btn-log-pause" onclick="logPause()">PAUSE</button>
+   <button onclick="logClear()" class="btn-danger">CLEAR</button>
+  </div>
+  <div id="log-out"></div>
+ </details>
   <div id="status">Connecting...</div>
   <div style="text-align:right;color:#445566;font-size:9px;font-style:italic;margin-top:8px">Yunus Emre Danabaş</div>
-</div>
+</div><!-- /panel-col -->
+</div><!-- /panel-main -->
+<!-- Quick IPT — swaps in for panel-main; the 3D + 2D canvases stay live, because
+     watching the cloud grow while you sweep is the whole point. -->
+<div id="ipt-panel">
+ <div class="section-lbl">QUICK IPT — HIDDEN POINT</div>
+ <div class="ipt-help">
+  Hold the pen <b>tip</b> on the target you cannot reach. Press ARM, sweep the
+  <b>handle</b> in a wide spiral (at least 8 points), then STOP and SOLVE.
+  Coordinates are sensor-frame — the soft-zero does not apply.
+ </div>
+ <div class="row"><span class="lbl">L (mm)</span></div>
+ <input type="number" id="ipt-l-input" inputmode="decimal" step="0.1" min="0"
+        placeholder="blank = auto (self-calibrating)">
+ <div class="btn-row" style="margin-top:8px">
+  <button id="btn-ipt-arm" onclick="iptArm()">ARM</button>
+  <button id="btn-ipt-stop" onclick="iptStop()" class="btn-amber" disabled>STOP</button>
+ </div>
+ <div class="btn-row">
+  <button id="btn-ipt-solve" onclick="iptSolveUI()" disabled>SOLVE</button>
+  <button id="btn-ipt-clear" onclick="iptClear()" class="btn-danger">CLEAR</button>
+ </div>
+ <div class="sep"></div>
+ <div class="vcard">
+  <div class="vcard-label">TARGET P — SENSOR FRAME</div>
+  <div class="vcard-row"><span class="vcard-value" id="ipt-p">—</span><span class="vcard-unit">mm</span></div>
+ </div>
+ <div class="row"><span class="lbl">Points</span><span class="val" id="ipt-n">0 / 8</span></div>
+ <div class="row"><span class="lbl">L_hat</span><span class="val" id="ipt-l">—</span></div>
+ <div class="row"><span class="lbl">RMS</span><span class="val" id="ipt-rms">—</span></div>
+ <div class="row"><span class="lbl">Cond</span><span class="val" id="ipt-cond">—</span></div>
+ <div class="ipt-hint" id="ipt-hint">Place the pen tip on the target, then ARM.</div>
+ <div class="btn-row">
+  <button id="btn-ipt-snap" onclick="iptAddSnapshot()" disabled>ADD P TO SNAPSHOTS</button>
+ </div>
+ <div class="btn-row">
+  <button id="btn-ipt-csv" onclick="iptExportCsv()" class="btn-amber" disabled>EXPORT CAPTURE CSV</button>
+ </div>
+</div><!-- /ipt-panel -->
+</div><!-- /panel -->
 <!-- Calibration view — full width, shown when CALIBRATE tab active -->
 <div id="cal-view">
  <div class="cal-tabs">
@@ -262,7 +376,7 @@ button:disabled{opacity:0.35;pointer-events:none}
   <button class="cal-tab" onclick="showCalStage('endpoint')">ENDPOINT</button>
  </div>
  <div class="cal-constants">
-  PPR_R: <span id="const-ppr-r">--</span> &nbsp;
+   PPR_ROTARY (&theta;/&phi; shared): <span id="const-ppr-r">--</span> &nbsp;
   PPR_W: <span id="const-ppr-w">--</span> &nbsp;
   mm/pulse: <span id="const-mm-pp">--</span> &nbsp;
   deg/pulse: <span id="const-deg-pp">--</span>
@@ -286,11 +400,11 @@ button:disabled{opacity:0.35;pointer-events:none}
  <!-- WIRE stage -->
  <div id="cal-wire">
   <div class="cal-step">
-   <div class="cal-step-title">FOR EACH TRIAL: ZERO WIRE → PULL → RECORD</div>
+    <div class="cal-step-title">FOR EACH TRIAL: ZERO WIRE → EXTEND OR RETRACT → RECORD MAGNITUDE</div>
    <div class="cal-row">
     <button style="flex:0 0 110px;min-height:44px;border:1px solid #446;color:#8899aa;background:transparent;border-radius:5px;font-family:monospace;touch-action:manipulation;cursor:pointer" onclick="sendCmd('ZERO_W')">ZERO WIRE</button>
     <input type="number" id="wire-dist" placeholder="dist mm" min="50" max="2000">
-    <button style="flex:0 0 90px;min-height:44px;border:1px solid #00ffff;color:#00ffff;background:transparent;border-radius:5px;font-family:monospace;touch-action:manipulation;cursor:pointer" onclick="calWireTrial()">RECORD</button>
+     <button id="btn-record-wire" style="flex:0 0 90px;min-height:44px;border:1px solid #00ffff;color:#00ffff;background:transparent;border-radius:5px;font-family:monospace;touch-action:manipulation;cursor:pointer" onclick="calWireTrial()">RECORD</button>
    </div>
    <div class="cal-result" id="wire-trial-result">—</div>
   </div>
@@ -326,12 +440,16 @@ button:disabled{opacity:0.35;pointer-events:none}
     <button onclick="adjTurns('theta',1)">+</button>
     <span style="color:#8899aa;font-size:12px">turns</span>
    </div>
-   <div class="btn-row"><button onclick="calRotary('theta')">COMPUTE</button></div>
+   <div class="btn-row"><button id="btn-cal-theta" onclick="calRotary('theta')">COMPUTE</button></div>
    <div class="cal-result" id="theta-result">—</div>
   </div>
   <div class="cal-step">
-   <div class="cal-step-title">STEP 3 — APPLY (RAM ONLY)</div>
-   <div class="btn-row"><button id="btn-apply-theta" onclick="applyRotaryCal('theta')" disabled>APPLY PPR_ROTARY</button></div>
+    <div class="cal-step-title">STEP 3 — APPLY SHARED ROTARY PPR</div>
+    <div class="cal-result cal-warn">Theta and phi use one PPR_ROTARY. Applying this result changes both axes.</div>
+    <div class="btn-row">
+     <button id="btn-apply-theta" onclick="applyRotaryCal('theta',false)" disabled>APPLY SHARED (RAM)</button>
+     <button id="btn-save-theta" onclick="applyRotaryCal('theta',true)" disabled class="btn-amber">APPLY + SAVE SHARED</button>
+   </div>
    <div class="cal-result cal-warn" id="theta-apply-status">—</div>
   </div>
  </div>
@@ -349,12 +467,16 @@ button:disabled{opacity:0.35;pointer-events:none}
     <button onclick="adjTurns('phi',1)">+</button>
     <span style="color:#8899aa;font-size:12px">turns</span>
    </div>
-   <div class="btn-row"><button onclick="calRotary('phi')">COMPUTE</button></div>
+   <div class="btn-row"><button id="btn-cal-phi" onclick="calRotary('phi')">COMPUTE</button></div>
    <div class="cal-result" id="phi-result">—</div>
   </div>
   <div class="cal-step">
-   <div class="cal-step-title">STEP 3 — APPLY (RAM ONLY)</div>
-   <div class="btn-row"><button id="btn-apply-phi" onclick="applyRotaryCal('phi')" disabled>APPLY PPR_ROTARY</button></div>
+    <div class="cal-step-title">STEP 3 — APPLY SHARED ROTARY PPR</div>
+    <div class="cal-result cal-warn">Theta and phi use one PPR_ROTARY. Applying this result changes both axes.</div>
+    <div class="btn-row">
+     <button id="btn-apply-phi" onclick="applyRotaryCal('phi',false)" disabled>APPLY SHARED (RAM)</button>
+     <button id="btn-save-phi" onclick="applyRotaryCal('phi',true)" disabled class="btn-amber">APPLY + SAVE SHARED</button>
+   </div>
    <div class="cal-result cal-warn" id="phi-apply-status">—</div>
   </div>
  </div>
@@ -403,6 +525,23 @@ let szOff={x:0,y:0,z:0},szActive=false;
 let mmMin={x:Infinity,y:Infinity,z:Infinity},mmMax={x:-Infinity,y:-Infinity,z:-Infinity};
 // Snapshots
 let snapshots=[];
+// Session recording. Stores the firmware's DATA lines verbatim, so the file the phone
+// downloads is exactly what the desktop's load_replay_frames() already reads — record
+// in the field, replay at the bench, no conversion.
+let recOn=false,recBuf=[];
+const REC_MAX_FRAMES=36000;     // ~30 min at 20 Hz; a phone tab has finite memory
+// Protocol log
+let logBuf=[],logPaused=false,_logDirty=false;
+const LOG_MAX=300;
+// Quick IPT — sensor-frame only (docs/gui_unification/PLAN.md:51).
+// Declared here, not beside the IPT module below: drawScene() runs synchronously on
+// load and reads iptOverlayOn(), so a `let` further down would throw a TDZ
+// ReferenceError on the first frame and kill the render loop.
+let iptActive=false,iptArmed=false;
+let iptPts=[],iptLast=null,iptSol=null,iptUsable=false;
+const IPT_MIN_DISP_SQ=1.0;      // 1 mm dedup, squared — matches capture.py
+const IPT_MAX_POINTS=5000;      // phone-memory bound (the Python buffer is unbounded)
+const IPT_DRAW_MAX=400;         // decimate the cloud for DRAWING only; the solve uses every point
 
 const cv=document.getElementById("cv");
 const ctx=cv.getContext("2d");
@@ -415,7 +554,12 @@ function setLed(s){const el=document.getElementById("conn-led");el.className=s==
 function setStatus(s){setText("status",s);}
 
 // Clock
-setInterval(()=>setText("hdr-ts",new Date().toLocaleTimeString()),1000);
+setInterval(()=>{
+ setText("hdr-ts",new Date().toLocaleTimeString());
+ // 1 Hz is plenty for a human reading a log, and a closed <details> costs nothing.
+ const pane=document.getElementById("log-pane");
+ if(_logDirty&&pane&&pane.open)logRender();
+},1000);
 
 // Resize
 function resize(){
@@ -524,6 +668,8 @@ function drawScene(){
   ctx.fill();ctx.stroke();
   ctx.fillStyle="#ffd700";ctx.font="9px monospace";ctx.fillText("P"+n,px+s+2,py+3);
  });
+ // IPT overlay — cloud, solved target, sphere (under the live head)
+ if(iptOverlayOn())drawIptOverlay3D();
  // Live position head (cyan)
  if(trail.length>0){
   const h=trail[trail.length-1],hp=project(h[0],h[2],h[1]);
@@ -536,7 +682,9 @@ function drawScene(){
 drawScene();
 
 // 2D plot
-function draw2D(canvas,pts,ai,bi,la,lb){
+// `ov` is the optional IPT overlay ({pts,P,L}); null gives byte-identical output to
+// before IPT existed.
+function draw2D(canvas,pts,ai,bi,la,lb,ov){
  const W=canvas.clientWidth,H=canvas.clientHeight;
  if(W<1||H<1)return;
  if(canvas.width!==W)canvas.width=W;
@@ -545,11 +693,21 @@ function draw2D(canvas,pts,ai,bi,la,lb){
  c.fillStyle="#0f0f23";c.fillRect(0,0,W,H);
  const ML=28,MR=6,MT=6,MB=18;
  const PW=W-ML-MR,PH=H-MT-MB;
- if(pts.length<1){
+ const hasOv=!!(ov&&(ov.pts.length||ov.P));
+ if(pts.length<1&&!hasOv){
   c.fillStyle="#334455";c.font="10px monospace";c.textAlign="center";
   c.fillText("no data",W/2,H/2);return;
  }
  const as=pts.map(function(p){return p[ai];}),bs=pts.map(function(p){return p[bi];});
+ if(hasOv){
+  // Union the overlay into the bounds, or the cloud and sphere get clipped away.
+  ov.pts.forEach(function(q){as.push(q[ai]);bs.push(q[bi]);});
+  if(ov.P){
+   const L=ov.L>0?ov.L:0;
+   as.push(ov.P[ai]-L,ov.P[ai]+L);
+   bs.push(ov.P[bi]-L,ov.P[bi]+L);
+  }
+ }
  const pad=40;
  const minA=Math.min.apply(null,as)-pad,maxA=Math.max.apply(null,as)+pad;
  const minB=Math.min.apply(null,bs)-pad,maxB=Math.max.apply(null,bs)+pad;
@@ -567,23 +725,27 @@ function draw2D(canvas,pts,ai,bi,la,lb){
  c.fillText(minA.toFixed(0),ML,H-2);
  c.fillText(maxA.toFixed(0),ML+PW,H-2);
  c.save();c.translate(10,MT+PH/2);c.rotate(-Math.PI/2);c.fillText(lb,0,0);c.restore();
+ if(hasOv)drawIptOverlay2D(c,ov,ai,bi,toX,toY);
  for(let i=1;i<pts.length;i++){
   const alpha=0.2+0.8*(i/pts.length);
   c.strokeStyle="rgba(30,200,120,"+alpha.toFixed(2)+")";c.lineWidth=1.5;
   c.beginPath();c.moveTo(toX(pts[i-1][ai]),toY(pts[i-1][bi]));c.lineTo(toX(pts[i][ai]),toY(pts[i][bi]));c.stroke();
  }
- const last=pts[pts.length-1];
- const hx=toX(last[ai]),hy=toY(last[bi]);
- c.fillStyle="#00ffff";c.beginPath();c.arc(hx,hy,5,0,Math.PI*2);c.fill();
- c.fillStyle="#003333";c.beginPath();c.arc(hx,hy,2,0,Math.PI*2);c.fill();
- c.fillStyle="#00ffff";c.font="9px monospace";c.textAlign="left";
- c.fillText(last[ai].toFixed(0)+","+last[bi].toFixed(0),hx+7,hy+3);
+ if(pts.length>0){
+  const last=pts[pts.length-1];
+  const hx=toX(last[ai]),hy=toY(last[bi]);
+  c.fillStyle="#00ffff";c.beginPath();c.arc(hx,hy,5,0,Math.PI*2);c.fill();
+  c.fillStyle="#003333";c.beginPath();c.arc(hx,hy,2,0,Math.PI*2);c.fill();
+  c.fillStyle="#00ffff";c.font="9px monospace";c.textAlign="left";
+  c.fillText(last[ai].toFixed(0)+","+last[bi].toFixed(0),hx+7,hy+3);
+ }
 }
 
 // 2D throttled loop (10 Hz)
 function render2DLoop(ts){
  if(_dirty2d&&ts-_last2d>100){
-  draw2D(cv_xy,trail,0,1,"X","Y");draw2D(cv_xz,trail,0,2,"X","Z");draw2D(cv_yz,trail,1,2,"Y","Z");
+  const ov=iptOv();
+  draw2D(cv_xy,trail,0,1,"X","Y",ov);draw2D(cv_xz,trail,0,2,"X","Z",ov);draw2D(cv_yz,trail,1,2,"Y","Z",ov);
   _dirty2d=false;_last2d=ts;
  }
  requestAnimationFrame(render2DLoop);
@@ -618,19 +780,29 @@ function connect(){
  if(wsConnecting)return;
  wsConnecting=true;
  ws=new WebSocket("ws://"+location.host+"/ws");
- ws.onopen=function(){wsConnecting=false;wsDelay=1000;setLed("ok");setStatus("Connected");};
- ws.onclose=function(){wsConnecting=false;ws=null;setLed("warn");
+ ws.onopen=function(){resetCalibrationRequests();wsConnecting=false;wsDelay=1000;setLed("ok");setStatus("Connected");};
+ ws.onclose=function(){resetCalibrationRequests();wsConnecting=false;ws=null;setLed("warn");
   setStatus("Reconnecting in "+(wsDelay/1000).toFixed(0)+"s\u2026");
   setTimeout(connect,wsDelay);wsDelay=Math.min(wsDelay*2,30000);};
  ws.onerror=function(){ws.close();};
  ws.onmessage=onWsMessage;
 }
 function sendCmd(cmd){
- if(ws&&ws.readyState===1){ws.send(cmd);if(navigator.vibrate)navigator.vibrate(30);}
+ if(ws&&ws.readyState===1){
+  ws.send(cmd);
+  if(navigator.vibrate)navigator.vibrate(30);
+  return true;
+ }
+ setStatus("ERR:NOT_CONNECTED");
+ return false;
 }
 function onWsMessage(e){
  const line=e.data.trim();
+ logPush(line);
  if(line.startsWith("DATA,")){
+  // Recording taps the wire; FREEZE only pauses the view. Freezing must never punch
+  // a silent hole in a recording, so this sits above the frozen guard.
+  if(recOn)recPush(line);
   if(frozen)return;
   const p=line.substring(5).split(",");
   if(p.length>=9){
@@ -639,6 +811,11 @@ function onWsMessage(e){
    const v=parseInt(p[6]),fr=parseInt(p[7]);
    trail.push([x,y,z]);
    if(trail.length>MAX_TRAIL)trail.shift();
+   // IPT taps x,y,z straight off the wire — the RAW sensor frame, before any
+   // soft-zero. Do NOT switch this to lastPos: it happens to be raw today, but a
+   // refactor making it soft-zeroed would silently corrupt every solve.
+   // docs/gui_unification/PLAN.md:51 — "sensor-frame mm only".
+   iptFeed(x,y,z,v);
    updatePanelValues(x,y,z);
    setText("sr_r",r.toFixed(1)+" mm");
    setText("sr_t",(th>=0?"+":"")+th.toFixed(2)+"\u00b0");
@@ -660,35 +837,55 @@ function onWsMessage(e){
    _dirty2d=true;
    _dirty3d=true;
   }
+ } else if(line.startsWith("ACK:PPR_ROTARY,")||line.startsWith("ACK:PPR_WIRE,")){
+  handlePprSetAck(line);
+ } else if(line==="ACK:SAVE_PPR"){
+  handlePprSaveAck();
+ } else if(line==="ACK:WIFI_SAVED"){
+   setStatus("WiFi settings saved. Device restarting...");
  } else if(line.startsWith("ACK:")){
-  setStatus(line);
- } else if(line.startsWith("CAL:WIRE,")){
-  const p=line.substring(9).split(",");
-  const factor=parseFloat(p[0]),ppr=parseFloat(p[2]);
-  wireTrials.push({actual:_pendingActualMm,factor:factor,ppr:ppr});
-  const tr=document.getElementById("wire-table").insertRow();
-  [wireTrials.length,_pendingActualMm+" mm",factor.toFixed(4),ppr.toFixed(1)].forEach(function(v){
-   const td=tr.insertCell();td.textContent=v;
-  });
+   setStatus(line);
+   } else if(line.startsWith("CAL:WIRE,")){
+    if(!wireTrialPending)return;
+    const actualMm=_pendingActualMm;
+    finishWireTrialRequest();
+    const p=line.substring(9).split(",");
+    const factor=parseFloat(p[0]),ppr=parseFloat(p[2]);
+    if(p.length<3||!isFinite(factor)||!isFinite(ppr)){setStatus("ERR:BAD_CAL_W_RESPONSE");return;}
+    wireTrials.push({actual:actualMm,factor:factor,ppr:ppr});
+   const tr=document.getElementById("wire-table").insertRow();
+   [wireTrials.length,actualMm+" mm",factor.toFixed(4),ppr.toFixed(1)].forEach(function(v){
+    const td=tr.insertCell();td.textContent=v;
+   });
   setText("wire-trial-result","Trial "+wireTrials.length+": factor="+factor.toFixed(4)+"  PPR_WIRE="+ppr.toFixed(1));
   updateWireStats();
  } else if(line.startsWith("CAL:THETA,")){
-  const p=line.substring(10).split(",");
-  pendingRotaryPPR.theta=parseFloat(p[1]);
-  setText("theta-result","Counts: "+p[0]+"  \u2192 PPR: "+pendingRotaryPPR.theta.toFixed(1));
-  document.getElementById("btn-apply-theta").disabled=false;
+   if(!pendingRotaryCal||pendingRotaryCal.axis!=="theta")return;
+   finishRotaryCalRequest();
+   const p=line.substring(10).split(",");
+   pendingRotaryPPR.theta=parseFloat(p[1]);
+   if(p.length<2||!isFinite(pendingRotaryPPR.theta)){setStatus("ERR:BAD_CAL_T_RESPONSE");return;}
+   setText("theta-result","Counts: "+p[0]+"  \u2192 PPR: "+pendingRotaryPPR.theta.toFixed(1));
+   refreshPprApplyButtons();
  } else if(line.startsWith("CAL:PHI,")){
-  const p=line.substring(8).split(",");
-  pendingRotaryPPR.phi=parseFloat(p[1]);
-  setText("phi-result","Counts: "+p[0]+"  \u2192 PPR: "+pendingRotaryPPR.phi.toFixed(1));
-  document.getElementById("btn-apply-phi").disabled=false;
+   if(!pendingRotaryCal||pendingRotaryCal.axis!=="phi")return;
+   finishRotaryCalRequest();
+   const p=line.substring(8).split(",");
+   pendingRotaryPPR.phi=parseFloat(p[1]);
+   if(p.length<2||!isFinite(pendingRotaryPPR.phi)){setStatus("ERR:BAD_CAL_P_RESPONSE");return;}
+   setText("phi-result","Counts: "+p[0]+"  \u2192 PPR: "+pendingRotaryPPR.phi.toFixed(1));
+   refreshPprApplyButtons();
  } else if(line.startsWith("CONSTANTS,")){
-  const p=line.substring(10).split(",");
-  setText("const-ppr-r",p[0]);setText("const-ppr-w",p[1]);
-  setText("const-mm-pp",p[2]);setText("const-deg-pp",p[3]);
+   const p=line.substring(10).split(",");
+   setText("const-ppr-r",p[0]);setText("const-ppr-w",p[1]);
+   setText("const-mm-pp",p[2]);setText("const-deg-pp",p[3]);
+   confirmPprConstants(p);
  } else if(line.startsWith("STA_IP:")){
   const ip=line.substring(7).trim();
   setText("v-router-ip",ip==="NOT_CONNECTED"?"Not Connected":ip);
+  } else if(line.startsWith("RAW,")){
+   const p=line.substring(4).split(",");
+   if(p.length>=3)setText("v-raw","θ"+p[0]+" φ"+p[1]+" w"+p[2]);
   } else if(line.startsWith("SYSINFO,")){
    const p=line.substring(8).split(",");
    if(p.length>=4){
@@ -728,8 +925,18 @@ function onWsMessage(e){
    if(savedPts.length===0)document.getElementById("btn-del-point").disabled=true;
    updateSessionStats();_dirty3d=true;
   }
- } else if(line.startsWith("ERR:")){
-  setStatus(line);
+  } else if(line.startsWith("ERR:")){
+   if(wireTrialPending&&(line.startsWith("ERR:CAL_W")||
+      line==="ERR:CMD_QUEUE_FULL"||line==="ERR:CMD_TOO_LONG")){
+    finishWireTrialRequest();
+   }
+   if(pendingRotaryCal&&(
+      line.startsWith(pendingRotaryCal.axis==="theta"?"ERR:CAL_T":"ERR:CAL_P")||
+      line==="ERR:CMD_QUEUE_FULL"||line==="ERR:CMD_TOO_LONG")){
+    finishRotaryCalRequest();
+   }
+   handlePprError(line);
+   setStatus(line);
  } else if(line==="REMOTE_HB"){
   _remoteLastMs=Date.now();
   _updateRemoteLink();
@@ -747,6 +954,73 @@ function toggleFreeze(){
  frozen=!frozen;
  document.getElementById("btn-freeze").classList.toggle("active",frozen);
  cv.style.outline=frozen?"2px solid #ff8c00":"none";
+}
+
+// Protocol log — the message dispatch below is an if/else chain that silently drops
+// anything it does not recognise. This is where you see what actually arrived.
+function logClassify(line){
+ if(line.startsWith("DATA,"))return "data";
+ if(line.startsWith("ACK:"))return "ack";
+ if(line.startsWith("ERR:"))return "err";
+ return "other";
+}
+function logWants(kind){
+ const el=document.getElementById("lf-"+kind);
+ return el?el.checked:true;
+}
+function logPush(line){
+ if(logPaused)return;
+ const kind=logClassify(line);
+ // Don't even buffer DATA unless it is being shown: at 20 Hz it would evict every
+ // ACK and ERR from the ring within seconds, which is the opposite of useful.
+ if(kind==="data"&&!logWants("data"))return;
+ logBuf.push({k:kind,t:line});
+ if(logBuf.length>LOG_MAX)logBuf.shift();
+ _logDirty=true;
+}
+function logRender(){
+ const out=document.getElementById("log-out");
+ if(!out)return;
+ let html="";
+ for(let i=0;i<logBuf.length;i++){
+  const e=logBuf[i];
+  if(!logWants(e.k))continue;
+  html+='<div class="l-'+e.k+'">'+e.t.replace(/&/g,"&amp;").replace(/</g,"&lt;")+"</div>";
+ }
+ out.innerHTML=html;
+ out.scrollTop=out.scrollHeight;
+ _logDirty=false;
+}
+function logPause(){
+ logPaused=!logPaused;
+ document.getElementById("btn-log-pause").textContent=logPaused?"RESUME":"PAUSE";
+}
+function logClear(){logBuf=[];logRender();}
+
+// Session recording
+function recPush(line){
+ if(recBuf.length>=REC_MAX_FRAMES){
+  toggleRecord();          // stop cleanly at the cap rather than dying on memory
+  setText("rec-count","buffer full — saved");
+  return;
+ }
+ recBuf.push(line);
+ if(recBuf.length%20===0)setText("rec-count",recBuf.length+" frames");
+}
+function toggleRecord(){
+ recOn=!recOn;
+ document.getElementById("btn-rec").classList.toggle("active",recOn);
+ if(recOn){
+  recBuf=[];
+  setText("rec-count","0 frames");
+ }else if(recBuf.length){
+  // Raw DATA lines — the format load_replay_frames() reads directly.
+  downloadCsv(recBuf.join("\n")+"\n","evka_session_"+Date.now()+".csv");
+  setText("rec-count",recBuf.length+" frames saved");
+ }else{
+  setText("rec-count","—");
+ }
+ if(navigator.vibrate)navigator.vibrate(30);
 }
 
 // Axes toggle
@@ -795,17 +1069,31 @@ function resetMinMax(){
 }
 
 // Snapshots
-function captureSnapshot(){
- const dx=szActive?(lastPos.x-szOff.x):lastPos.x;
- const dy=szActive?(lastPos.y-szOff.y):lastPos.y;
- const dz=szActive?(lastPos.z-szOff.z):lastPos.z;
+// Shared by every CSV export on this page (snapshots, session, IPT capture).
+function downloadCsv(csv,name){
+ const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
+ const url=URL.createObjectURL(blob);
+ const a=document.createElement("a");a.href=url;a.download=name;
+ document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+}
+// `frame` records which coordinate frame the row is in. Manual captures follow the
+// display (so they carry the soft-zero offset); IPT targets are always sensor-frame.
+// Without this column a CSV could silently mix the two.
+function addSnapshot(x,y,z,frame){
  const n=snapshots.length+1;
- snapshots.push({n:n,x:dx,y:dy,z:dz,ts:new Date().toLocaleTimeString()});
- document.getElementById("snap-list").innerHTML+="#"+n+": "+dx.toFixed(1)+","+dy.toFixed(1)+","+dz.toFixed(1)+"<br>";
+ snapshots.push({n:n,x:x,y:y,z:z,ts:new Date().toLocaleTimeString(),frame:frame});
+ document.getElementById("snap-list").innerHTML+="#"+n+": "+x.toFixed(1)+","+y.toFixed(1)+","+z.toFixed(1)+
+   (frame==="sensor"?" <span style='color:#8899aa'>[sensor]</span>":"")+"<br>";
  document.getElementById("snap-list").scrollTop=99999;
  setText("snap-count",snapshots.length+" snapshots");
  document.getElementById("btn-snap-export").disabled=false;
  if(navigator.vibrate)navigator.vibrate(40);
+}
+function captureSnapshot(){
+ const dx=szActive?(lastPos.x-szOff.x):lastPos.x;
+ const dy=szActive?(lastPos.y-szOff.y):lastPos.y;
+ const dz=szActive?(lastPos.z-szOff.z):lastPos.z;
+ addSnapshot(dx,dy,dz,szActive?"display":"sensor");
 }
 function clearSnapshots(){
  snapshots=[];
@@ -815,25 +1103,25 @@ function clearSnapshots(){
 }
 function exportSnapshots(){
  if(!snapshots.length)return;
- let csv="#,X_mm,Y_mm,Z_mm,Time\r\n";
- snapshots.forEach(function(s){csv+=s.n+","+s.x.toFixed(3)+","+s.y.toFixed(3)+","+s.z.toFixed(3)+","+s.ts+"\r\n";});
- const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
- const url=URL.createObjectURL(blob);
- const a=document.createElement("a");a.href=url;a.download="snapshots_"+Date.now()+".csv";
- document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+ let csv="#,X_mm,Y_mm,Z_mm,Time,Frame\r\n";
+ snapshots.forEach(function(s){
+  csv+=s.n+","+s.x.toFixed(3)+","+s.y.toFixed(3)+","+s.z.toFixed(3)+","+s.ts+","+(s.frame||"sensor")+"\r\n";
+ });
+ downloadCsv(csv,"snapshots_"+Date.now()+".csv");
 }
 
 // WiFi settings
 function saveWifi(){
  const ssid=document.getElementById("wifi-ssid").value.trim();
  const pass=document.getElementById("wifi-pass").value;
-  if(!ssid||(pass.length>0&&pass.length<8)){setStatus("SSID required, password empty or min 8 chars");return;}
- sendCmd("WIFI_SET:"+ssid+","+pass);
- setStatus("WiFi credentials sent. Waiting for device response...");
+ if(!ssid||ssid.length>32){setStatus("SSID required (max 32 chars)");return;}
+ if(pass.length>0&&pass.length<8){setStatus("Password must be empty or 8-63 chars");return;}
+ if(pass.length>63){setStatus("Password must be at most 63 chars");return;}
+ if(sendCmd("WIFI_SET:"+ssid+","+pass))
+  setStatus("WiFi credentials sent. Waiting for device ACK...");
 }
 function forgetWifi(){
- sendCmd("WIFI_SET:,");
- setStatus("Sending forget request...");
+ if(sendCmd("WIFI_SET:,"))setStatus("Forget request sent. Waiting for device ACK...");
 }
 
 // Request system info periodically
@@ -898,11 +1186,15 @@ function endSession(){
 
 // ---- Calibration tab ----
 let calActive=false,calStage="wire";
-let wireTrials=[],_pendingActualMm=0,pendingRotaryPPR={theta:0,phi:0};
+const CAL_REPLY_TIMEOUT_MS=5000;
+let wireTrials=[],_pendingActualMm=0,wireTrialPending=false,wireTrialTimer=null;
+let pendingRotaryPPR={theta:0,phi:0},pendingRotaryCal=null;
+let pendingPprApply=null;
 let endpointPts=[],endpointOriginSensor=null;
 
 function toggleCal(){
  calActive=!calActive;
+ if(calActive&&iptActive)toggleIpt();        // the two modes are exclusive
  document.getElementById("btn-cal").classList.toggle("active",calActive);
  document.getElementById("cv").style.display=calActive?"none":"";
  document.getElementById("views2d").style.display=calActive?"none":"";
@@ -928,15 +1220,30 @@ function adjTurns(axis,delta){
 function calWireTrial(){
  const mm=parseFloat(document.getElementById("wire-dist").value);
  if(!mm||mm<=0)return;
- _pendingActualMm=mm;
- sendCmd("CAL_W "+mm);
+ if(wireTrialPending){setStatus("A wire calibration trial is already pending");return;}
+ if(sendCmd("CAL_W "+mm)){
+  _pendingActualMm=mm;
+  wireTrialPending=true;
+  document.getElementById("btn-record-wire").disabled=true;
+  wireTrialTimer=setTimeout(expireWireTrialRequest,CAL_REPLY_TIMEOUT_MS);
+ }
+}
+function finishWireTrialRequest(){
+ clearTimeout(wireTrialTimer);
+ wireTrialTimer=null;
+ wireTrialPending=false;
+ _pendingActualMm=0;
+ document.getElementById("btn-record-wire").disabled=false;
+}
+function expireWireTrialRequest(){
+ if(!wireTrialPending)return;
+ finishWireTrialRequest();
+ setStatus("Wire calibration timed out; try again.");
 }
 function applyWireMean(permanent){
  if(!wireTrials.length)return;
  const mean=wireTrials.reduce(function(s,t){return s+t.ppr;},0)/wireTrials.length;
- sendCmd("SET_PPR_WIRE "+mean.toFixed(2));
- if(permanent)sendCmd("SAVE_PPR");
- setText("wire-apply-status",(permanent?"SAVED to NVS":"RAM only")+": PPR_WIRE="+mean.toFixed(2));
+ beginPprApply("wire",null,mean,permanent);
 }
 function clearWireTrials(){
  wireTrials=[];
@@ -956,20 +1263,127 @@ function updateWireStats(){
  setText("wire-mean",mean.toFixed(1));
  const spread=n>1?(Math.max.apply(null,pprs)-Math.min.apply(null,pprs))/mean*100:0;
  setText("wire-spread",n>1?spread.toFixed(2)+"%":"—");
- document.getElementById("btn-apply-wire").disabled=false;
- document.getElementById("btn-save-wire").disabled=false;
+ refreshPprApplyButtons();
 }
 function calRotary(axis){
  const n=parseInt(document.getElementById("rot-"+axis+"-turns").value)||0;
  if(n<=0)return;
- sendCmd("CAL_"+(axis==="theta"?"T":"P")+" "+n);
-}
-function applyRotaryCal(axis){
- const ppr=pendingRotaryPPR[axis];
- if(ppr>0){
-  sendCmd("SET_PPR_ROTARY "+ppr.toFixed(2));
-  setText(axis+"-apply-status","Sent: SET_PPR_ROTARY "+ppr.toFixed(2));
+ if(pendingRotaryCal){setStatus("A rotary calibration is already pending");return;}
+ if(sendCmd("CAL_"+(axis==="theta"?"T":"P")+" "+n)){
+  pendingRotaryPPR[axis]=0;
+  refreshPprApplyButtons();
+  pendingRotaryCal={axis:axis,timer:null};
+  document.getElementById("btn-cal-"+axis).disabled=true;
+  pendingRotaryCal.timer=setTimeout(expireRotaryCalRequest,CAL_REPLY_TIMEOUT_MS);
  }
+}
+function finishRotaryCalRequest(){
+ if(!pendingRotaryCal)return;
+ const axis=pendingRotaryCal.axis;
+ clearTimeout(pendingRotaryCal.timer);
+ pendingRotaryCal=null;
+ document.getElementById("btn-cal-"+axis).disabled=false;
+}
+function expireRotaryCalRequest(){
+ if(!pendingRotaryCal)return;
+ finishRotaryCalRequest();
+ setStatus("Rotary calibration timed out; try again.");
+}
+function resetCalibrationRequests(){
+ if(wireTrialPending)finishWireTrialRequest();
+ if(pendingRotaryCal)finishRotaryCalRequest();
+}
+function applyRotaryCal(axis,permanent){
+ const ppr=pendingRotaryPPR[axis];
+ if(ppr>0)beginPprApply("rotary",axis,ppr,permanent);
+}
+
+function refreshPprApplyButtons(){
+ const busy=!!pendingPprApply;
+ document.getElementById("btn-apply-wire").disabled=busy||wireTrials.length===0;
+ document.getElementById("btn-save-wire").disabled=busy||wireTrials.length===0;
+ ["theta","phi"].forEach(function(axis){
+  const disabled=busy||!(pendingRotaryPPR[axis]>0);
+  document.getElementById("btn-apply-"+axis).disabled=disabled;
+  document.getElementById("btn-save-"+axis).disabled=disabled;
+ });
+}
+function setPprApplyStatus(msg){
+ if(!pendingPprApply)return;
+ if(pendingPprApply.kind==="wire")setText("wire-apply-status",msg);
+ else{
+  setText("theta-apply-status",msg);
+  setText("phi-apply-status",msg);
+ }
+}
+function finishPprApply(msg){
+ if(!pendingPprApply)return;
+ clearTimeout(pendingPprApply.timer);
+ setPprApplyStatus(msg);
+ pendingPprApply=null;
+ refreshPprApplyButtons();
+}
+function waitForPpr(phase,msg){
+ pendingPprApply.phase=phase;
+ clearTimeout(pendingPprApply.timer);
+ setPprApplyStatus(msg);
+ pendingPprApply.timer=setTimeout(function(){
+  finishPprApply("No device confirmation; value not reported as applied.");
+ },5000);
+}
+function beginPprApply(kind,axis,value,permanent){
+ if(pendingPprApply){setStatus("A PPR update is already pending");return;}
+ value=Number(value.toFixed(2));
+ pendingPprApply={kind:kind,axis:axis,value:value,permanent:permanent,phase:"set",timer:null};
+ refreshPprApplyButtons();
+ const source=kind==="rotary"?(" from "+axis.toUpperCase()+" result"):"";
+ const shared=kind==="rotary"?"shared ":"";
+ waitForPpr("set","Sending "+shared+(kind==="rotary"?"PPR_ROTARY":"PPR_WIRE")+source+"; waiting for ACK...");
+ const command=(kind==="rotary"?"SET_PPR_ROTARY ":"SET_PPR_WIRE ")+value.toFixed(2);
+ if(!sendCmd(command))finishPprApply("Not sent: dashboard is disconnected.");
+}
+function handlePprSetAck(line){
+ setStatus(line);
+ if(!pendingPprApply||pendingPprApply.phase!=="set")return;
+ const prefix=pendingPprApply.kind==="rotary"?"ACK:PPR_ROTARY,":"ACK:PPR_WIRE,";
+ if(!line.startsWith(prefix))return;
+ const actual=parseFloat(line.substring(prefix.length));
+ if(!isFinite(actual)||Math.abs(actual-pendingPprApply.value)>0.05){
+  finishPprApply("Device ACK did not match the requested PPR.");
+  return;
+ }
+ if(pendingPprApply.permanent){
+  waitForPpr("save","SET acknowledged; waiting for SAVE_PPR ACK...");
+  if(!sendCmd("SAVE_PPR"))finishPprApply("PPR set, but save was not sent.");
+ }else{
+  waitForPpr("verify","SET acknowledged; waiting for CONSTANTS confirmation...");
+  if(!sendCmd("CONSTANTS"))finishPprApply("PPR set, but confirmation was not requested.");
+ }
+}
+function handlePprSaveAck(){
+ setStatus("ACK:SAVE_PPR");
+ if(!pendingPprApply||pendingPprApply.phase!=="save")return;
+ waitForPpr("verify","SAVE acknowledged; waiting for CONSTANTS confirmation...");
+ if(!sendCmd("CONSTANTS"))finishPprApply("Saved, but active constants were not confirmed.");
+}
+function confirmPprConstants(parts){
+ if(!pendingPprApply||pendingPprApply.phase!=="verify"||parts.length<2)return;
+ const actual=parseFloat(parts[pendingPprApply.kind==="rotary"?0:1]);
+ if(!isFinite(actual)||Math.abs(actual-pendingPprApply.value)>0.05){
+  finishPprApply("CONSTANTS did not match the requested PPR.");
+  return;
+ }
+ const name=pendingPprApply.kind==="rotary"?"PPR_ROTARY (theta + phi)":"PPR_WIRE";
+ finishPprApply(name+"="+actual.toFixed(2)+(pendingPprApply.permanent
+  ?" saved (ACK) and active value confirmed."
+  :" applied in RAM and confirmed."));
+}
+function handlePprError(line){
+ if(!pendingPprApply)return;
+ const expected=pendingPprApply.kind==="rotary"?"ERR:SET_PPR_ROTARY":"ERR:SET_PPR_WIRE";
+ if(line.startsWith(expected)||line==="ERR:SAVE_PPR_FAILED"||
+    line==="ERR:CMD_QUEUE_FULL"||line==="ERR:CMD_TOO_LONG")
+  finishPprApply("Device rejected the PPR update: "+line);
 }
 function setEndpointOrigin(){
  endpointOriginSensor={x:lastPos.x,y:lastPos.y,z:lastPos.z};
@@ -1043,6 +1457,455 @@ function updateSessionStats(){
   const d=Math.sqrt((b.x-a.x)*(b.x-a.x)+(b.y-a.y)*(b.y-a.y)+(b.z-a.z)*(b.z-a.z));
   setText("v_dist_pp",d.toFixed(1)+" mm");
  }
+}
+
+/* ================================ QUICK IPT ================================
+   Hidden-point measurement: hold the pen TIP on a target you cannot touch and
+   sweep the handle. Every measured point lies on a sphere of radius L centred on
+   the target, so fitting that sphere recovers it. Pure client-side math over the
+   existing 20 Hz DATA stream — no firmware command, no protocol change.        */
+
+// ===== IPT-SOLVER-BEGIN =====
+// Pure math. NO DOM ACCESS IN THIS REGION: tools/ipt/tests/test_web_solver_parity.py
+// extracts it verbatim and runs it under node against tools/ipt/solver.py. The two
+// must stay numerically identical — that test is what proves they do.
+const IPT_MIN_POINTS=8;
+const IPT_RESIDUAL_ACCEPT_MM=2.0,IPT_RESIDUAL_REJECT_MM=5.0;
+const IPT_COND_WARN=150.0,IPT_COND_BLOCK=1500.0;
+const IPT_MIN_DISP_MM=1.0;
+
+// Solve the k x k SPD system (G + lam*I) y = rhs by Cholesky. null when not
+// positive-definite, which is the caller's signal to retry with a bigger ridge.
+function iptCholSolve(G,rhs,k,lam){
+ const L=[];
+ for(let i=0;i<k;i++)L.push(new Float64Array(k));
+ for(let i=0;i<k;i++){
+  for(let j=0;j<=i;j++){
+   let s=G[i][j]+(i===j?lam:0);
+   for(let m=0;m<j;m++)s-=L[i][m]*L[j][m];
+   if(i===j){
+    if(s<=1e-15)return null;
+    L[i][i]=Math.sqrt(s);
+   }else L[i][j]=s/L[j][j];
+  }
+ }
+ const y=new Float64Array(k);
+ for(let i=0;i<k;i++){
+  let s=rhs[i];
+  for(let m=0;m<i;m++)s-=L[i][m]*y[m];
+  y[i]=s/L[i][i];
+ }
+ const x=new Float64Array(k);
+ for(let i=k-1;i>=0;i--){
+  let s=y[i];
+  for(let m=i+1;m<k;m++)s-=L[m][i]*x[m];
+  x[i]=s/L[i][i];
+ }
+ return x;
+}
+
+// Least squares min||A x - b|| for an n x k system (k is 3 or 4). Columns are
+// equilibrated first so the normal equations stay well-scaled; squaring a condition
+// number of ~20-60 lands ~1e-12 relative, eight orders below the 0.1 mm noise floor.
+function iptLstsq(A,b,k){
+ const n=A.length;
+ const s=new Float64Array(k);
+ for(let j=0;j<k;j++){
+  let acc=0;
+  for(let i=0;i<n;i++)acc+=A[i][j]*A[i][j];
+  s[j]=Math.sqrt(acc)||1;
+ }
+ const G=[],rhs=new Float64Array(k);
+ for(let j=0;j<k;j++)G.push(new Float64Array(k));
+ for(let j=0;j<k;j++){
+  for(let l=0;l<=j;l++){
+   let acc=0;
+   for(let i=0;i<n;i++)acc+=A[i][j]*A[i][l];
+   acc/=(s[j]*s[l]);
+   G[j][l]=acc;G[l][j]=acc;
+  }
+  let acc=0;
+  for(let i=0;i<n;i++)acc+=A[i][j]*b[i];
+  rhs[j]=acc/s[j];
+ }
+ const lams=[0,1e-12,1e-9,1e-6];
+ for(let t=0;t<lams.length;t++){
+  const y=iptCholSolve(G,rhs,k,lams[t]);
+  if(y){
+   const x=new Float64Array(k);
+   for(let j=0;j<k;j++)x[j]=y[j]/s[j];
+   return x;
+  }
+ }
+ return null;
+}
+
+// Eigenvalues of a symmetric 4x4, ascending (cyclic Jacobi — high relative accuracy
+// on SPD matrices, which is what the condition-number gate needs).
+function iptJacobiEig4(S){
+ const n=4,a=[];
+ for(let i=0;i<n;i++)a.push(Float64Array.from(S[i]));
+ for(let sweep=0;sweep<60;sweep++){
+  let off=0;
+  for(let p=0;p<n;p++)for(let q=p+1;q<n;q++)off+=a[p][q]*a[p][q];
+  if(off<1e-24)break;
+  for(let p=0;p<n;p++){
+   for(let q=p+1;q<n;q++){
+    if(Math.abs(a[p][q])<1e-300)continue;
+    const theta=(a[q][q]-a[p][p])/(2*a[p][q]);
+    const sg=theta>=0?1:-1;
+    const t=sg/(Math.abs(theta)+Math.sqrt(theta*theta+1));
+    const c=1/Math.sqrt(t*t+1),sn=t*c;
+    for(let i=0;i<n;i++){
+     const aip=a[i][p],aiq=a[i][q];
+     a[i][p]=c*aip-sn*aiq;
+     a[i][q]=sn*aip+c*aiq;
+    }
+    for(let i=0;i<n;i++){
+     const api=a[p][i],aqi=a[q][i];
+     a[p][i]=c*api-sn*aqi;
+     a[q][i]=sn*api+c*aqi;
+    }
+   }
+  }
+ }
+ const ev=[];
+ for(let i=0;i<n;i++)ev.push(a[i][i]);
+ ev.sort(function(x,y){return x-y;});
+ return ev;
+}
+
+// [A] Coope algebraic sphere fit. The cloud is mean-centred first so the constant
+// column is comparable in scale to the coordinate columns (~1e3 mm here).
+function iptFitSphereAlgebraic(M){
+ const n=M.length;
+ let mx=0,my=0,mz=0;
+ for(let i=0;i<n;i++){mx+=M[i][0];my+=M[i][1];mz+=M[i][2];}
+ mx/=n;my/=n;mz/=n;
+ const A=[],b=new Float64Array(n);
+ for(let i=0;i<n;i++){
+  const dx=M[i][0]-mx,dy=M[i][1]-my,dz=M[i][2]-mz;
+  A.push([2*dx,2*dy,2*dz,1]);
+  b[i]=dx*dx+dy*dy+dz*dz;
+ }
+ const x=iptLstsq(A,b,4);
+ if(!x)return null;
+ const r2=x[3]+x[0]*x[0]+x[1]*x[1]+x[2]*x[2];
+ return {C:[x[0]+mx,x[1]+my,x[2]+mz],r:Math.sqrt(Math.max(0,r2))};
+}
+
+// [B] Known-radius solve. Subtracting sphere 0 from sphere i cancels the quadratic
+// term and the (equal) radius, leaving a system linear in P — far better conditioned
+// than [A] when the pen length is fixed.
+function iptTrilaterateFixedRadius(M){
+ const n=M.length;
+ if(n<4)return null;
+ const M0=M[0];
+ const n0=M0[0]*M0[0]+M0[1]*M0[1]+M0[2]*M0[2];
+ const A=[],d=new Float64Array(n-1);
+ for(let i=1;i<n;i++){
+  A.push([2*(M[i][0]-M0[0]),2*(M[i][1]-M0[1]),2*(M[i][2]-M0[2])]);
+  d[i-1]=M[i][0]*M[i][0]+M[i][1]*M[i][1]+M[i][2]*M[i][2]-n0;
+ }
+ const x=iptLstsq(A,d,3);
+ return x?[x[0],x[1],x[2]]:null;
+}
+
+// [C] Gauss-Newton on the geometric residual f_i = ||M_i - C|| - r. Pass fixedR to
+// hold the radius (known pen length) and solve for the centre only.
+function iptRefineNonlinear(M,C0,r0,fixedR){
+ const n=M.length;
+ const fixed=(fixedR!==null&&fixedR!==undefined);
+ let C=[C0[0],C0[1],C0[2]];
+ let r;
+ if(fixed)r=fixedR;
+ else if(r0!==null&&r0!==undefined)r=r0;
+ else{
+  let acc=0;
+  for(let i=0;i<n;i++)acc+=Math.hypot(M[i][0]-C[0],M[i][1]-C[1],M[i][2]-C[2]);
+  r=acc/n;
+ }
+ const k=fixed?3:4;
+ for(let it=0;it<50;it++){
+  const J=[],f=new Float64Array(n);
+  for(let i=0;i<n;i++){
+   const ax=M[i][0]-C[0],ay=M[i][1]-C[1],az=M[i][2]-C[2];
+   const dist=Math.max(Math.hypot(ax,ay,az),1e-9);
+   const ux=ax/dist,uy=ay/dist,uz=az/dist;
+   J.push(fixed?[-ux,-uy,-uz]:[-ux,-uy,-uz,-1]);
+   f[i]=-(dist-r);
+  }
+  const dx=iptLstsq(J,f,k);
+  if(!dx)break;
+  let nd=0;
+  for(let j=0;j<k;j++)nd+=dx[j]*dx[j];
+  nd=Math.sqrt(nd);
+  if(nd>1e4)break;                       // divergence guard
+  C=[C[0]+dx[0],C[1]+dx[1],C[2]+dx[2]];
+  if(!fixed)r+=dx[3];
+  if(nd<1e-9)break;
+ }
+ let acc=0;
+ for(let i=0;i<n;i++){
+  const res=Math.hypot(M[i][0]-C[0],M[i][1]-C[1],M[i][2]-C[2])-r;
+  acc+=res*res;
+ }
+ return {C:C,r:r,rms:Math.sqrt(acc/n)};
+}
+
+// Condition number of the geometric Jacobian [u | 1]. This — not the algebraic fit's
+// condition number — is the meaningful "make a bigger movement" indicator.
+function iptGeometryCond(M,C){
+ const n=M.length;
+ const J=[];
+ for(let i=0;i<n;i++){
+  const ax=M[i][0]-C[0],ay=M[i][1]-C[1],az=M[i][2]-C[2];
+  const dist=Math.max(Math.hypot(ax,ay,az),1e-9);
+  J.push([ax/dist,ay/dist,az/dist,1]);
+ }
+ const S=[];
+ for(let a=0;a<4;a++)S.push(new Float64Array(4));
+ for(let a=0;a<4;a++){
+  for(let b=0;b<4;b++){
+   let acc=0;
+   for(let i=0;i<n;i++)acc+=J[i][a]*J[i][b];
+   S[a][b]=acc;
+  }
+ }
+ const ev=iptJacobiEig4(S);
+ if(ev[0]<=0)return Infinity;
+ return Math.sqrt(ev[3]/ev[0]);
+}
+
+// Recover the hidden target P from the measured attachment points M (n x 3, mm).
+// L omitted -> self-calibrating sphere fit. L given -> hold the radius at L.
+function iptSolve(M,L){
+ const n=M.length;
+ if(n<IPT_MIN_POINTS)
+  return {ok:false,error:"need >= "+IPT_MIN_POINTS+" points, have "+n,n_points:n};
+ const seed=iptFitSphereAlgebraic(M);
+ if(!seed)return {ok:false,error:"degenerate geometry",n_points:n};
+ const known=(L!==null&&L!==undefined);
+ let out;
+ if(known){
+  const P0=iptTrilaterateFixedRadius(M);
+  if(!P0)return {ok:false,error:"degenerate geometry",n_points:n};
+  out=iptRefineNonlinear(M,P0,null,L);
+ }else{
+  out=iptRefineNonlinear(M,seed.C,seed.r,null);
+ }
+ const cond=iptGeometryCond(M,out.C);
+ const slip=out.rms>IPT_RESIDUAL_REJECT_MM?"reject":(out.rms>IPT_RESIDUAL_ACCEPT_MM?"warn":"ok");
+ const geom=cond>IPT_COND_BLOCK?"block":(cond>IPT_COND_WARN?"warn":"ok");
+ return {ok:true,P:[out.C[0],out.C[1],out.C[2]],L_hat:out.r,L_fit:seed.r,
+         rms_resid:out.rms,cond:cond,n_points:n,
+         slip_warning:slip,geom_warning:geom};
+}
+// ===== IPT-SOLVER-END =====
+
+// ---- capture (mirrors tools/ipt/capture.py) ----
+function iptAccept(x,y,z,valid){
+ if(!iptArmed)return false;
+ if(!valid)return false;
+ if(!isFinite(x)||!isFinite(y)||!isFinite(z))return false;
+ if(iptPts.length>=IPT_MAX_POINTS){
+  iptHint("Buffer full — press STOP, then SOLVE.","warn");
+  return false;
+ }
+ if(iptLast){
+  const dx=x-iptLast[0],dy=y-iptLast[1],dz=z-iptLast[2];
+  if(dx*dx+dy*dy+dz*dz<IPT_MIN_DISP_SQ)return false;   // dedup: < 1 mm of travel
+ }
+ iptPts.push([x,y,z]);
+ iptLast=[x,y,z];
+ return true;
+}
+function iptFeed(x,y,z,valid){
+ if(iptAccept(x,y,z,valid)){
+  iptUpdateCount();
+  _dirty3d=true;_dirty2d=true;
+ }
+}
+
+// ---- UI ----
+function toggleIpt(){
+ iptActive=!iptActive;
+ if(iptActive&&calActive)toggleCal();        // the two modes are exclusive
+ document.getElementById("app").classList.toggle("ipt",iptActive);
+ document.getElementById("btn-ipt").classList.toggle("active",iptActive);
+ document.getElementById("panel-main").style.display=iptActive?"none":"";
+ // Explicit "block": clearing the inline style ("") would fall back to the
+ // stylesheet's #ipt-panel{display:none} and the panel would never appear.
+ document.getElementById("ipt-panel").style.display=iptActive?"block":"none";
+ // The grid reshaped, so the canvas backing store must resync — drawScene alone
+ // never re-reads clientWidth/Height, only resize() does.
+ resize();
+ _dirty3d=true;_dirty2d=true;
+}
+function iptHint(msg,cls){
+ const el=document.getElementById("ipt-hint");
+ el.textContent=msg;
+ el.className="ipt-hint "+(cls||"");
+}
+function iptArm(){
+ // Capture is gated behind `if(frozen)return` in the DATA branch, so arming while
+ // frozen would silently collect nothing. Unfreeze rather than confuse the operator.
+ if(frozen)toggleFreeze();
+ iptClear();
+ iptArmed=true;
+ document.getElementById("btn-ipt-arm").disabled=true;
+ document.getElementById("btn-ipt-stop").disabled=false;
+ iptHint("CAPTURING — sweep the handle in a wide spiral.","warn");
+}
+function iptStop(){
+ iptArmed=false;
+ document.getElementById("btn-ipt-arm").disabled=false;
+ document.getElementById("btn-ipt-stop").disabled=true;
+ document.getElementById("btn-ipt-solve").disabled=iptPts.length<IPT_MIN_POINTS;
+ iptHint(iptPts.length<IPT_MIN_POINTS
+   ? "Stopped — only "+iptPts.length+" points. Need >= "+IPT_MIN_POINTS+"."
+   : "Stopped. "+iptPts.length+" points. Press SOLVE.",
+   iptPts.length<IPT_MIN_POINTS?"reject":"ok");
+ _dirty3d=true;_dirty2d=true;
+}
+function iptClear(){
+ iptArmed=false;iptPts=[];iptLast=null;iptSol=null;iptUsable=false;
+ document.getElementById("btn-ipt-arm").disabled=false;
+ document.getElementById("btn-ipt-stop").disabled=true;
+ document.getElementById("btn-ipt-solve").disabled=true;
+ document.getElementById("btn-ipt-snap").disabled=true;
+ document.getElementById("btn-ipt-csv").disabled=true;
+ setText("ipt-p","—");setText("ipt-n","0 / "+IPT_MIN_POINTS);
+ setText("ipt-l","—");setText("ipt-rms","—");setText("ipt-cond","—");
+ document.getElementById("ipt-rms").className="val";
+ document.getElementById("ipt-cond").className="val";
+ iptHint("Place the pen tip on the target, then ARM.","");
+ _dirty3d=true;_dirty2d=true;
+}
+function iptUpdateCount(){
+ const n=iptPts.length;
+ setText("ipt-n",n<IPT_MIN_POINTS?(n+" / "+IPT_MIN_POINTS):String(n));
+ document.getElementById("btn-ipt-csv").disabled=n<1;
+ if(!iptArmed)return;
+ if(n<IPT_MIN_POINTS)iptHint("Capturing — need >= "+IPT_MIN_POINTS+" points; sweep in a wide spiral.","warn");
+ else iptHint("Good point count — keep sweeping, or STOP then SOLVE.","ok");
+}
+function iptSolveUI(){
+ const raw=document.getElementById("ipt-l-input").value.trim();
+ let L=null;
+ if(raw!==""){
+  L=parseFloat(raw);
+  if(!isFinite(L)){iptHint("L must be a number (or blank for auto).","reject");return;}
+  if(L<=0){iptHint("L must be positive.","reject");return;}
+ }
+ const r=iptSolve(iptPts,L);
+ if(!r.ok){iptHint(r.error,"reject");return;}
+ iptSol=r;
+ setText("ipt-p",r.P[0].toFixed(1)+", "+r.P[1].toFixed(1)+", "+r.P[2].toFixed(1));
+ setText("ipt-l",L!==null
+   ? r.L_hat.toFixed(1)+" (fit "+r.L_fit.toFixed(1)+")"
+   : r.L_hat.toFixed(1));
+ setText("ipt-rms",r.rms_resid.toFixed(2));
+ setText("ipt-cond",isFinite(r.cond)?r.cond.toFixed(0):"inf");
+ document.getElementById("ipt-rms").className="val "+r.slip_warning;
+ document.getElementById("ipt-cond").className="val "+(r.geom_warning==="block"?"reject":r.geom_warning);
+ const bad=(r.slip_warning==="reject"||r.geom_warning==="block");
+ const marginal=(r.slip_warning==="warn"||r.geom_warning==="warn");
+ iptUsable=!bad;
+ document.getElementById("btn-ipt-snap").disabled=bad;
+ if(r.geom_warning==="block")iptHint("Geometry too poor — repeat with a much wider sweep.","reject");
+ else if(r.slip_warning==="reject")iptHint("Rejected — the tip slipped, or the sweep was too small.","reject");
+ else if(r.geom_warning==="warn")iptHint("Marginal geometry — consider a wider sweep.","warn");
+ else if(marginal)iptHint("Marginal fit — sweep wider or re-measure.","warn");
+ else iptHint("Good fit.","ok");
+ _dirty3d=true;_dirty2d=true;
+}
+function iptExportCsv(){
+ if(!iptPts.length)return;
+ // Byte-identical to the desktop's export (tools/evka_gui/ipt_panel.py), so the same
+ // offline tooling reads a capture from either UI.
+ let csv="x_mm,y_mm,z_mm\n";
+ iptPts.forEach(function(p){
+  csv+=p[0].toFixed(3)+","+p[1].toFixed(3)+","+p[2].toFixed(3)+"\n";
+ });
+ downloadCsv(csv,"ipt_capture_"+Date.now()+".csv");
+}
+function iptAddSnapshot(){
+ if(!iptSol||!iptSol.ok||!iptUsable)return;
+ addSnapshot(iptSol.P[0],iptSol.P[1],iptSol.P[2],"sensor");
+}
+
+// ---- overlays ----
+function iptOverlayOn(){return iptArmed||(iptSol&&iptSol.ok);}
+function iptOv(){
+ if(!iptOverlayOn())return null;
+ return {pts:iptPts,P:iptSol&&iptSol.ok?iptSol.P:null,L:iptSol&&iptSol.ok?iptSol.L_hat:0};
+}
+function drawIptOverlay3D(){
+ // Renderer takes (worldX, worldZ, worldY) — same order the trail uses.
+ const stride=Math.max(1,Math.ceil(iptPts.length/IPT_DRAW_MAX));
+ ctx.fillStyle="rgba(0,255,136,0.85)";
+ for(let i=0;i<iptPts.length;i+=stride){
+  const q=iptPts[i],p=project(q[0],q[2],q[1]);
+  ctx.beginPath();ctx.arc(p[0],p[1],3,0,Math.PI*2);ctx.fill();
+ }
+ if(!iptSol||!iptSol.ok)return;
+ const P=iptSol.P,L=iptSol.L_hat;
+ // Sphere of radius L about P, as three great circles — reads correctly under rotation.
+ ctx.strokeStyle="rgba(255,140,0,0.45)";ctx.lineWidth=1;ctx.setLineDash([4,4]);
+ const N=48;
+ for(let plane=0;plane<3;plane++){
+  ctx.beginPath();
+  let started=false;
+  for(let i=0;i<=N;i++){
+   const a=i/N*Math.PI*2,ca=Math.cos(a)*L,sa=Math.sin(a)*L;
+   let wx,wy,wz;
+   if(plane===0){wx=P[0]+ca;wy=P[1]+sa;wz=P[2];}
+   else if(plane===1){wx=P[0]+ca;wy=P[1];wz=P[2]+sa;}
+   else{wx=P[0];wy=P[1]+ca;wz=P[2]+sa;}
+   const p=project(wx,wz,wy);
+   if(p[2]+800<1){started=false;continue;}   // behind the camera — skip the segment
+   if(!started){ctx.moveTo(p[0],p[1]);started=true;}
+   else ctx.lineTo(p[0],p[1]);
+  }
+  ctx.stroke();
+ }
+ ctx.setLineDash([]);
+ const pp=project(P[0],P[2],P[1]);
+ ctx.strokeStyle="#ff8c00";ctx.lineWidth=2;
+ ctx.beginPath();ctx.arc(pp[0],pp[1],9,0,Math.PI*2);ctx.stroke();
+ ctx.beginPath();
+ ctx.moveTo(pp[0]-14,pp[1]);ctx.lineTo(pp[0]+14,pp[1]);
+ ctx.moveTo(pp[0],pp[1]-14);ctx.lineTo(pp[0],pp[1]+14);
+ ctx.stroke();
+ ctx.fillStyle="#ff8c00";ctx.font="10px monospace";ctx.fillText("P",pp[0]+16,pp[1]-6);
+}
+function drawIptOverlay2D(c,ov,ai,bi,toX,toY){
+ c.fillStyle="rgba(0,255,136,0.8)";
+ const stride=Math.max(1,Math.ceil(ov.pts.length/IPT_DRAW_MAX));
+ for(let i=0;i<ov.pts.length;i+=stride){
+  const q=ov.pts[i];
+  c.beginPath();c.arc(toX(q[ai]),toY(q[bi]),2,0,Math.PI*2);c.fill();
+ }
+ if(!ov.P)return;
+ if(ov.L>0){
+  // Autoscaled axes -> this correctly renders as an ellipse, as pyqtgraph does on the desktop.
+  c.strokeStyle="rgba(255,140,0,0.5)";c.lineWidth=1;c.setLineDash([4,4]);
+  c.beginPath();
+  const N=64;
+  for(let i=0;i<=N;i++){
+   const a=i/N*Math.PI*2;
+   const px=toX(ov.P[ai]+ov.L*Math.cos(a)),py=toY(ov.P[bi]+ov.L*Math.sin(a));
+   i===0?c.moveTo(px,py):c.lineTo(px,py);
+  }
+  c.stroke();c.setLineDash([]);
+ }
+ const cx=toX(ov.P[ai]),cy=toY(ov.P[bi]);
+ c.strokeStyle="#ff8c00";c.lineWidth=1.5;
+ c.beginPath();
+ c.moveTo(cx-6,cy);c.lineTo(cx+6,cy);
+ c.moveTo(cx,cy-6);c.lineTo(cx,cy+6);
+ c.stroke();
 }
 </script>
 </body>
@@ -1234,18 +2097,18 @@ void WebDashboard::broadcast(const char* dataLine) {
 }
 
 bool WebDashboard::enqueueCommand(const uint8_t* data, size_t len) {
-    if (len == 0) {
+    if (len == 0 || len > CMD_MAX_LEN) {
         return false;
     }
 
-    size_t n = (len < CMD_MAX_LEN) ? len : CMD_MAX_LEN;
+    size_t n = len;
     char localBuf[CMD_MAX_LEN + 1];
     memcpy(localBuf, data, n);
     localBuf[n] = '\0';
     String cmd(localBuf);
     cmd.trim();
     if (cmd.length() == 0) {
-        return false;
+        return true;  // Match serial/TCP behavior: ignore blank command lines.
     }
 
     bool queued = false;
@@ -1272,12 +2135,15 @@ void WebDashboard::onWsEvent(AsyncWebSocket* server, AsyncWebSocketClient* clien
         Serial.printf("[WiFi] Client #%u disconnected\n", client->id());
         _ws.cleanupClients();  // free slot immediately
     } else if (type == WS_EVT_DATA) {
-        // Client can send commands (e.g. ZERO, PING) — forward to serial handler
+        // Client can send commands (e.g. ZERO, PING) — forward to the main loop.
         AwsFrameInfo* info = (AwsFrameInfo*)arg;
-        if (info->opcode == WS_TEXT && info->final && info->index == 0 && info->len == len && len > 0) {
-            if (!enqueueCommand(data, len)) {
-                Serial.println("[WiFi] WS command dropped (queue full/empty)");
-            }
+        if (info->opcode != WS_TEXT || !info->final || info->index != 0 || info->len != len) {
+            client->text("ERR:WS_FRAME_INVALID");
+        } else if (len > CMD_MAX_LEN) {
+            client->text("ERR:CMD_TOO_LONG");
+        } else if (len > 0 && !enqueueCommand(data, len)) {
+            client->text("ERR:CMD_QUEUE_FULL");
+            Serial.println("[WiFi] WS command dropped (queue full)");
         }
         // cleanupClients() intentionally NOT called here: DATA events fire at
         // 20 Hz × N clients. Calling it here wastes CPU iterating the client list

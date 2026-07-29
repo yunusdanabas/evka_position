@@ -25,7 +25,9 @@ private:
     static constexpr uint32_t STA_RETRY_MAX_MS      = 60000;
     static constexpr uint32_t STA_CONNECT_TIMEOUT_MS = 15000; // watchdog: re-arm if IDF misses DISCONNECTED
     static constexpr uint32_t STA_LOST_IP_RECOVERY_MS = 45000; // DHCP watchdog while still associated
-    static const uint8_t CMD_QUEUE_SIZE = 4;
+    // Drained one command per loop(). The dashboard's 5 s poll fires three
+    // commands back-to-back; eight leaves room for an interactive command burst.
+    static const uint8_t CMD_QUEUE_SIZE = 8;
     static const size_t CMD_MAX_LEN = 128;
     char _cmdQueue[CMD_QUEUE_SIZE][CMD_MAX_LEN + 1];
     uint8_t _cmdHead = 0;
