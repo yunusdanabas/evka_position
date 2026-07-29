@@ -128,7 +128,7 @@ This means the 20 Hz *loop* rate is unaffected regardless of device speed — on
 
 ## 4. BLE + WiFi Coexistence (Version A Fallback Only — if PLR 40 C is BLE)
 
-The ESP32-S3 has a single 2.4 GHz radio shared between WiFi and Bluetooth — WiFi/BT coexistence is handled by the IDF's time-division scheduler, not two independent radios. This is a well-known ESP-IDF constraint, not specific to this project, but it directly affects the Bosch PLR 40 C fallback path, since the current firmware already runs WiFi AP+STA concurrently (`ENABLE_WIFI=1` default, per `CLAUDE.md`).
+The ESP32-S3 has a single 2.4 GHz radio shared between WiFi and Bluetooth — WiFi/BT coexistence is handled by the IDF's time-division scheduler, not two independent radios. This is a well-known ESP-IDF constraint, not specific to this project, but it directly affects the Bosch PLR 40 C fallback path, since the current firmware already runs WiFi AP+STA concurrently (`ENABLE_WIFI=1` default, per `docs/ARCHITECTURE.md`).
 
 **Practical implications:**
 - Adding a BLE GATT central role (to read the Bosch PLR 40 C) means three radio roles time-sharing one antenna: WiFi AP, WiFi STA, BLE central. Each one's throughput/latency degrades somewhat when the others are active — documented ESP-IDF behavior, not a bug to "fix."

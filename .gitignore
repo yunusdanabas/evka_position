@@ -31,11 +31,7 @@ venv/
 .DS_Store
 Thumbs.db
 
-# Agent Files
-AGENTS.md
-CLAUDE.md
-CODEX.md
-COPILOT.md
+
 
 # Local app settings (contains network credentials/config)
 settings.txt

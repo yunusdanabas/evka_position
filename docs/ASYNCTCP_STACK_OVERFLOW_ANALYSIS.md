@@ -273,7 +273,7 @@ if (cmd.length() > 0) {
 }
 ```
 
-**Status**: ✅ **Already implemented**. See `AGENTS.md` (2026-04-08 audit).
+**Status**: ✅ **Already implemented**. See `AGENT_LOG.md` (2026-04-08 audit).
 
 ### Strategy 4: Per-Client Rate-Limiting (Runtime)
 
@@ -499,5 +499,5 @@ build_flags = -DCONFIG_LWIP_TCPIP_TASK_STACK_SIZE=8192
 ---
 
 **Last Updated**: 2026-04-09  
-**Firmware Commit**: Latest (see `AGENTS.md` activity log)  
+**Firmware Commit**: Latest (see `AGENT_LOG.md`)  
 **Status**: ✅ All critical mitigations implemented; optional enhancements documented

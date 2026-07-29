@@ -55,4 +55,4 @@ Compare against current draw-wire system (~0–3 m typical reach, ~±3 mm combin
 ## Closing requirements
 
 - End each file with **open risks** and **next physical test steps**
-- Log work in `AGENTS.md` Activity Log when done
+- Log work in [AGENT_LOG.md](../AGENT_LOG.md) when done (see [AGENTS.md](../AGENTS.md) for working rules)

@@ -236,7 +236,7 @@ This document consolidates open-source projects, libraries, documentation, and a
 ## 10. Recommended Learning Path
 
 1. **Fundamentals** (Week 1-2)
-   - Read: `CLAUDE.md` and `docs/hardware_design/system_architecture.md` (this project)
+   - Read: `AGENTS.md` and `docs/hardware_design/system_architecture.md` (this project)
    - Watch: 3Blue1Brown Linear Algebra series
    - Code: Basic quadrature decoder on Wokwi
 

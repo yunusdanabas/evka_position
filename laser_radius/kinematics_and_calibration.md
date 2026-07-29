@@ -22,7 +22,7 @@ r_true_mm = r_laser_reading_mm + d_offset_mm
 
 ### 1.2 Blind zone (device-dependent, affects zero-point strategy)
 
-Every phase-shift device in the current shortlist has a minimum range below which it can't report a valid distance (JRT B605B / Meskernel LDL-T: 0.03 m; Bosch PLR 40 C: 0.05 m; Dimetix: 0.05 m). The current firmware's `RADIUS_MIN_MM = 0` supports a true zero-home boot sequence (`setZeroPoint()` 2 s after power-on, per `CLAUDE.md`) — **a laser cannot physically measure `r ≈ 0`.** Consequences:
+Every phase-shift device in the current shortlist has a minimum range below which it can't report a valid distance (JRT B605B / Meskernel LDL-T: 0.03 m; Bosch PLR 40 C: 0.05 m; Dimetix: 0.05 m). The current firmware's `RADIUS_MIN_MM = 0` supports a true zero-home boot sequence (`setZeroPoint()` 2 s after power-on, per `docs/ARCHITECTURE.md` and `pcb_design/EVKA_position_v4/FIRMWARE.md`) — **a laser cannot physically measure `r ≈ 0`.** Consequences:
 - Boot-time `setZeroPoint()` cannot rely on reading `r = 0` — home must be a known non-zero reference distance outside the blind zone (§3).
 - `RADIUS_MIN_MM` should be raised to the device's blind-zone floor (plus `d_offset_mm`) for this variant.
 

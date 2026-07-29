@@ -4,7 +4,7 @@
 
 **Scope:** Detailed research for an EVKA positioning variant that replaces the draw-wire radius encoder with a laser distance measurement, while keeping two rotary encoders for azimuth (θ) and elevation (φ).  
 **Status:** Detailed study, revised to a fixed requirement (2026-07-01) — device shortlists, kinematics/calibration, firmware sketch, procurement plan, and a LaTeX summary report are documented below and in the linked files. Physical bench testing has not started.  
-**Baseline (current production):** ESP32-WROOM + 2× E40S6 rotary encoders + OPKON DWEM2 draw-wire.  
+**Current prototype baseline:** ESP32-S3 v4 carrier + 2× E40S6 rotary encoders + OPKON DWEM2 draw-wire.
 **Target platform (this variant):** ESP32-S3-DevKitC-1 on EVKA_position_v2 carrier direction.
 
 ---
