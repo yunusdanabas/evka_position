@@ -1,23 +1,30 @@
 # Phi Rotary Calibration (classic GPIO 32 / 35; v4 J2 GPIO 4 / 5)
 
-Calibrate phi counts-per-revolution using `test_rotary`.
+Calibrate phi counts-per-revolution. The standalone `test_rotary` path is classic-Wemos-only; on v4
+use main firmware `ZERO_P` and `CAL_P <n>`.
 
 ## 1. Wiring and Environment Pre-check
 
 - Connect only phi encoder signals:
   - Classic ESP32: A (black) -> divider -> GPIO `32`, B (white) -> divider -> GPIO `35`
-  - v4 PCB: A (black) -> J2 pin 1 -> GPIO `4`, B (white) -> J2 pin 3 -> GPIO `5`
-  - Brown -> `+5V`, Blue -> `GND`
+  - v4 PCB J2: Brown `+5V` -> pin 1, A (black) -> pin 2 -> GPIO `4`, Blue `GND` ->
+    pin 3, B (white) -> pin 4 -> GPIO `5`
 - Keep theta disconnected for isolated phi calibration.
 - Provide external 5V to encoder and common GND to ESP32.
 - Confirm voltage divider on every signal line (5V -> 3.3V safe input).
 
-## 2. Flash and Monitor
+The J2 order is PCB-derived and was not physically reverified in the final documentation pass.
+
+## 2. Choose the Firmware Path
+
+Classic bench only:
 
 ```bash
 pio run -e test_rotary --target upload
 pio device monitor -e test_rotary
 ```
+
+For v4, keep `esp32s3_v4` installed. Do not flash `test_rotary` onto the S3 carrier.
 
 ## 3. Trial Loop (CW and CCW)
 
@@ -45,6 +52,9 @@ Run at least:
 If thresholds fail:
 - Check coupler slippage, shaft backlash, and A/B wiring integrity.
 - Re-run diagnostic (`DIAG`) and repeat trials.
+
+`DIAG` is available in the standalone classic test, not the main v4 firmware. Use `RAW_COUNTS` for
+v4 count diagnostics.
 
 ## 5. Isolated-Test Noise Note
 

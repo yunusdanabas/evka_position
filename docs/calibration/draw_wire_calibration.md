@@ -1,7 +1,7 @@
 # Draw-Wire Calibration (classic GPIO 16 / 17; v4 J1 GPIO 7 / 8)
 
-Calibrate linear scale (`MM_PER_PULSE`) using `test_drawwire` and known travel
-references.
+Calibrate linear scale (`MM_PER_PULSE`) using known travel references. The standalone
+`test_drawwire` environment is classic-Wemos-only; on v4 use the main firmware commands.
 
 ## 1. Wiring and Environment Pre-check
 
@@ -13,12 +13,17 @@ references.
 - Prepare a physical distance reference (steel ruler/tape) with at least
   500 mm usable travel.
 
-## 2. Flash and Monitor
+## 2. Choose the Firmware Path
+
+Classic bench only:
 
 ```bash
 pio run -e test_drawwire --target upload
 pio device monitor -e test_drawwire
 ```
+
+For v4, do not flash a `test_*` environment. Keep `esp32s3_v4` installed and send the same
+`ZERO_W` / `CAL_W <mm>` commands over Serial, TCP, or WebSocket.
 
 ## 3. Known-Distance Trial Method
 
@@ -26,11 +31,10 @@ Recommended distances: `100 mm`, `200 mm`, `500 mm`.
 
 For each trial:
 
-1. Send `ZERO`
-2. Send `CAL` at start position
-3. Pull to known `actual_mm`
-4. Send `DONE`
-5. Record `delta_counts` and `measured_mm` from serial output in
+1. Send `ZERO_W`
+2. Pull to known `actual_mm`
+3. Send `CAL_W <actual_mm>`
+4. Record counts and the returned candidate `mm_per_pulse` / `ppr_wire` in
    `templates/draw_wire_calibration_log_template.csv`
 
 Use both directions:
@@ -64,7 +68,9 @@ Operational default acceptance:
 If exceeded:
 - Check cable alignment, spring tension, mount rigidity, and pulley friction.
 
-## 6. Final Value to Commit
+## 6. Final Value to Record
 
 Record final accepted `MM_PER_PULSE` in
 `templates/final_calibration_record_template.md` before updating firmware.
+
+Draw-wire scale acceptance does not clear the current theta repeatability blocker.

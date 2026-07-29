@@ -1,6 +1,12 @@
 # Calibration Guide — evka_position
 
-Full end-to-end calibration procedure: per-encoder PPR, firmware update, and endpoint world-transform.
+Full end-to-end calibration procedure: per-encoder PPR, firmware update, and candidate endpoint
+world transform.
+
+> **Prototype gate:** theta count loss is unresolved. Stop before changing accepted scale values or
+> fitting an endpoint transform until repeated points and home return with stable theta counts. No
+> endpoint/world transform or shared/default calibration JSON is accepted. `tools/evka_gui`
+> displays sensor-frame data only.
 
 ---
 
@@ -8,14 +14,15 @@ Full end-to-end calibration procedure: per-encoder PPR, firmware update, and end
 
 | Stage | What it calibrates | Firmware | Tool |
 |-------|--------------------|----------|------|
-| 1 | Wire encoder — `MM_PER_PULSE` / `PPR_WIRE` | `test_drawwire` | Serial + this guide |
-| 2 | Theta rotary — `PPR_ROTARY` | `test_rotary` or `test_calibration` | Serial + this guide |
-| 3 | Phi rotary — `PPR_ROTARY` | `test_rotary` or `test_calibration` | Serial + this guide |
+| 1 | Wire encoder — `MM_PER_PULSE` / `PPR_WIRE` | main firmware (v4) or `test_drawwire` (classic) | Serial/dashboard + this guide |
+| 2 | Theta rotary — `PPR_ROTARY` | main firmware (v4) or `test_calibration` (classic) | Serial + this guide |
+| 3 | Phi rotary — `PPR_ROTARY` | main firmware (v4) or `test_calibration` (classic) | Serial + this guide |
 | 4 | Firmware constants | — | Edit `SphericalSensor.h`, reflash |
-| 5 | Endpoint world transform | `wemos_d1_r32` (production) | `tools/calibration/calibrate.py` |
-| 6 | Validation | `wemos_d1_r32` (production) | `tools/position_checker` |
+| 5 | Candidate endpoint world transform | main firmware (`esp32s3_v4` / `wemos_d1_r32`) | `python -m tools.calibration.report` - see [report_workflow.md](report_workflow.md) |
+| 6 | Candidate validation | main firmware | Hold-out CSV in report; `evka_gui` remains sensor-frame-only |
 
-Complete stages **in order**. Endpoint calibration (Stage 5) is only meaningful after PPR constants are correct (Stages 1–4).
+Complete stages **in order** after the theta repeatability gate passes. Endpoint calibration (Stage
+5) is only meaningful after mechanics, count return, and PPR constants are correct.
 
 ---
 
@@ -25,38 +32,44 @@ Complete stages **in order**. Endpoint calibration (Stage 5) is only meaningful 
 
 ### 1.1 Option A — Web dashboard (recommended, tablet-friendly)
 
-With production firmware (`ENABLE_WIFI=1`) flashed and running:
-1. Connect to `EvkaPosition` WiFi → open `http://192.168.4.1` → tap **CALIBRATE → WIRE**
+With main firmware (`ENABLE_WIFI=1`) flashed and running:
+1. Connect to `CMDCNC_EVKA` WiFi → open `http://192.168.1.50` → tap **CALIBRATE → WIRE**
 2. For each trial: tap **ZERO WIRE**, pull wire to a known distance, enter the distance in mm, tap **RECORD**
 3. Collect at least 5 trials at different distances (e.g. 100, 200, 300, 400, 500 mm)
 4. The table shows Factor and PPR_WIRE per trial; the header shows Mean PPR_WIRE and Spread %
 5. Tap **APPLY + SAVE (NVS)** to apply the mean and persist it to flash (survives reboot)
 
-### 1.2 Option B — Serial / test firmware
+### 1.2 Option B - Main firmware command path
+
+For v4, keep `esp32s3_v4` installed. Repeat at least five known distances in both directions:
+
+```text
+ZERO_W
+# Pull to exactly <actual_mm>
+CAL_W <actual_mm>
+```
+
+Main firmware replies:
+
+```text
+CAL:WIRE,<factor>,<mm_per_pulse>,<new_ppr_wire>
+```
+
+Record each trial. Apply the mean with `SET_PPR_WIRE <mean_ppr>`, then use `SAVE_PPR` only after
+reviewing the set.
+
+### 1.3 Option C - Classic standalone test
 
 ```bash
 pio run -e test_drawwire --target upload
 pio device monitor -e test_drawwire
 ```
 
-Wire encoder pins: classic `A → GPIO 16`, `B → GPIO 17`; v4 PCB J1 `A → GPIO 7`, `B → GPIO 8`.
+This environment uses classic GPIO16/17. It accepts `ZERO_W` and `CAL_W <actual_mm>`, prints a
+human-readable result, and updates only its running RAM value. It does not support `SET_PPR_WIRE` or
+`SAVE_PPR`. Do not flash it onto v4.
 
-Repeat for at least 5 different known distances, both extend and retract:
-
-```
-1. ZERO_W                  ← reset wire encoder to 0
-2. Pull wire to exactly <actual_mm> (use a rigid ruler, not a tape)
-3. CAL_W <actual_mm>
-```
-
-Firmware replies:
-```
-CAL:WIRE,<factor>,<mm_per_pulse>,<new_ppr_wire>
-```
-
-Record each trial. Apply the mean: `SET_PPR_WIRE <mean_ppr>`, then `SAVE_PPR` to persist.
-
-### 1.3 Acceptance criteria
+### 1.4 Acceptance criteria
 
 | Check | Threshold |
 |-------|-----------|
@@ -65,7 +78,7 @@ Record each trial. Apply the mean: `SET_PPR_WIRE <mean_ppr>`, then `SAVE_PPR` to
 
 If hysteresis exceeds threshold: check cable alignment, spring tension, and pulley friction.
 
-### 1.4 Final value
+### 1.5 Final value
 
 ```
 new_PPR_WIRE = mean(ppr_wire of accepted trials)
@@ -80,14 +93,32 @@ new_MM_PER_PULSE = DRUM_CIRCUM_MM / new_PPR_WIRE   (= 200 / new_PPR_WIRE)
 
 ### 2.1 Flash and connect
 
+The standalone `test_*` environments target the classic Wemos pin map only. For the v4 carrier,
+keep main `esp32s3_v4` firmware installed and use `ZERO_T`, rotate a measured number of full
+turns, then send `CAL_T <n>`. The interactive SPACE/DONE procedure below is available only in the
+classic-board `test_calibration` sketch:
+
 ```bash
-pio run -e test_rotary --target upload
-pio device monitor -e test_rotary
+pio run -e test_calibration --target upload
+pio device monitor -e test_calibration
 ```
 
-Theta encoder pins: classic `A → GPIO 14`, `B → GPIO 12`; v4 PCB J3 `A → GPIO 9`, `B → GPIO 10`. Disconnect phi encoder for isolated test.
+Theta encoder pins in this classic test are `A → GPIO 14`, `B → GPIO 12`. Disconnect phi encoder for isolated testing.
 
-### 2.2 Trial procedure (interactive)
+### 2.2 v4/main-firmware trial
+
+Repeat at least three CW and three CCW trials:
+
+```text
+ZERO_T
+# Rotate exactly N full turns
+CAL_T N
+```
+
+Reply: `CAL:THETA,<signed_counts>,<ppr>`. Record signed counts and compare PPR magnitude. This command
+does not apply the candidate PPR.
+
+### 2.3 Classic interactive trial
 
 Repeat at least 3 × CW and 3 × CCW:
 
@@ -104,14 +135,18 @@ During calibration, firmware prints after each SPACE:
 Turn 1: delta=<n>  running_avg_ppr=<p>
 ```
 
-On `DONE`:
+On `DONE`, the standalone sketch prints a human-readable `CAL_T RESULT` block with per-turn counts,
+average PPR, and degrees/count. Record the values in
+`templates/rotary_calibration_log_template.csv`.
+
+Example fields:
 ```
-THETA CAL DONE  turns=<N>  total_counts=<total>  avg_ppr=<p>  deg_per_pulse=<d>
+Turns recorded : <N>
+Average PPR    : <p>
+deg/pulse      : <d>
 ```
 
-Record each `DONE` line in `templates/rotary_calibration_log_template.csv`.
-
-### 2.3 Acceptance criteria
+### 2.4 Acceptance criteria
 
 | Check | Threshold |
 |-------|-----------|
@@ -120,7 +155,11 @@ Record each `DONE` line in `templates/rotary_calibration_log_template.csv`.
 
 If thresholds fail: check coupler slippage, shaft backlash, A/B wiring.
 
-### 2.4 Final value
+For the current v4 prototype, passing a multi-turn scale trial is not enough: repeated marked-point
+and home returns must also show stable theta counts. See
+[sessions/2026-07-17_repeatability.md](sessions/2026-07-17_repeatability.md).
+
+### 2.5 Final value
 
 ```
 PPR_ROTARY_THETA = mean(|avg_ppr| of all accepted CW + CCW trials)
@@ -135,11 +174,12 @@ DEG_PER_PULSE    = 360 / PPR_ROTARY_THETA
 
 ### 3.1 Flash and connect
 
-Same `test_rotary` firmware. Phi encoder pins: classic `A → GPIO 32`, `B → GPIO 35`; v4 PCB J2 `A → GPIO 4`, `B → GPIO 5`.
+Same `test_calibration` firmware. Phi encoder pins in this classic test are `A → GPIO 32`, `B → GPIO 35`.
 
 ### 3.2 Trial procedure
 
-Identical to Stage 2, substituting:
+For v4/main firmware, use `ZERO_P`, rotate exactly N full turns, then send `CAL_P N`; reply is
+`CAL:PHI,<signed_counts>,<ppr>`. For the classic interactive sketch, substitute:
 - `ZERO_P` instead of `ZERO_T`
 - `CAL_P` instead of `CAL_T`
 
@@ -184,9 +224,9 @@ Create a backup before editing:
 cp firmware/src/SphericalSensor.h firmware/src/SphericalSensor.h.bak
 ```
 
-Reflash:
+Reflash the board in use (v4 shown):
 ```bash
-pio run -e wemos_d1_r32 --target upload
+pio run -e esp32s3_v4 --target upload
 ```
 
 > **Note**: NVS values take precedence over compile-time defaults. After reflashing, the NVS namespace `evka_cal` will still load unless cleared (use `nvs_flash_erase()` or erase flash fully).
@@ -195,88 +235,131 @@ Verify by sending `CONSTANTS` and checking that `r`, `theta`, `phi` values are p
 
 ---
 
-## Stage 5 — Endpoint World Transform (Kabsch Calibration)
+## Stage 5 — Candidate Endpoint World Transform (Kabsch Calibration)
 
-**Goal**: Compute the 3×3 rotation R and translation t that map sensor Cartesian coordinates to your world coordinate frame.
+**Goal**: Compute the 3×3 rotation R and translation t that map sensor Cartesian coordinates to your world coordinate frame:
+
+```text
+world = R @ sensor + t
+```
 
 **Requirement**: Complete Stages 1–4 first. This stage corrects frame tilt/orientation, not encoder scale.
 
+**Preferred tool**: the calibration report workflow. Full operator guide:
+[report_workflow.md](report_workflow.md).
+
 ### 5.1 Collect reference points
 
-With production firmware running, move the probe to known world positions and record the sensor's output.
+With main firmware running, move the probe to known world positions and record the sensor-frame XYZ
+output. Do not collect this set while theta return is unstable.
 
-**Minimum**: 8 points, **not collinear**. Recommended layout:
+**Minimum for the report tool**: 3 calibration + 1 validation point.
+**Recommended**: 8+ calibration points, **not collinear**, plus 3–5 hold-outs.
+
+Suggested layout:
 - 3–4 points along +X (e.g. 100, 200, 400, 600 mm)
-- 3–4 points along +Y (e.g. 100, 200, 400, 600 mm)
-- 1–2 points along +Z if possible (or off-plane)
+- 3–4 points along +Y
+- 1–2 points along +Z or otherwise off-plane
 
-For each point:
-```
-1. Move probe to known world position (x_w, y_w, z_w)
-2. Send STATUS over serial
-3. Record sensor output: x_s, y_s, z_s from STATUS reply
-```
+Collection options:
+- `python -m tools.calibration.gui` → Endpoint → **Add pair** (writes the session CSVs directly)
+- `evka_gui` toolbar **Calibration…** → Endpoint → **Add pair** (same workflow)
+- Web dashboard **CALIBRATE → ENDPOINT** → EXPORT CSV (then **Import CSV**)
+- Serial `STATUS` (last three fields are sensor `x,y,z`)
 
 `STATUS` reply format:
 ```
 STATUS,<is_valid>,<frame_count>,<ts_ms>,<r>,<theta>,<phi>,<x>,<y>,<z>
 ```
-Use the last three fields as `x_s, y_s, z_s`.
 
-### 5.2 Update calibrate.py
+### 5.2 Assign the sets and run the report
 
-Open `tools/calibration/calibrate.py` and replace `SENSOR_PTS` and `WORLD_PTS` with your collected data:
+In `python -m tools.calibration.gui` → **Endpoint** (or `evka_gui` → **Calibration…** →
+**Endpoint**): pick **Add to: Calibration** (fit) or **Validation** (hold-out) per point,
+then **Generate report**. The verdict and per-point residuals appear in the tab.
 
-```python
-LABELS = ["ORIGIN", "P1", "P2", ...]
-
-SENSOR_PTS = np.array([
-    [x_s0, y_s0, z_s0],   # ORIGIN → world (0, 0, 0)
-    [x_s1, y_s1, z_s1],   # P1     → world (100, 0, 0)
-    ...
-], dtype=float)
-
-WORLD_PTS = np.array([
-    [0,   0, 0],
-    [100, 0, 0],
-    ...
-], dtype=float)
-```
-
-### 5.3 Run calibration
+By hand instead:
 
 ```bash
-python -m tools.calibration.calibrate
+# First run creates templates under docs/calibration/sessions/current/ if missing
+python -m tools.calibration.report
 ```
 
-Output includes per-point residuals and RMSE. Target: **RMSE < 10 mm**.
+1. Put **fit** points in `docs/calibration/sessions/current/calibration_points.csv`.
+2. Put **hold-out** points in `docs/calibration/sessions/current/validation_points.csv`.
+3. Run again:
+
+```bash
+python -m tools.calibration.report
+```
+
+Outputs: `report.md`, session `calibration.json`, and per-point error CSVs.
+Target in the report: **Calibration RMSE ≤ 10 mm**.
 
 If RMSE is high (> 20 mm):
 - Check that PPR calibration (Stages 1–4) is complete
 - Verify points are not collinear
 - Re-measure any outlier points
 
-Calibration is saved to `tools/calibration/calibration.json` automatically.
+### 5.3 Optional explicit legacy transform (only after PASS)
+
+Keep the passing `calibration.json` in its session directory. There is no shared/default file and no
+auto-load behavior. To inspect the candidate in the legacy visualizer, pass the session path
+explicitly:
+
+```bash
+python -m tools.position_checker.main --legacy-visualizer --port /dev/ttyUSB0 \
+  --calibration docs/calibration/sessions/current/calibration.json
+```
+
+This optional legacy view is not approval. `tools/evka_gui` does not consume the transform for live
+display. Record explicit acceptance and the consuming application in the final calibration record.
+
+### 5.4 Legacy / quick fit (optional)
+
+For a one-off fit without validation CSVs, edit embedded `SENSOR_PTS` / `WORLD_PTS` in
+`tools/calibration/calibrate.py` and run:
+
+```bash
+python -m tools.calibration.calibrate
+python -m tools.calibration.calibrate --out /tmp/evka_candidate_calibration.json
+```
+
+Prefer the report workflow for field sessions and an auditable PASS/FAIL record. A quick-fit output
+is not a passing session JSON.
 
 ---
 
 ## Stage 6 — Validation
 
-### 6.1 Live position check
+### 6.1 Hold-out points (report)
+
+Hold-outs belong in `validation_points.csv` (Stage 5). The report marks Validation
+**PASS** when max error is **≤ 15 mm**.
+
+Optional: repeat the same label at the same world coordinates to get repeatability stats
+in `report.md`.
+
+### 6.2 Live position check
+
+To inspect the candidate with the legacy transform-aware visualizer:
 
 ```bash
-python -m tools.position_checker --port /dev/ttyUSB0
+python -m tools.position_checker.main --legacy-visualizer --port /dev/ttyUSB0 \
+  --calibration docs/calibration/sessions/current/calibration.json
 ```
 
-The tool auto-loads `tools/calibration/calibration.json` if present.
+Without `--calibration PATH`, the legacy visualizer stays in the sensor frame. A JSON whose report
+verdict is not `PASS` is rejected.
 
-### 6.2 Hold-out test
-
-Move the probe to **3–5 positions that were NOT used in Stage 5** and verify the displayed coordinates match expectations. Acceptable error: **< 15 mm** at distances up to 1 m.
+`tools/evka_gui` is the canonical operator GUI but intentionally remains sensor-frame-only. Use the
+report residuals/hold-outs for candidate validation; do not expect world XYZ in `evka_gui`.
 
 ### 6.3 Flat-plane check
 
-Place the probe at several points on a flat table (all at the same physical height). After calibration, the displayed `z_mm` should be consistent across all table points (variation < 5 mm).
+Place the probe at several points on a flat table (all at the same physical height). In the report or
+a deliberately transform-aware legacy consumer, transformed `z_mm` should be consistent across all
+table points (variation < 5 mm). Canonical `evka_gui` still shows sensor-frame Z.
 
 ---
 
@@ -288,8 +371,8 @@ Place the probe at several points on a flat table (all at the same physical heig
 | 1 — Wire | Extend/retract hysteresis | ≤ 0.5% |
 | 2/3 — Rotary | Per-trial PPR spread | ≤ 1.0% |
 | 2/3 — Rotary | CW vs CCW agreement | ≤ 1.0% |
-| 5 — Endpoint | Kabsch RMSE | < 10 mm |
-| 6 — Validation | Hold-out error | < 15 mm |
+| 5 — Endpoint | Kabsch RMSE (report) | ≤ 10 mm |
+| 6 — Validation | Hold-out max error (report) | ≤ 15 mm |
 | 6 — Validation | Flat-plane Z variation | < 5 mm |
 
 ---
@@ -300,6 +383,7 @@ Re-run the affected stages if:
 - Draw-wire drum is replaced or re-spooled → Stage 1 + 4 + 5
 - Rotary encoder is replaced or coupling slips → Stage 2/3 + 4 + 5
 - Sensor head is physically re-mounted or rotated → Stage 5 only
-- RMSE drifts above 20 mm after normal use → Stage 5 only
+- RMSE drifts above 20 mm after normal use -> inspect repeatability and scale before deciding which
+  stage to repeat
 
 For Stages 1–3 re-calibration: use the web CALIBRATE tab (no reflash needed). Tap **APPLY + SAVE (NVS)** to persist. Only update compile-time constants in `SphericalSensor.h` when the new value is confirmed stable.
