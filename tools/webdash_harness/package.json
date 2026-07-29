@@ -2,7 +2,7 @@
   "name": "evka-webdash-harness",
   "private": true,
   "scripts": {
-    "test": "python build.py && node drive.cjs"
+    "test": "python3 build.py && node drive.cjs"
   },
   "devDependencies": {
     "jsdom": "26.1.0"

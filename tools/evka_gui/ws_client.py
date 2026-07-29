@@ -7,7 +7,21 @@ from urllib.parse import urlparse
 
 from PyQt5.QtCore import QUrl, QEventLoop, QTimer
 from PyQt5.QtNetwork import QAbstractSocket
-from PyQt5.QtWebSockets import QWebSocket
+
+# Distro PyQt5 (Debian/Ubuntu python3-pyqt5) ships QtWebSockets as a separate
+# package, unlike the PyPI wheel. Defer the failure to WsClient() so the serial
+# and TCP transports — which need none of this — still import and work.
+try:
+    from PyQt5.QtWebSockets import QWebSocket
+except ImportError as _exc:  # pragma: no cover - environment dependent
+    QWebSocket = None
+    _WS_IMPORT_ERROR = (
+        "PyQt5.QtWebSockets is unavailable "
+        f"({_exc}). Install PyQt5 from PyPI (pip install -e .) or the distro "
+        "package python3-pyqt5.qtwebsockets. Serial and TCP transports still work."
+    )
+else:
+    _WS_IMPORT_ERROR = None
 
 LineCallback = Callable[[str], None]
 DisconnectCallback = Callable[[str], None]
@@ -35,6 +49,8 @@ class WsClient:
     """QWebSocket client with the same surface as TcpClient."""
 
     def __init__(self) -> None:
+        if QWebSocket is None:
+            raise RuntimeError(_WS_IMPORT_ERROR)
         self._ws: Optional[QWebSocket] = None
         self._on_line: Optional[LineCallback] = None
         self._on_disconnect: Optional[DisconnectCallback] = None

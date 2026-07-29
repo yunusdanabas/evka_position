@@ -30,10 +30,16 @@ jobs:
           pip install -e .
           pip install pytest platformio
 
+      - name: Compile all tools
+        run: python -m compileall tools -q
+
       - name: Run Python tests
         env:
           QT_QPA_PLATFORM: offscreen
         run: pytest -q
+
+      - name: IPT solver self-check
+        run: python -m tools.ipt.solver
 
       - name: Run embedded dashboard harness
         working-directory: tools/webdash_harness
