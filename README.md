@@ -105,19 +105,50 @@ to live telemetry, so its XYZ and IPT results remain in the sensor frame.
 
 The standalone `tools/position_checker` entry points are legacy compatibility tools.
 
-## Firmware Build
+## Firmware Build and Flash
 
-PlatformIO is the supported firmware toolchain:
+PlatformIO is the supported firmware toolchain. Build without uploading:
 
 ```bash
 pio run -e esp32s3_v4
 pio run -e wemos_d1_r32
+pio run -e button_remote
+```
+
+Flash after wiring and safety review. Replace `/dev/ttyACM0` with the correct port
+(`/dev/ttyUSB0` on some boards, `COMx` on Windows). Do not open the same port in two apps at once.
+
+**Main device** (ESP32-S3 v4 carrier — current prototype):
+
+```bash
+pio run -e esp32s3_v4 --target upload --upload-port /dev/ttyACM0
+pio device monitor -e esp32s3_v4
+```
+
+Classic Wemos compatibility target (not for the v4 carrier):
+
+```bash
+pio run -e wemos_d1_r32 --target upload --upload-port /dev/ttyUSB0
+```
+
+**Remote control** (ESP32-C3 pendant, ESP-NOW):
+
+```bash
+pio run -e button_remote --target upload --upload-port /dev/ttyACM0
+pio device monitor -e button_remote
+```
+
+Bench-only pendant test firmware (own AP `REMOTE_TEST`, no ESP-NOW — see
+[`tools/remote_tester/README.md`](tools/remote_tester/README.md)):
+
+```bash
+pio run -e button_remote_test --target upload --upload-port /dev/ttyACM0
 ```
 
 The `test_*` environments use the classic Wemos pin map and must not be flashed onto the v4
 carrier. See [CONTRIBUTING.md](CONTRIBUTING.md) and
 [pcb_design/EVKA_position_v4/FIRMWARE.md](pcb_design/EVKA_position_v4/FIRMWARE.md) before any
-future flash or bring-up work.
+flash or bring-up work.
 
 ## Protocol and Networking
 

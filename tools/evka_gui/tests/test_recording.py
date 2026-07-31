@@ -14,6 +14,12 @@ from PyQt5 import QtWidgets
 from tools.evka_gui.session_utils import format_data_line
 from tools.position_checker.replay_reader import load_replay_frames
 
+# This module builds pyqtgraph plot widgets, which register in a process-global
+# ViewBox registry that every later plot construction walks. Sharing one process
+# across these modules segfaults intermittently, so run this one forked.
+# See docs/CI_PYTEST_SEGFAULT_LOG.md.
+pytestmark = pytest.mark.forked
+
 
 @pytest.fixture(scope="module")
 def qapp():

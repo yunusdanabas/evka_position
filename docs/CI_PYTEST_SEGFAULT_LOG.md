@@ -76,6 +76,33 @@ first three are actively harmful:
    Note `QTimer.singleShot(msec, context, slot)` does **not** exist in PyQt5; that
    overload is Qt6/PySide only, and using it raises `TypeError` at runtime.
 
+## Process isolation — measured 2026-07-29
+
+`pytest-forked` runs each test in a forked child, so the global registry is never
+shared. It **does** fix the crash:
+
+| Variant | Python 3.10 | Runtime |
+|---|---|---|
+| Baseline | 3 / 20 segfaults | ~5 s |
+| `pytest --forked` (blanket) | **0 / 20 segfaults** | ~13 s |
+
+**But blanket `--forked` is unsafe and was rejected.** It silently discards
+failing `unittest` subtests. Verified by fault injection — an assertion in
+`tools/position_checker/tests/test_math_conventions.py` was deliberately broken:
+
+```
+without --forked :  rc=1   7 failed, 14 passed, 4 subtests passed   <- fault caught
+with    --forked :  rc=0            14 passed                        <- fault SWALLOWED
+```
+
+A test setup that hides real regressions is worse than an intermittent crash, so
+forking must not be applied to the whole suite.
+
+**Current (unverified) approach:** fork only the six modules that build pyqtgraph
+widgets, via `pytestmark = pytest.mark.forked`, leaving every other module —
+including the subtest-bearing ones — running normally. See `REMAINING_WORK.md`;
+this is implemented in the working tree but **not yet measured**.
+
 ## Recommended next step
 
 Process isolation is the standard remedy for cross-test Qt/C++ state and is the

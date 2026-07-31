@@ -14,5 +14,9 @@ numpy>=1.24
 PyQt5>=5.15
 pyqtgraph>=0.13
 
-# Test runner (not a runtime dependency)
+# Test runner (not a runtime dependency).
+# pytest-forked isolates the pyqtgraph GUI test modules in their own processes;
+# without it they share a global ViewBox registry and segfault intermittently
+# (see docs/CI_PYTEST_SEGFAULT_LOG.md).
 pytest>=7.0
+pytest-forked>=1.6

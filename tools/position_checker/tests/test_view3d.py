@@ -3,6 +3,13 @@ import sys
 from PyQt5 import QtWidgets
 
 from tools.position_checker.gui import _View3D
+import pytest
+
+# This module builds pyqtgraph plot widgets, which register in a process-global
+# ViewBox registry that every later plot construction walks. Sharing one process
+# across these modules segfaults intermittently, so run this one forked.
+# See docs/CI_PYTEST_SEGFAULT_LOG.md.
+pytestmark = pytest.mark.forked
 
 
 def test_set_data_accepts_empty_lists_from_hidden_trail():

@@ -17,6 +17,12 @@ from tools.evka_gui.calibration import (
     WireTrial,
 )
 
+# This module builds pyqtgraph plot widgets, which register in a process-global
+# ViewBox registry that every later plot construction walks. Sharing one process
+# across these modules segfaults intermittently, so run this one forked.
+# See docs/CI_PYTEST_SEGFAULT_LOG.md.
+pytestmark = pytest.mark.forked
+
 
 @pytest.fixture(scope="module")
 def qapp():

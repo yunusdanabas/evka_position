@@ -59,6 +59,50 @@ Sabit şifreler ve TCP/WebSocket komutları uygulama seviyesinde kimlik doğrula
 yalnızca izole, güvenilir laboratuvar ağında kullanın. Port 80/8080'i internete veya güvenilmeyen bir
 LAN'a açmayın.
 
+## Firmware Derleme ve Yükleme
+
+Desteklenen araç zinciri PlatformIO'dur. Yalnızca derleme:
+
+```bash
+pio run -e esp32s3_v4
+pio run -e wemos_d1_r32
+pio run -e button_remote
+```
+
+Kablo ve güvenlik kontrolünden sonra yükleyin. `/dev/ttyACM0` yerine doğru portu kullanın
+(bazı kartlarda `/dev/ttyUSB0`, Windows'ta `COMx`). Aynı portu iki uygulamada birden açmayın.
+
+**Ana cihaz** (ESP32-S3 v4 taşıyıcı — mevcut prototip):
+
+```bash
+pio run -e esp32s3_v4 --target upload --upload-port /dev/ttyACM0
+pio device monitor -e esp32s3_v4
+```
+
+Klasik Wemos uyumluluk hedefi (v4 taşıyıcıya yüklenmez):
+
+```bash
+pio run -e wemos_d1_r32 --target upload --upload-port /dev/ttyUSB0
+```
+
+**Uzaktan kumanda** (ESP32-C3 pendant, ESP-NOW):
+
+```bash
+pio run -e button_remote --target upload --upload-port /dev/ttyACM0
+pio device monitor -e button_remote
+```
+
+Tezgah test firmware'i (kendi AP'si `REMOTE_TEST`, ESP-NOW yok — bkz.
+[`tools/remote_tester/README.md`](tools/remote_tester/README.md)):
+
+```bash
+pio run -e button_remote_test --target upload --upload-port /dev/ttyACM0
+```
+
+`test_*` ortamları klasik Wemos pin haritasını kullanır; v4 taşıyıcıya yüklenmemelidir.
+Ayrıntı: [CONTRIBUTING.md](CONTRIBUTING.md) ve
+[pcb_design/EVKA_position_v4/FIRMWARE.md](pcb_design/EVKA_position_v4/FIRMWARE.md).
+
 ## Standart Operatör Arayüzü
 
 Depo kökünden:
