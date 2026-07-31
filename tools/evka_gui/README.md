@@ -79,6 +79,21 @@ Modules: `gui.py`, `model.py`, `transport.py`, `ws_client.py`, `protocol_log.py`
 `session_utils.py`, `replay_utils.py`, `calibration.py`, `ipt_panel.py`, `ipt_window.py`,
 `wifi_window.py`, `remote_window.py`. Tests: `tests/`.
 
+## Windows packaging
+
+To ship this GUI to users who have no Python installed, see
+[`packaging/evka_gui/WINDOWS.md`](../../packaging/evka_gui/WINDOWS.md) — a PyInstaller
+one-folder build producing `EvkaGUI.exe`, with verification and troubleshooting steps. Build it
+**on Windows** from the repo root (PyInstaller cannot cross-compile):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File packaging\evka_gui\build_windows.ps1
+```
+
+Frozen builds have no repo root, so calibration sessions and `calibration.json` go to
+`%LOCALAPPDATA%\evka_position\` instead — see `_project_root()` in
+[`tools/calibration/report.py`](../calibration/report.py).
+
 Feature matrix and design history: [`tools/README.md`](../README.md) and
 [`docs/gui_unification/`](../../docs/gui_unification/).
 

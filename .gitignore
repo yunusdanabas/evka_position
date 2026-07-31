@@ -19,6 +19,10 @@ dist/
 *.egg
 .venv/
 venv/
+# Throwaway clean venv built by packaging/evka_gui/build_windows.ps1.
+# Anchored on purpose: unanchored rules in this file have repeatedly hidden
+# real tracked directories.
+/.venv-build/
 
 # IDE
 .vscode/

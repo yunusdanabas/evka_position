@@ -12,6 +12,8 @@ from tools.ipt.capture import IptCapture
 from tools.ipt.solver import COND_BLOCK, COND_WARN, MIN_POINTS, solve_ipt
 from tools.position_checker.parser import parse_line
 
+from .session_utils import default_export_path
+
 _STATUS_COLOR = {
     "ok": "#00ff88",
     "warn": "#ffd700",
@@ -276,7 +278,7 @@ class IptPanel(QtWidgets.QGroupBox):
             self._set_status("No capture points to export.", "#ff4444")
             return
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
-            self, "Export IPT capture", "ipt_capture.csv", "CSV (*.csv)"
+            self, "Export IPT capture", default_export_path("ipt_capture.csv"), "CSV (*.csv)"
         )
         if not path:
             return

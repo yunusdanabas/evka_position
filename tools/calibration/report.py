@@ -11,6 +11,8 @@ from __future__ import annotations
 import csv
 import json
 import math
+import os
+import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -21,7 +23,29 @@ import numpy as np
 from tools.calibration.calibrate import kabsch
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+def _project_root() -> Path:
+    """Repo root when running from source; a writable user dir when frozen.
+
+    A PyInstaller bundle has no repo root — ``__file__`` points inside the
+    (read-only, and on onefile temporary) bundle directory, so calibration
+    sessions and the deployed calibration.json would be written somewhere the
+    user can neither find nor keep. Redirect those to the platform's per-user
+    data directory instead.
+    """
+    if getattr(sys, "frozen", False):
+        base = (
+            os.environ.get("LOCALAPPDATA")              # Windows, always set
+            or os.environ.get("XDG_DATA_HOME")          # Linux, if configured
+            or Path.home() / ".local" / "share"         # Linux default
+        )
+        # Not bare ~/evka_position: on a dev box where the repo is checked out
+        # under $HOME that path is the repo itself, and a frozen build would
+        # write user data straight into the working tree.
+        return Path(base) / "evka_position"
+    return Path(__file__).resolve().parents[2]
+
+
+PROJECT_ROOT = _project_root()
 DEFAULT_SESSION_DIR = PROJECT_ROOT / "docs" / "calibration" / "sessions" / "current"
 CALIBRATION_CSV = "calibration_points.csv"
 VALIDATION_CSV = "validation_points.csv"

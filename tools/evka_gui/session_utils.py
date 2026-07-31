@@ -6,10 +6,25 @@ import csv
 import io
 import json
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 SnapshotRow = Tuple[int, float, float, float, str]
 SavedPointRow = Tuple[str, float, float, float]
+
+
+def default_export_path(filename: str) -> str:
+    """Absolute path in the user's Documents dir for a QFileDialog default.
+
+    A bare filename resolves against the process cwd, which for a frozen Windows
+    build is the install folder — users then can't find what they exported (and
+    on a read-only install, can't write it at all). QStandardPaths gives the real
+    localised Documents dir on every platform.
+    """
+    from PyQt5 import QtCore  # noqa: PLC0415 — keeps this module importable without a QApplication
+
+    docs = QtCore.QStandardPaths.writableLocation(QtCore.QStandardPaths.DocumentsLocation)
+    return str(Path(docs) / filename) if docs else filename
 
 
 def format_data_line(

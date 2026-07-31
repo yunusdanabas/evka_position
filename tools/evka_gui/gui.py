@@ -51,6 +51,7 @@ from .protocol_log import ProtocolLogPane
 from .remote_window import RemoteTesterWindow
 from .replay_utils import interval_for_speed
 from .session_utils import (
+    default_export_path,
     delete_profile,
     format_constants_strip,
     format_data_line,
@@ -1200,7 +1201,7 @@ class EvkaWindow(QtWidgets.QMainWindow):
     # -------------------------------------------------------------- record
     def _toggle_record(self, on: bool) -> None:
         if on:
-            default = f"evka_session_{datetime.now():%Y%m%d_%H%M%S}.csv"
+            default = default_export_path(f"evka_session_{datetime.now():%Y%m%d_%H%M%S}.csv")
             path, _ = QtWidgets.QFileDialog.getSaveFileName(
                 self, "Record session to…", default, "CSV / DATA dump (*.csv)"
             )
@@ -1693,7 +1694,8 @@ class EvkaWindow(QtWidgets.QMainWindow):
             self._warn("No snapshots to export.")
             return
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
-            self, "Export snapshots", f"evka_snapshots_{int(time.time())}.csv", "CSV (*.csv)"
+            self, "Export snapshots",
+            default_export_path(f"evka_snapshots_{int(time.time())}.csv"), "CSV (*.csv)"
         )
         if not path:
             return
@@ -1705,7 +1707,8 @@ class EvkaWindow(QtWidgets.QMainWindow):
             self._warn("No saved points to export.")
             return
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
-            self, "Export saved points", f"evka_points_{int(time.time())}.csv", "CSV (*.csv)"
+            self, "Export saved points",
+            default_export_path(f"evka_points_{int(time.time())}.csv"), "CSV (*.csv)"
         )
         if not path:
             return
@@ -1881,7 +1884,8 @@ class EvkaWindow(QtWidgets.QMainWindow):
             self._warn("No saved points to export.")
             return
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
-            self, "Export session", f"evka_session_{int(time.time())}.csv", "CSV (*.csv)"
+            self, "Export session",
+            default_export_path(f"evka_session_{int(time.time())}.csv"), "CSV (*.csv)"
         )
         if not path:
             return
