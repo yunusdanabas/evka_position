@@ -517,6 +517,10 @@ let rotX=-30,rotY=45,zoom=1.0;
 let activePointers=new Map();
 let frozen=false,showAxes=true;
 let origin=null,savedPts=[],lastPos={x:0,y:0,z:0},_saveBusy=false;
+// Last [wire_mm, theta_deg, phi_deg] off the wire, attached to points and snapshots on
+// export. x/y/z are derived from this triple and EMA-filtered, so the position alone
+// cannot be traced back to what the encoders read. null until the first frame.
+let lastWtp=null;
 let _dirty2d=false,_last2d=0,_dirty3d=false;
 
 // Software zero offsets
@@ -781,7 +785,7 @@ function connect(){
  wsConnecting=true;
  ws=new WebSocket("ws://"+location.host+"/ws");
  ws.onopen=function(){resetCalibrationRequests();wsConnecting=false;wsDelay=1000;setLed("ok");setStatus("Connected");};
- ws.onclose=function(){resetCalibrationRequests();wsConnecting=false;ws=null;setLed("warn");
+ ws.onclose=function(){resetCalibrationRequests();wsConnecting=false;ws=null;lastWtp=null;setLed("warn");
   setStatus("Reconnecting in "+(wsDelay/1000).toFixed(0)+"s\u2026");
   setTimeout(connect,wsDelay);wsDelay=Math.min(wsDelay*2,30000);};
  ws.onerror=function(){ws.close();};
@@ -809,6 +813,7 @@ function onWsMessage(e){
    const x=parseFloat(p[0]),y=parseFloat(p[1]),z=parseFloat(p[2]);
    const r=parseFloat(p[3]),th=parseFloat(p[4]),ph=parseFloat(p[5]);
    const v=parseInt(p[6]),fr=parseInt(p[7]);
+   lastWtp=[r,th,ph];
    trail.push([x,y,z]);
    if(trail.length>MAX_TRAIL)trail.shift();
    // IPT taps x,y,z straight off the wire — the RAW sensor frame, before any
@@ -907,7 +912,7 @@ function onWsMessage(e){
   if(p.length>=7){
    const idx=parseInt(p[0]);
    const x=parseFloat(p[1]),y=parseFloat(p[2]),z=parseFloat(p[3]);
-   savedPts.push({n:idx,x:x,y:y,z:z});
+   savedPts.push({n:idx,x:x,y:y,z:z,wtp:lastWtp});
    document.getElementById("savedList").innerHTML+="#"+idx+": "+x.toFixed(1)+","+y.toFixed(1)+","+z.toFixed(1)+" mm<br>";
    document.getElementById("savedList").scrollTop=99999;
    document.getElementById("btn-del-point").disabled=false;
@@ -1069,6 +1074,13 @@ function resetMinMax(){
 }
 
 // Snapshots
+// Three trailing CSV cells for a [wire,theta,phi] triple. Blank when there was no
+// reading — blank stays distinguishable from a real 0.0. Matches the desktop's
+// precision (2dp mm, 3dp deg), which is the firmware's own DATA precision.
+const WTP_HEADERS="wire_mm,theta_deg,phi_deg";
+function wtpCells(w){
+ return w?(","+w[0].toFixed(2)+","+w[1].toFixed(3)+","+w[2].toFixed(3)):",,,";
+}
 // Shared by every CSV export on this page (snapshots, session, IPT capture).
 function downloadCsv(csv,name){
  const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
@@ -1079,9 +1091,9 @@ function downloadCsv(csv,name){
 // `frame` records which coordinate frame the row is in. Manual captures follow the
 // display (so they carry the soft-zero offset); IPT targets are always sensor-frame.
 // Without this column a CSV could silently mix the two.
-function addSnapshot(x,y,z,frame){
+function addSnapshot(x,y,z,frame,wtp){
  const n=snapshots.length+1;
- snapshots.push({n:n,x:x,y:y,z:z,ts:new Date().toLocaleTimeString(),frame:frame});
+ snapshots.push({n:n,x:x,y:y,z:z,ts:new Date().toLocaleTimeString(),frame:frame,wtp:wtp||null});
  document.getElementById("snap-list").innerHTML+="#"+n+": "+x.toFixed(1)+","+y.toFixed(1)+","+z.toFixed(1)+
    (frame==="sensor"?" <span style='color:#8899aa'>[sensor]</span>":"")+"<br>";
  document.getElementById("snap-list").scrollTop=99999;
@@ -1093,7 +1105,7 @@ function captureSnapshot(){
  const dx=szActive?(lastPos.x-szOff.x):lastPos.x;
  const dy=szActive?(lastPos.y-szOff.y):lastPos.y;
  const dz=szActive?(lastPos.z-szOff.z):lastPos.z;
- addSnapshot(dx,dy,dz,szActive?"display":"sensor");
+ addSnapshot(dx,dy,dz,szActive?"display":"sensor",lastWtp);
 }
 function clearSnapshots(){
  snapshots=[];
@@ -1103,9 +1115,10 @@ function clearSnapshots(){
 }
 function exportSnapshots(){
  if(!snapshots.length)return;
- let csv="#,X_mm,Y_mm,Z_mm,Time,Frame\r\n";
+ let csv="#,X_mm,Y_mm,Z_mm,Time,Frame,"+WTP_HEADERS+"\r\n";
  snapshots.forEach(function(s){
-  csv+=s.n+","+s.x.toFixed(3)+","+s.y.toFixed(3)+","+s.z.toFixed(3)+","+s.ts+","+(s.frame||"sensor")+"\r\n";
+  csv+=s.n+","+s.x.toFixed(3)+","+s.y.toFixed(3)+","+s.z.toFixed(3)+","+s.ts+","+(s.frame||"sensor")+
+    wtpCells(s.wtp)+"\r\n";
  });
  downloadCsv(csv,"snapshots_"+Date.now()+".csv");
 }
@@ -1159,15 +1172,14 @@ function delPoint(){
 function endSession(){
  if(!savedPts.length)return;
  const ox=origin?origin.x:0,oy=origin?origin.y:0,oz=origin?origin.z:0;
- let csv="label,x_mm,y_mm,z_mm,rel_x_mm,rel_y_mm,rel_z_mm\r\n";
- if(origin)csv+="ORIGIN,"+ox.toFixed(3)+","+oy.toFixed(3)+","+oz.toFixed(3)+",0,0,0\r\n";
+ let csv="label,x_mm,y_mm,z_mm,rel_x_mm,rel_y_mm,rel_z_mm,"+WTP_HEADERS+"\r\n";
+ // ORIGIN is a stored coordinate, not a sample — no reading belongs to it.
+ if(origin)csv+="ORIGIN,"+ox.toFixed(3)+","+oy.toFixed(3)+","+oz.toFixed(3)+",0,0,0"+wtpCells(null)+"\r\n";
  savedPts.forEach(function(p){
-  csv+="P"+p.n+","+p.x.toFixed(3)+","+p.y.toFixed(3)+","+p.z.toFixed(3)+","+(p.x-ox).toFixed(3)+","+(p.y-oy).toFixed(3)+","+(p.z-oz).toFixed(3)+"\r\n";
+  csv+="P"+p.n+","+p.x.toFixed(3)+","+p.y.toFixed(3)+","+p.z.toFixed(3)+","+(p.x-ox).toFixed(3)+","+(p.y-oy).toFixed(3)+","+(p.z-oz).toFixed(3)+
+    wtpCells(p.wtp)+"\r\n";
  });
- const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
- const url=URL.createObjectURL(blob);
- const a=document.createElement("a");a.href=url;a.download="evka_"+Date.now()+".csv";
- document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+ downloadCsv(csv,"evka_"+Date.now()+".csv");
  // Reset session state
  savedPts=[];origin=null;
  document.getElementById("btn-origin").textContent="SAVE ORIGIN";
@@ -1832,7 +1844,8 @@ function iptExportCsv(){
 }
 function iptAddSnapshot(){
  if(!iptSol||!iptSol.ok||!iptUsable)return;
- addSnapshot(iptSol.P[0],iptSol.P[1],iptSol.P[2],"sensor");
+ // No triple: P is the fitted IPT solution, not a sampled position.
+ addSnapshot(iptSol.P[0],iptSol.P[1],iptSol.P[2],"sensor",null);
 }
 
 // ---- overlays ----

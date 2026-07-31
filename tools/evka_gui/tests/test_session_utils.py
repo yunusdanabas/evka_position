@@ -46,18 +46,39 @@ def test_format_snapshot_row():
     assert row[0] == 1
     assert row[1:4] == (10.0, 20.0, 30.0)
     assert row[4]
+    assert row[5] is None
+
+
+def test_format_snapshot_row_keeps_sensor():
+    row = format_snapshot_row(1, 10.0, 20.0, 30.0, (412.3, 15.24, -3.11))
+    assert row[5] == (412.3, 15.24, -3.11)
 
 
 def test_snapshots_csv_rows():
-    rows = snapshots_to_csv_rows([(1, 1.0, 2.0, 3.0, "12:00:00")])
-    assert rows[0] == ["#", "X_mm", "Y_mm", "Z_mm", "Time"]
+    rows = snapshots_to_csv_rows([(1, 1.0, 2.0, 3.0, "12:00:00", None)])
+    assert rows[0] == ["#", "X_mm", "Y_mm", "Z_mm", "Time", "wire_mm", "theta_deg", "phi_deg"]
     assert rows[1][0] == "1"
+    # Missing reading is blank, never 0.0 — a real 0.0 must stay distinguishable.
+    assert rows[1][5:] == ["", "", ""]
+
+
+def test_snapshots_csv_rows_with_sensor():
+    rows = snapshots_to_csv_rows([(1, 1.0, 2.0, 3.0, "12:00:00", (412.3, 15.24, -3.11))])
+    assert rows[1][5:] == ["412.30", "15.240", "-3.110"]
 
 
 def test_saved_points_with_origin():
-    rows = saved_points_to_csv_rows([("0", 1.0, 2.0, 3.0)], origin=(0.0, 0.0, 0.0))
+    rows = saved_points_to_csv_rows([("0", 1.0, 2.0, 3.0, None)], origin=(0.0, 0.0, 0.0))
     assert rows[0][0] == "label"
+    assert rows[0][-3:] == ["wire_mm", "theta_deg", "phi_deg"]
     assert rows[1][0] == "ORIGIN"
+    assert rows[1][-3:] == ["", "", ""]
+    assert rows[2][-3:] == ["", "", ""]
+
+
+def test_saved_points_with_sensor():
+    rows = saved_points_to_csv_rows([("0", 1.0, 2.0, 3.0, (412.3, 15.24, -3.11))])
+    assert rows[1][-3:] == ["412.30", "15.240", "-3.110"]
 
 
 def test_format_constants_strip():
@@ -79,18 +100,22 @@ def test_replay_seek_indices():
 
 def test_write_snapshots_csv(tmp_path):
     path = tmp_path / "snap.csv"
-    n = write_snapshots_csv(str(path), [(1, 1.0, 2.0, 3.0, "t")])
+    n = write_snapshots_csv(str(path), [(1, 1.0, 2.0, 3.0, "t", (5.0, 6.0, 7.0))])
     assert n == 1
-    assert path.read_text(encoding="utf-8").startswith("#,X_mm")
+    text = path.read_text(encoding="utf-8")
+    assert text.startswith("#,X_mm,Y_mm,Z_mm,Time,wire_mm,theta_deg,phi_deg")
+    assert "1,1.000,2.000,3.000,t,5.00,6.000,7.000" in text
 
 
 def test_write_saved_points_csv(tmp_path):
     path = tmp_path / "points.csv"
-    n = write_saved_points_csv(str(path), [("0", 2.0, 3.0, 4.0)], origin=(1.0, 1.0, 1.0))
+    n = write_saved_points_csv(
+        str(path), [("0", 2.0, 3.0, 4.0, (5.0, 6.0, 7.0))], origin=(1.0, 1.0, 1.0)
+    )
     text = path.read_text(encoding="utf-8")
     assert n == 1
     assert "ORIGIN" in text
-    assert "P0,2.000,3.000,4.000,1.000,2.000,3.000" in text
+    assert "P0,2.000,3.000,4.000,1.000,2.000,3.000,5.00,6.000,7.000" in text
 
 
 def test_profiles_round_trip_and_bad_json():

@@ -51,7 +51,12 @@ from tools.evka_gui.model import (
     ingest_line,
 )
 from tools.evka_gui.protocol_log import ProtocolLogPane
-from tools.evka_gui.session_utils import format_constants_strip, write_saved_points_csv
+from tools.evka_gui.session_utils import (
+    SavedPointRow,
+    Sensor,
+    format_constants_strip,
+    write_saved_points_csv,
+)
 from tools.evka_gui.transport import SerialLineReader, TcpClient, WsClient, next_backoff
 
 CMD_DEFAULT_WS_PORT = 80
@@ -118,7 +123,10 @@ class CalibrationApp(QtWidgets.QMainWindow):
         self._state = CalibrationState()
         self._last_sensor: Tuple[float, float, float] = (0.0, 0.0, 0.0)
         self._has_sensor = False
-        self._saved_point_rows: List[Tuple[str, float, float, float]] = []
+        self._saved_point_rows: List[SavedPointRow] = []
+        # (wire_mm, theta_deg, phi_deg) latched from the stream — note _last_sensor
+        # above is the sensor *XYZ* frame, a different thing.
+        self._last_wtp: Sensor = None
 
         self._session_dir = Path(session_dir) if session_dir else report.DEFAULT_SESSION_DIR
         self._points: List[Tuple[str, report.PointPair]] = []
@@ -988,6 +996,7 @@ class CalibrationApp(QtWidgets.QMainWindow):
         self._ppr_pending = None
         self._wire_pending = None
         self._has_sensor = False
+        self._last_wtp = None
         for lbl in self._axis_labels.values():
             lbl.setText("—")
         self._lbl_r.setText("R —")
@@ -1124,6 +1133,7 @@ class CalibrationApp(QtWidgets.QMainWindow):
         self._axis_labels["z"].setText(f"{z:.2f}")
 
     def _on_sensor(self, r, theta, phi, valid, frame) -> None:
+        self._last_wtp = (r, theta, phi)
         self._lbl_r.setText(f"R {r:.2f}")
         self._lbl_theta.setText(f"θ {theta:.2f}")
         self._lbl_phi.setText(f"φ {phi:.2f}")
@@ -1164,7 +1174,7 @@ class CalibrationApp(QtWidgets.QMainWindow):
             idx, wx, wy, wz = parts[0], float(parts[1]), float(parts[2]), float(parts[3])
         except ValueError:
             return
-        self._saved_point_rows.append((idx, wx, wy, wz))
+        self._saved_point_rows.append((idx, wx, wy, wz, self._last_wtp))
         self._pts_list.addItem(f"#{idx}: {wx:.2f}, {wy:.2f}, {wz:.2f} mm")
 
     def _on_del_point(self, line: str) -> None:

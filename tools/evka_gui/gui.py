@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import csv
 import math
 import queue
 import sys
@@ -51,6 +50,9 @@ from .protocol_log import ProtocolLogPane
 from .remote_window import RemoteTesterWindow
 from .replay_utils import interval_for_speed
 from .session_utils import (
+    SavedPointRow,
+    Sensor,
+    SnapshotRow,
     default_export_path,
     delete_profile,
     format_constants_strip,
@@ -138,9 +140,10 @@ class EvkaWindow(QtWidgets.QMainWindow):
         self._wifi_ssid_cached = ""
         self._wifi_pass_cached = ""
         self._has_xyz = False
-        self._saved_point_rows: List[Tuple[str, float, float, float]] = []
-        self._snapshots: List[Tuple[int, float, float, float, str]] = []
+        self._saved_point_rows: List[SavedPointRow] = []
+        self._snapshots: List[SnapshotRow] = []
         self._snapshot_idx = 0
+        self._last_sensor: Sensor = None
         self._origin: Optional[Tuple[float, float, float]] = None
         self._sta_ip_cached = ""
         self._constants_line = ""
@@ -1060,6 +1063,7 @@ class EvkaWindow(QtWidgets.QMainWindow):
         self._saved_point_rows.clear()
         self._snapshots.clear()
         self._snapshot_idx = 0
+        self._last_sensor = None
         self._constants_line = ""
         self._raw_counts_line = ""
         for axis, lbl in self._axis_labels.items():
@@ -1388,6 +1392,9 @@ class EvkaWindow(QtWidgets.QMainWindow):
             self._cal_window.handle_position(x, y, z)
 
     def _on_sensor(self, r, theta, phi, valid, frame) -> None:
+        # Latch the raw stream triple before any software-zero transform, so exported
+        # points carry what the encoders actually read (same invariant as recording).
+        self._last_sensor = (r, theta, phi)
         self._state.is_valid = bool(valid)
         if not self._display.relative_zero_active:
             self._lbl_r.setText(f"R {r:.2f}")
@@ -1435,7 +1442,7 @@ class EvkaWindow(QtWidgets.QMainWindow):
                 idx, wx, wy, wz = parts[0], float(parts[1]), float(parts[2]), float(parts[3])
             except ValueError:
                 return
-            self._saved_point_rows.append((idx, wx, wy, wz))
+            self._saved_point_rows.append((idx, wx, wy, wz, self._last_sensor))
             item = QtWidgets.QListWidgetItem(self._display.format_point_entry(idx, wx, wy, wz))
             item.setData(QtCore.Qt.UserRole, (idx, wx, wy, wz))
             self._pts_list.addItem(item)
@@ -1628,8 +1635,8 @@ class EvkaWindow(QtWidgets.QMainWindow):
             d = math.sqrt((x - ox) ** 2 + (y - oy) ** 2 + (z - oz) ** 2)
             self._lbl_dist_origin.setText(f"Distance from origin: {d:.1f} mm")
         if len(self._saved_point_rows) >= 2:
-            _, ax, ay, az = self._saved_point_rows[-2]
-            _, bx, by, bz = self._saved_point_rows[-1]
+            ax, ay, az = self._saved_point_rows[-2][1:4]
+            bx, by, bz = self._saved_point_rows[-1][1:4]
             d = math.sqrt((bx - ax) ** 2 + (by - ay) ** 2 + (bz - az) ** 2)
             self._lbl_dist_last.setText(f"Distance last 2 points: {d:.1f} mm")
         else:
@@ -1677,11 +1684,14 @@ class EvkaWindow(QtWidgets.QMainWindow):
             return
         x, y, z = self._raw_position()
         self._snapshot_idx += 1
-        self._snapshots.append(format_snapshot_row(self._snapshot_idx, x, y, z))
+        self._snapshots.append(
+            format_snapshot_row(self._snapshot_idx, x, y, z, self._last_sensor)
+        )
         self._set_status(f"Snapshot #{self._snapshot_idx} captured.", "#00ff88")
 
     def _add_ipt_snapshot(self, x: float, y: float, z: float) -> None:
         self._snapshot_idx += 1
+        # No sensor triple: P is the fitted IPT solution, not a sampled position.
         self._snapshots.append(format_snapshot_row(self._snapshot_idx, x, y, z))
 
     def _clear_snapshots(self) -> None:
@@ -1889,18 +1899,8 @@ class EvkaWindow(QtWidgets.QMainWindow):
         )
         if not path:
             return
-        with open(path, "w", encoding="utf-8", newline="") as f:
-            w = csv.writer(f)
-            w.writerow(["label", "x_mm", "y_mm", "z_mm", "rel_x_mm", "rel_y_mm", "rel_z_mm"])
-            ox, oy, oz = self._origin or (0.0, 0.0, 0.0)
-            if self._origin is not None:
-                w.writerow(["ORIGIN", f"{ox:.3f}", f"{oy:.3f}", f"{oz:.3f}", "0.000", "0.000", "0.000"])
-            for idx, x, y, z in self._saved_point_rows:
-                w.writerow([
-                    f"P{idx}", f"{x:.3f}", f"{y:.3f}", f"{z:.3f}",
-                    f"{x - ox:.3f}", f"{y - oy:.3f}", f"{z - oz:.3f}",
-                ])
-        self._set_status(f"Exported {len(self._saved_point_rows)} points.", "#00ff88")
+        n = write_saved_points_csv(path, self._saved_point_rows, self._origin)
+        self._set_status(f"Exported {n} points.", "#00ff88")
 
     def _clear_trail(self) -> None:
         self._trail.clear()
@@ -1940,7 +1940,7 @@ class EvkaWindow(QtWidgets.QMainWindow):
 
     def _refresh_reference_overlays(self) -> None:
         origin = self._display_xyz(*self._origin) if self._origin is not None else None
-        saved = [self._display_xyz(x, y, z) for _, x, y, z in self._saved_point_rows]
+        saved = [self._display_xyz(*row[1:4]) for row in self._saved_point_rows]
         plot_values = {
             "xy": ((origin[0], origin[1]) if origin else None,
                    ([p[0] for p in saved], [p[1] for p in saved])),

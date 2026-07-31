@@ -129,6 +129,32 @@ setTimeout(() => {
   check("recorded file is raw DATA lines (replayable as-is)",
         blob.split("\n")[0].startsWith("DATA,1.00,2.00,3.00"), blob.split("\n")[0]);
 
+  // ---- Exports carry the encoder readings, not just the derived x/y/z ----
+  // The IPT snapshot above was added before any DATA frame reached the main panel,
+  // so it doubles as the "no reading available" case.
+  win.exportSnapshots();
+  let csv = win.__lastBlob || "";
+  check("snapshot CSV header ends with the sensor columns",
+        csv.split("\r\n")[0].endsWith("wire_mm,theta_deg,phi_deg"), csv.split("\r\n")[0]);
+  check("IPT-derived snapshot has blank sensor cells (a fit is not a sample)",
+        csv.split("\r\n")[1].endsWith(",,,"), csv.split("\r\n")[1]);
+
+  win.__feed("DATA,120.50,-40.10,88.30,412.30,15.240,-3.110,1,884,12043");
+  win.captureSnapshot();
+  win.exportSnapshots();
+  csv = win.__lastBlob || "";
+  const snapRow = csv.trim().split("\r\n").pop();
+  check("captured snapshot carries the latched wire/theta/phi",
+        snapRow.endsWith(",412.30,15.240,-3.110"), snapRow);
+
+  win.__feed("POINT,0,120.50,-40.10,88.30,0,0,0");
+  win.endSession();
+  csv = win.__lastBlob || "";
+  check("session CSV header ends with the sensor columns",
+        csv.split("\r\n")[0].endsWith("wire_mm,theta_deg,phi_deg"), csv.split("\r\n")[0]);
+  check("saved point carries the latched wire/theta/phi",
+        csv.split("\r\n")[1].endsWith(",412.30,15.240,-3.110"), csv.split("\r\n")[1]);
+
   // ---- Protocol log ----
   win.__feed("ACK:PONG");
   win.__feed("ERR:UNKNOWN_CMD");

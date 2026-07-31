@@ -9,8 +9,21 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-SnapshotRow = Tuple[int, float, float, float, str]
-SavedPointRow = Tuple[str, float, float, float]
+# (wire_mm, theta_deg, phi_deg) latched from the live stream, or None when no frame
+# was available (before the first frame, or for a computed point like the IPT solution).
+Sensor = Optional[Tuple[float, float, float]]
+SnapshotRow = Tuple[int, float, float, float, str, Sensor]
+SavedPointRow = Tuple[str, float, float, float, Sensor]
+
+SENSOR_HEADERS = ["wire_mm", "theta_deg", "phi_deg"]
+
+
+def _sensor_cells(sensor: Sensor) -> List[str]:
+    """Three CSV cells; blank when there was no reading — blank is not 0.0."""
+    if sensor is None:
+        return ["", "", ""]
+    wire, theta, phi = sensor
+    return [f"{wire:.2f}", f"{theta:.3f}", f"{phi:.3f}"]
 
 
 def default_export_path(filename: str) -> str:
@@ -48,15 +61,19 @@ def format_data_line(
     )
 
 
-def format_snapshot_row(index: int, x: float, y: float, z: float) -> SnapshotRow:
+def format_snapshot_row(
+    index: int, x: float, y: float, z: float, sensor: Sensor = None,
+) -> SnapshotRow:
     ts = datetime.now().strftime("%H:%M:%S")
-    return (index, x, y, z, ts)
+    return (index, x, y, z, ts, sensor)
 
 
 def snapshots_to_csv_rows(snapshots: Sequence[SnapshotRow]) -> List[List[str]]:
-    rows = [["#", "X_mm", "Y_mm", "Z_mm", "Time"]]
-    for idx, x, y, z, ts in snapshots:
-        rows.append([str(idx), f"{x:.3f}", f"{y:.3f}", f"{z:.3f}", ts])
+    rows = [["#", "X_mm", "Y_mm", "Z_mm", "Time"] + SENSOR_HEADERS]
+    for idx, x, y, z, ts, sensor in snapshots:
+        rows.append(
+            [str(idx), f"{x:.3f}", f"{y:.3f}", f"{z:.3f}", ts] + _sensor_cells(sensor)
+        )
     return rows
 
 
@@ -71,15 +88,21 @@ def saved_points_to_csv_rows(
     points: Sequence[SavedPointRow],
     origin: Optional[Tuple[float, float, float]] = None,
 ) -> List[List[str]]:
-    rows = [["label", "x_mm", "y_mm", "z_mm", "rel_x_mm", "rel_y_mm", "rel_z_mm"]]
+    rows = [
+        ["label", "x_mm", "y_mm", "z_mm", "rel_x_mm", "rel_y_mm", "rel_z_mm"] + SENSOR_HEADERS
+    ]
     ox, oy, oz = origin or (0.0, 0.0, 0.0)
     if origin is not None:
-        rows.append(["ORIGIN", f"{ox:.3f}", f"{oy:.3f}", f"{oz:.3f}", "0.000", "0.000", "0.000"])
-    for idx, x, y, z in points:
+        # ORIGIN is a stored coordinate, not a sample — no sensor reading belongs to it.
+        rows.append(
+            ["ORIGIN", f"{ox:.3f}", f"{oy:.3f}", f"{oz:.3f}", "0.000", "0.000", "0.000"]
+            + _sensor_cells(None)
+        )
+    for idx, x, y, z, sensor in points:
         rows.append([
             f"P{idx}", f"{x:.3f}", f"{y:.3f}", f"{z:.3f}",
             f"{x - ox:.3f}", f"{y - oy:.3f}", f"{z - oz:.3f}",
-        ])
+        ] + _sensor_cells(sensor))
     return rows
 
 
