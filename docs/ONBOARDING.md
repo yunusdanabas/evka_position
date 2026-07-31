@@ -24,7 +24,7 @@ Read [../HANDOFF.md](../HANDOFF.md), [ARCHITECTURE.md](ARCHITECTURE.md), and
 
 ## Workstation Setup
 
-Host-tools package version `0.2.0` requires Python 3.10+. PlatformIO is required only for firmware
+Host-tools package version `0.2.1` requires Python 3.10+. PlatformIO is required only for firmware
 work.
 
 ```bash

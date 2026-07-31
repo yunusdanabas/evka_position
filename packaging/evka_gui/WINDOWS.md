@@ -14,7 +14,7 @@ the value here is in the verification and troubleshooting sections.
 |---|---|
 | **Input** | This repo, on a Windows machine |
 | **Output** | `dist\EvkaGUI\` — a ~250–350 MB folder containing `EvkaGUI.exe` + its own Python + Qt DLLs |
-| **Shippable unit** | `EvkaGUI-win64-v0.2.0.zip` — that folder, zipped |
+| **Shippable unit** | `EvkaGUI-win64-v0.2.1.zip` — that folder, zipped |
 | **User experience** | Unzip → open folder → double-click `EvkaGUI.exe` |
 
 The zipped folder is completely self-contained. It does not read anything from this repo at
@@ -90,7 +90,7 @@ Knowing this makes failures diagnosable instead of mysterious:
 ### If it succeeds
 
 ```
-Built: C:\...\evka_position\EvkaGUI-win64-v0.2.0.zip (<size> MB)
+Built: C:\...\evka_position\EvkaGUI-win64-v0.2.1.zip (<size> MB)
 Now smoke-test on a clean Windows machine with no Python installed.
 ```
 
@@ -308,7 +308,7 @@ failure modes unique to freezing.
 ## 7. Shipping to users
 
 1. Build, and verify per §3.
-2. Rename the zip so the version is obvious: `EvkaGUI-win64-v0.2.0.zip`.
+2. Rename the zip so the version is obvious: `EvkaGUI-win64-v0.2.1.zip`.
 3. Hand it over by USB, shared drive, or internal file share.
 4. Tell users to **unzip first**. Running the exe from inside Windows' zip preview appears to
    work and then fails confusingly.

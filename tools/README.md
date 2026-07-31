@@ -1,6 +1,6 @@
 # Host Tools
 
-The supported operator path is `tools/evka_gui`. Host tools are package version `0.2.0` and require
+The supported operator path is `tools/evka_gui`. Host tools are package version `0.2.1` and require
 Python 3.10+. All current GUI telemetry, recordings, snapshots, and Quick IPT results are sensor-frame
 values. No endpoint/world transform is accepted or applied by the canonical GUI.
 

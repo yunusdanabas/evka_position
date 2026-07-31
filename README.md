@@ -78,7 +78,7 @@ query `CONSTANTS` before a calibration session.
 
 ## Canonical Operator GUI
 
-The host-tools package is version `0.2.0` and requires Python 3.10 or newer.
+The host-tools package is version `0.2.1` and requires Python 3.10 or newer.
 
 Install the Python dependencies from the repository root:
 

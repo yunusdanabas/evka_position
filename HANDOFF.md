@@ -25,7 +25,7 @@ existing equipment may depend on port 8080 and its line formats. The source-deri
 |---|---|
 | v4 PCB | Current assembled prototype; not production-qualified |
 | Firmware | Main source supports classic ESP32 and v4 ESP32-S3; all 10 configured environments build, with no new flash or hardware claim |
-| Host tools | Package version `0.2.0`; Python 3.10+ required |
+| Host tools | Package version `0.2.1`; Python 3.10+ required |
 | Software checks | 191 Python tests, 45 dashboard checks, compileall, IPT solver self-check, and all PlatformIO builds pass |
 | Earlier hardware observations | v4 telemetry and individual radius/phi behavior were observed before this pass |
 | Blocking defect | Theta count loss/return error remains unresolved; about 1.1 degrees or 35 mm at 2 m was recorded |

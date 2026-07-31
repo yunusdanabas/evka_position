@@ -16,7 +16,7 @@ Do not add new dependencies on it. TCP port 8080 and the documented line protoco
 
 ## Clone and Python Setup
 
-The host-tools package version is `0.2.0`.
+The host-tools package version is `0.2.1`.
 
 ```bash
 git clone <repo-url> evka_position

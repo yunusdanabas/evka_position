@@ -8,7 +8,7 @@
 
 param(
     [string]$Python  = "py -3.12",
-    [string]$Version = "0.2.0",
+    [string]$Version = "0.2.1",
     [switch]$Console          # also build the console variant for support
 )
 
