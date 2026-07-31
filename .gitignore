@@ -24,6 +24,14 @@ venv/
 # real tracked directories.
 /.venv-build/
 
+# Release artifacts: build_windows.ps1 and build_source_zip.sh both write their
+# zip to the repo root. These belong on the GitHub release, never in git.
+# Anchored and versioned-glob only, for the same reason as above.
+/EvkaGUI-win64-v*.zip
+/EvkaGUI-src-v*.zip
+# Wine prefix for cross-building the Windows bundle on Linux.
+/.wine-build/
+
 # IDE
 .vscode/
 .idea/
