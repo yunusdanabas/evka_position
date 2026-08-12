@@ -177,6 +177,7 @@ The firmware's existing credentials and addresses are unchanged:
 | TCP | `192.168.1.50:8080` |
 | WebSocket | `ws://192.168.1.50/ws` |
 | STA static profile | `192.168.1.84/24`, gateway `192.168.1.254` |
+| STA default network | `WIFI_STA_DEFAULT_SSID` / `_PASS` in [firmware/src/SphericalSensor.h](firmware/src/SphericalSensor.h) — a specific shop-floor network; change before deploying elsewhere |
 
 These fixed credentials and unauthenticated command channels are suitable only for an isolated,
 trusted lab network. Do not expose the AP, TCP port, or WebSocket to an untrusted LAN or the public
@@ -196,6 +197,12 @@ visualizer with `--legacy-visualizer --calibration <session-calibration.json>`. 
 - Archive/reference: classic test material, integration history, GUI migration logs, and
   `docs/hardware_design/12v_legacy/`.
 - Research: `laser_radius/` and `docs/research/`; these are studies, not implemented baseline.
+- Unindexed: `report/` holds a standalone LaTeX report that nothing else references. It is kept
+  for the record and is not part of the documentation status index.
+
+Prebuilt operator GUI bundles (Windows `.exe` and portable source) are published as assets on the
+[v0.2.1 release](https://github.com/yunusdanabas/evka_position/releases/tag/v0.2.1), not in git.
+Rebuild them with the scripts in `packaging/evka_gui/`.
 
 ## License and Redistribution
 
