@@ -410,5 +410,5 @@ preferences.end();
 ## 10. Related Documents
 
 - [Main V2 README](../README.md) — System overview
-- [MCU Subsystem](../subsystems/mcu_subsystem_v2.md) — ESP32-S3 main unit
+- [MCU Subsystem](subsystems/mcu_subsystem_v2.md) — ESP32-S3 main unit
 - Legacy remote: [`../../remote/README.md`](../../remote/README.md) — V1 remote reference

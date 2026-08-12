@@ -177,9 +177,9 @@ graph TD
 
 - Simple V3 design: [`../v3/`](../v3/) — ESP32-S3 core-only board with internal 3S backup and generic ready-made power-path module interface
 - Legacy 12V design: [`../12v/`](../12v/)
-- Legacy 5V design: [`../5v/`](../5v/)
-- System architecture: [`../system_architecture.md`](../system_architecture.md)
-- Calibration procedures: [`../../calibration/`](../../calibration/)
+- Legacy 5V design: [`../5v/`](../../5v/)
+- System architecture: [`../system_architecture.md`](../../system_architecture.md)
+- Calibration procedures: [`../../calibration/`](../../../calibration/)
 
 ---
 

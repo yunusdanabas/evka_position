@@ -30,5 +30,5 @@ For new simple 12V builds, prefer [../v3/](../v3/). V3 keeps the ESP32-S3 + 3S b
 
 ## Legacy 5V reference (unchanged signal section)
 
-- [../5v/circuit_schematic.md](../5v/circuit_schematic.md) — sections 3–7 (encoder dividers, GPIO, TVS, ferrites)
-- [../5v/bill_of_materials.md](../5v/bill_of_materials.md) — signal section components (R1–R14, C2–C12, TVS1–TVS7, FB1–FB3, J1–J3)
+- [../../5v/circuit_schematic.md](../../5v/circuit_schematic.md) — sections 3–7 (encoder dividers, GPIO, TVS, ferrites)
+- [../../5v/bill_of_materials.md](../../5v/bill_of_materials.md) — signal section components (R1–R14, C2–C12, TVS1–TVS7, FB1–FB3, J1–J3)

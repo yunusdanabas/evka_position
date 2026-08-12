@@ -13,7 +13,7 @@ Open **`evka_position_12v.kicad_pro`** in **KiCad 9**.
 ## Authoritative design docs (same folder tree)
 
 - [../circuit_schematic_12v.md](../circuit_schematic_12v.md) — full **12V power** ASCII schematic
-- [../../5v/circuit_schematic.md](../../5v/circuit_schematic.md) — **sections 3–7** (encoders + ESP32), unchanged for 12V PCB
+- [../../../5v/circuit_schematic.md](../../../5v/circuit_schematic.md) — **sections 3–7** (encoders + ESP32), unchanged for 12V PCB
 - [../bill_of_materials_12v.md](../bill_of_materials_12v.md)
 - [../power_supply_12v_spec.md](../power_supply_12v_spec.md)
 

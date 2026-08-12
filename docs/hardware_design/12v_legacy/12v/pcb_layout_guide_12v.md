@@ -1,6 +1,6 @@
 # PCB Layout Guide — 12V + 3S LiPo evka_position
 
-Companion to [pcb_layout_guide.md](../5v/pcb_layout_guide.md) for the legacy 5V board. **Signal zones** (encoder connectors, ESP32, dividers) follow the same discipline; this file covers the **12V power section**, **battery/charger section**, **EMI isolation**, and **assembly sequence**.
+Companion to [pcb_layout_guide.md](../../5v/pcb_layout_guide.md) for the legacy 5V board. **Signal zones** (encoder connectors, ESP32, dividers) follow the same discipline; this file covers the **12V power section**, **battery/charger section**, **EMI isolation**, and **assembly sequence**.
 
 ---
 

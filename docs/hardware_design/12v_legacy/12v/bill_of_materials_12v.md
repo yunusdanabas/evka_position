@@ -1,6 +1,6 @@
 # Bill of Materials — evka_position 12V + 3S LiPo PCB
 
-> **Delta** design versus the legacy **5V + 1S LiPo** board in [bill_of_materials.md](../5v/bill_of_materials.md).  
+> **Delta** design versus the legacy **5V + 1S LiPo** board in [bill_of_materials.md](../../5v/bill_of_materials.md).
 > **Resistors, capacitors, TVS (GPIO), ferrites, encoder terminals, ESP32 headers** — reuse the same line items as the legacy BOM for the **signal section** (see "Carried over" below).
 
 ---
@@ -91,7 +91,7 @@
 
 ## Carried over unchanged (signal + ESP32)
 
-Order the same quantities as [bill_of_materials.md](../5v/bill_of_materials.md):
+Order the same quantities as [bill_of_materials.md](../../5v/bill_of_materials.md):
 
 - **R1–R14**: 10k / 20k divider networks (14 resistors)
 - **C2–C5**: 100nF ceramic for rail + encoder VCC decoupling (4 caps)

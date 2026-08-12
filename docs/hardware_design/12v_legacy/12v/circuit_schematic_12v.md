@@ -1,7 +1,7 @@
 # Circuit Schematic — evka_position 12V Input PCB
 
 > Carrier for **ESP32 Wemos D1 R32** + **three 5V quadrature encoders** with **12V DC input**, **buck to 5V**, **3S LiPo battery backup** with onboard charging, and optional **USB 5V OR** for bench programming.  
-> **Signal conditioning (7× dividers, GPIO pins, TVS, ferrites)** is **identical** to [circuit_schematic.md](../5v/circuit_schematic.md) sections **3–7**; this file documents **power entry**, **battery management**, and **12V rail ADC**.
+> **Signal conditioning (7× dividers, GPIO pins, TVS, ferrites)** is **identical** to [circuit_schematic.md](../../5v/circuit_schematic.md) sections **3–7**; this file documents **power entry**, **battery management**, and **12V rail ADC**.
 
 ---
 
@@ -303,10 +303,10 @@ Scale factor: **V_in = V_adc × (120k + 27k) / 27k** = **V_adc × 5.444**
 
 ## 8. Encoder + ESP32 signal section (unchanged)
 
-Copy **verbatim** from [circuit_schematic.md](../5v/circuit_schematic.md):
+Copy **verbatim** from [circuit_schematic.md](../../5v/circuit_schematic.md):
 
 - **Section 3** — voltage dividers **10k / 20k / 1nF** + **1.5KE3.3CA** (or **SMBJ3.3CA**)
-- **Section 3b** — **J1 / J2 / J3** pin map to **GPIO 14, 12, 32, 35, 16, 17, 18** (same as [AGENTS.md](../../../AGENTS.md) and [docs/ARCHITECTURE.md](../../ARCHITECTURE.md))
+- **Section 3b** — **J1 / J2 / J3** pin map to **GPIO 14, 12, 32, 35, 16, 17, 18** (same as [AGENTS.md](../../../../AGENTS.md) and [../../../ARCHITECTURE.md](../../../ARCHITECTURE.md))
 - **Sections 4–7** — ESP32 **VIN** from **5V_RAIL**, ferrites, LEDs, decoupling
 
 **Note:** All three encoders run on **5V from 5V_RAIL** — do NOT connect any encoder to the 12V rail. The DWEM2 accepts 8–24V (or 5V) but its output swings to the supply rail; powering it at 12V would produce 0–12V output signals that exceed the voltage divider design (3.33V target) and damage the ESP32.

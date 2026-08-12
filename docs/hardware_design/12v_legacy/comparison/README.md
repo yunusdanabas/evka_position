@@ -27,7 +27,7 @@ Practical result: do not choose the Original 12V or 12V All-THT designs because 
 
 | Design | Folder | Short Description | Current Role |
 |---|---|---|---|
-| Legacy 5V + 1S LiPo | [`../5v/`](../5v/) | Wemos D1 R32, 5V input, 1S backup, TP4056, MT3608 boost | Historical baseline and signal-conditioning reference |
+| Legacy 5V + 1S LiPo | [`../5v/`](../../5v/) | Wemos D1 R32, 5V input, 1S backup, TP4056, MT3608 boost | Historical baseline and signal-conditioning reference |
 | Original 12V + 3S LiPo | [`../12v/`](../12v/) | Wemos D1 R32, 12V input, 3S backup, MP1584 buck, MT3608 + TP5100 path | First 12V conversion package; not recommended for new builds |
 | 12V All-THT | [`../12v_tht/`](../12v_tht/) | Same 12V topology as original, but SMD discretes replaced with through-hole parts | Transitional Wemos-compatible 12V prototype option |
 | V2 Industrial 12V | [`../v2/`](../v2/) | ESP32-S3, 12V input, 3S backup, external charging only, RS-485, I2C, watchdog | Industrial-feature branch |

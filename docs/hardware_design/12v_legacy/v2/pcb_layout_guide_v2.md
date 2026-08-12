@@ -474,10 +474,10 @@ Since there is no silkscreen, create a paper template for assembly:
 ## 11. Related Documents
 
 - [Main V2 README](../README.md) — System overview
-- [Circuit Schematic](../circuit_schematic_v2.md) — Complete netlist
-- [Bill of Materials](../bill_of_materials_v2.md) — Parts list
-- [Pin Assignment](../pin_assignment_v2.md) — GPIO map
-- [Power Supply Subsystem](../subsystems/power_supply_v2.md) — Power section details
-- [MCU Subsystem](../subsystems/mcu_subsystem_v2.md) — DevKitC-1 mounting
-- [Encoder Interface](../subsystems/encoder_interface_v2.md) — Signal conditioning layout
-- [Expansion Interfaces](../subsystems/expansion_interfaces_v2.md) — RS-485, I2C placement
+- [Circuit Schematic](circuit_schematic_v2.md) — Complete netlist
+- [Bill of Materials](bill_of_materials_v2.md) — Parts list
+- [Pin Assignment](pin_assignment_v2.md) — GPIO map
+- [Power Supply Subsystem](subsystems/power_supply_v2.md) — Power section details
+- [MCU Subsystem](subsystems/mcu_subsystem_v2.md) — DevKitC-1 mounting
+- [Encoder Interface](subsystems/encoder_interface_v2.md) — Signal conditioning layout
+- [Expansion Interfaces](subsystems/expansion_interfaces_v2.md) — RS-485, I2C placement

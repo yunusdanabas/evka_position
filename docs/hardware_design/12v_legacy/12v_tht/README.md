@@ -31,7 +31,7 @@ The [original 12V design](../12v/) uses several SMD parts that require dead-bug 
 
 **Modules** (MP1584EN, MT3608, TP5100, 3S BMS) are unchanged — they mount via pin headers and are already THT-compatible.
 
-**Signal section** (dividers, TVS, ferrites, encoder terminals, ESP32 headers) is unchanged — the [5V BOM](../5v/bill_of_materials.md) parts are already through-hole.
+**Signal section** (dividers, TVS, ferrites, encoder terminals, ESP32 headers) is unchanged — the [5V BOM](../../5v/bill_of_materials.md) parts are already through-hole.
 
 ---
 

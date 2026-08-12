@@ -127,7 +127,7 @@ All Schottky and TVS diodes in this version use **axial through-hole packages** 
 
 ## 4. Encoder + ESP32 signal section (unchanged)
 
-Copy **verbatim** from [circuit_schematic.md](../5v/circuit_schematic.md):
+Copy **verbatim** from [circuit_schematic.md](../../5v/circuit_schematic.md):
 
 - **Section 3** — voltage dividers **10k / 20k / 1nF** + **1.5KE3.3CA** (axial, already THT)
 - **Section 3b** — **J1 / J2 / J3** pin map to **GPIO 14, 12, 32, 35, 16, 17, 18**

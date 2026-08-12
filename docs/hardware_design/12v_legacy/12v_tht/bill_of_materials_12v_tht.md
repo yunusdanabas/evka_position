@@ -2,7 +2,7 @@
 
 > **All through-hole** variant of [bill_of_materials_12v.md](../12v/bill_of_materials_12v.md).  
 > Same circuit — every discrete component is THT. No SMD, no dead-bug soldering, no breakout boards needed.  
-> **Signal section** (resistors, capacitors, TVS, ferrites, encoder terminals) reuses the same THT line items as the [legacy 5V BOM](../5v/bill_of_materials.md).
+> **Signal section** (resistors, capacitors, TVS, ferrites, encoder terminals) reuses the same THT line items as the [legacy 5V BOM](../../5v/bill_of_materials.md).
 
 ---
 
@@ -98,7 +98,7 @@ Same as [SMD version](../12v/bill_of_materials_12v.md#removed-vs-legacy-5v-bom) 
 
 ## Carried over unchanged (signal + ESP32)
 
-Order the same quantities as [bill_of_materials.md](../5v/bill_of_materials.md):
+Order the same quantities as [bill_of_materials.md](../../5v/bill_of_materials.md):
 
 - **R1–R14**: 10k / 20k divider networks (14 resistors, 1/4W TH)
 - **C2–C5**: 100nF ceramic for rail + encoder VCC decoupling (4 caps, THT)
