@@ -40,7 +40,8 @@ Agent activity history is in [AGENT_LOG.md](AGENT_LOG.md).
 
 | Check | Command |
 |---|---|
-| Python tests | `QT_QPA_PLATFORM=offscreen pytest -q` |
+| Python tests (Qt-heavy) | `QT_QPA_PLATFORM=offscreen pytest -q -m qt_heavy --forked` |
+| Python tests (rest) | `QT_QPA_PLATFORM=offscreen pytest -q -m "not qt_heavy"` |
 | Compile all tools | `python -m compileall tools -q` |
 | IPT solver self-check | `python -m tools.ipt.solver` |
 | Firmware build (all envs) | `pio run` |

@@ -3,7 +3,8 @@
 *.hex
 *.bin
 *.map
-build/
+# Anchored: only the root PyInstaller output is meant, never a nested build/.
+/build/
 
 # PlatformIO
 .pio/
@@ -15,7 +16,8 @@ __pycache__/
 *.pyc
 *.pyo
 *.egg-info/
-dist/
+# Anchored for the same reason as /build/ above.
+/dist/
 *.egg
 .venv/
 venv/
@@ -89,14 +91,6 @@ docs/reports/**/*.synctex.gz
 docs/reports/**/*.fls
 docs/reports/**/*.fdb_latexmk
 
-# .NET / C# build artifacts
-bin/
-obj/
-*.dll
-*.pdb
-*.deps.json
-*.runtimeconfig.json
-*.cache
 # Root-level calibration folder (moved to firmware/tests/) — anchored so it does
 # NOT match docs/calibration/
 /calibration/
@@ -106,10 +100,6 @@ docs/calibration/sessions/**/report.md
 docs/calibration/sessions/**/calibration.json
 docs/calibration/sessions/**/*_errors.csv
 
-# Experimental tools
-tools/analysis/
-tools/web_server/
-tools/VISUALIZATION_GUIDE.md
 tools/__pycache__/
 
 # KiCad

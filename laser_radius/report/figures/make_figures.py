@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Requires matplotlib (not a project dependency): pip install matplotlib
 """Generate the price/sourcing figures for the laser-radius study.
 
 Only the two 2026-07-08 price-survey figures live here:

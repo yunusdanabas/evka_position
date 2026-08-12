@@ -26,7 +26,7 @@ existing equipment may depend on port 8080 and its line formats. The source-deri
 | v4 PCB | Current assembled prototype; not production-qualified |
 | Firmware | Main source supports classic ESP32 and v4 ESP32-S3; all 10 configured environments build, with no new flash or hardware claim |
 | Host tools | Package version `0.2.1`; Python 3.10+ required |
-| Software checks | 191 Python tests, 45 dashboard checks, compileall, IPT solver self-check, and all PlatformIO builds pass |
+| Software checks | 204 Python tests, 50 dashboard checks, compileall, IPT solver self-check, and all PlatformIO builds pass |
 | Earlier hardware observations | v4 telemetry and individual radius/phi behavior were observed before this pass |
 | Blocking defect | Theta count loss/return error remains unresolved; about 1.1 degrees or 35 mm at 2 m was recorded |
 | Encoder calibration | Compile defaults exist; final mounted-system constants are not accepted |
@@ -37,15 +37,19 @@ existing equipment may depend on port 8080 and its line formats. The source-deri
 Do not interpret previous flashes, successful software tests, or a generated calibration report as
 final system validation.
 
-Software-only verification completed on 2026-07-29:
+Software-only verification completed on 2026-08-12:
 
 ```text
-QT_QPA_PLATFORM=offscreen pytest -q                         191 passed
-npm ci && npm test (tools/webdash_harness)                  45 passed
-python -m compileall tools -q                               passed
-python -m tools.ipt.solver                                  0.405 mm target error
-pio run (all 10 configured environments)                    10 passed
+QT_QPA_PLATFORM=offscreen pytest -q -m qt_heavy --forked     44 passed
+QT_QPA_PLATFORM=offscreen pytest -q -m "not qt_heavy"       160 passed, 11 subtests
+npm ci && npm test (tools/webdash_harness)                   50 passed
+python -m compileall tools -q                                passed
+python -m tools.ipt.solver                                   0.405 mm target error
+pio run (all 10 configured environments)                     10 passed
 ```
+
+The Python suite is two invocations by design — see the note in
+[README.md](README.md#software-verification-record). Plain `pytest -q` segfaults intermittently.
 
 ## v4 Wiring Baseline
 
@@ -107,6 +111,14 @@ The checked-in AP and STA defaults are unchanged. The AP is `CMDCNC_EVKA` with p
 `cmdcnc1234`; AP address is `192.168.1.50`, TCP is port 8080, and WebSocket is `/ws` on port 80.
 Remote commands are not application-authenticated. Use only on an isolated, trusted lab network;
 do not expose the device to an untrusted LAN or the internet.
+
+There is also a **station-mode default** that is easy to miss: `WIFI_STA_DEFAULT_SSID` /
+`WIFI_STA_DEFAULT_PASS` in [firmware/src/SphericalSensor.h](firmware/src/SphericalSensor.h)
+(currently `ASMETAL`) join a specific shop-floor network on boot. These are compile-time
+defaults only — anything stored in NVS by a `WIFI_SET` command takes precedence. Change or
+blank them before deploying anywhere other than that network. Note that this repository is
+public, so treat every credential in it as already disclosed and rotate on the network side
+rather than relying on the source being private.
 
 ## Ownership Boundary
 

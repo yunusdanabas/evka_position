@@ -10,13 +10,21 @@
 # (Equivalent editable install:  pip install -e .  — see pyproject.toml)
 
 pyserial>=3.5
-numpy>=1.24
+# numpy is capped below 2.0: the Windows GUI is cross-built with PyInstaller under
+# Wine (see packaging/evka_gui/), and numpy 2.x pulls in a `crealf` symbol that the
+# Wine CRT does not resolve. 1.26.4 is the version the shipped v0.2.1 build used.
+numpy>=1.24,<2
 PyQt5>=5.15
 pyqtgraph>=0.13
 
 # Test runner (not a runtime dependency).
 # pytest-forked isolates the pyqtgraph GUI test modules in their own processes;
-# without it they share a global ViewBox registry and segfault intermittently
-# (see docs/CI_PYTEST_SEGFAULT_LOG.md).
+# without it they share a global ViewBox registry and segfault intermittently.
+# It is only ever used via the qt_heavy invocation:
+#   pytest -q -m qt_heavy --forked
+#   pytest -q -m "not qt_heavy"
+# A plain combined `pytest -q` still segfaults intermittently (~3/20 on Python 3.10)
+# whether or not this is installed. Never apply the `forked` marker to a module — that
+# deadlocks the run. See docs/CI_PYTEST_SEGFAULT_LOG.md.
 pytest>=7.0
 pytest-forked>=1.6

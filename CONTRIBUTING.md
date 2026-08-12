@@ -85,10 +85,19 @@ hardware work. This documentation reconciliation itself performed no hardware ch
 Use the smallest relevant check for a change:
 
 ```bash
-pytest -q
+# The Python suite is two invocations. qt_heavy modules build pyqtgraph widgets that
+# segfault when sharing a process, so they run forked — and forking only works from a
+# parent that has not built a QApplication, hence the separate run. A plain `pytest -q`
+# segfaults intermittently. Needs pytest-forked (in requirements.txt).
+QT_QPA_PLATFORM=offscreen pytest -q -m qt_heavy --forked
+QT_QPA_PLATFORM=offscreen pytest -q -m "not qt_heavy"
+
 python -m tools.ipt.solver
 pio run -e esp32s3_v4
 ```
+
+Any new test that builds Qt or pyqtgraph widgets needs `pytestmark = pytest.mark.qt_heavy`.
+Never use `pytest.mark.forked` — it deadlocks the run.
 
 Do not run hardware checks, upload, or serial-monitor commands unless the task explicitly calls for
 them and the board wiring has been reviewed.

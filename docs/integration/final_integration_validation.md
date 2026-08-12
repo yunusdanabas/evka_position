@@ -7,11 +7,11 @@ file records a test as completed. The final documentation reconciliation ran no 
 
 - [ ] Record the final tagged commit/hash after local release preparation.
 - [x] Build all 10 configured PlatformIO environments.
-- [x] Run the full Python test suite headlessly: 191 passed.
-- [x] Run the embedded dashboard harness: 45 checks passed.
+- [x] Run the full Python test suite headlessly (two invocations): 204 passed.
+- [x] Run the embedded dashboard harness: 50 checks passed.
 - [x] Run compileall and the IPT solver self-check.
 
-Software-only verification date: 2026-07-29. No firmware upload, serial session, or hardware command
+Software-only verification date: 2026-08-12. No firmware upload, serial session, or hardware command
 was run. The PlatformIO matrix covered `wemos_d1_r32`, both v4 RGB variants, both remote variants,
 and all five classic test environments.
 

@@ -1,69 +1,52 @@
 # Remaining work
 
-Open items as of **2026-07-29**, after the workspace health audit.
-Last pushed commit: `9553b35`. Background: [docs/CI_PYTEST_SEGFAULT_LOG.md](docs/CI_PYTEST_SEGFAULT_LOG.md),
+Open items as of **2026-08-12**, after the pre-handoff polish pass.
+Working tree is clean and everything below is committed and pushed.
+Background: [docs/CI_PYTEST_SEGFAULT_LOG.md](docs/CI_PYTEST_SEGFAULT_LOG.md),
 [AGENT_LOG.md](AGENT_LOG.md).
-
-> **The working tree has uncommitted changes.** Seven files are modified and none
-> of it is verified. Read step 1 before running anything.
 
 ---
 
-## 1. Finish the segfault isolation — IN PROGRESS, UNVERIFIED
+## 1. Segfault isolation — RESOLVED 2026-08-12
 
-**Problem.** `pytest -q` intermittently segfaults (exit 139): 3/20 runs on Python
+**Problem.** `pytest -q` intermittently segfaulted (exit 139): 3/20 runs on Python
 3.10, 0/20 on 3.12. Cause is pyqtgraph's process-global `ViewBox.AllViews`
 registry being walked after windows are freed. This is why CI on `master` went
 red on run `30454073693`.
 
-**What is already decided (do not re-litigate):**
+**What is decided (do not re-litigate):**
 
-- Blanket `pytest --forked` fixes the crash (0/20) **but is rejected** — fault
-  injection proved it silently swallows failing `unittest` subtests. Evidence is
-  in the issue log. Do not reintroduce it.
+- Blanket `pytest --forked` over the whole suite is **rejected** — fault injection
+  proved it silently swallows failing `unittest` subtests. Do not reintroduce it.
 - Four other fixes (`gc.collect()` teardown, `processEvents()` flush, clearing the
   registry, parenting the LED timer) were measured and reverted. Do not retry them.
+- `pytestmark = pytest.mark.forked` on the six Qt modules is **rejected and was
+  removed**. It looked right but *deadlocks the run*: by the time those modules are
+  reached, an earlier module (`tools/calibration/tests/test_gui.py`) has already
+  built a QApplication in the parent process, and `os.fork()` from a live Qt parent
+  hangs forever. Reproduced deterministically on Python 3.10 both in a ROS-flavoured
+  conda env and in a clean CI-equivalent venv. This is why the marker approach was
+  never actually green — the recorded pass predates `pytest-forked` being installed,
+  so the markers were being silently ignored.
 
-**Uncommitted changes now in the tree:**
+**Implemented fix — the two-invocation split** (the fallback this file predicted):
 
-| File | Change |
-|---|---|
-| `requirements.txt` | added `pytest-forked>=1.6` |
-| `tools/evka_gui/tests/test_calibration_report.py` | added `pytestmark = pytest.mark.forked` |
-| `tools/evka_gui/tests/test_command_tracking.py` | same |
-| `tools/evka_gui/tests/test_disconnect.py` | same |
-| `tools/evka_gui/tests/test_ipt_panel.py` | same |
-| `tools/evka_gui/tests/test_recording.py` | same |
-| `tools/position_checker/tests/test_view3d.py` | same (+ `import pytest`) |
+- The six Qt/pyqtgraph modules carry `pytestmark = pytest.mark.qt_heavy`
+  (marker registered in `pyproject.toml`).
+- CI runs `pytest -q -m qt_heavy --forked` and `pytest -q -m "not qt_heavy"` as two
+  separate steps. The forked parent never builds a QApplication, so no deadlock; the
+  subtest-bearing modules stay in the unforked pass, so no swallowed failures.
 
-Idea: fork only the six modules that build pyqtgraph widgets, so subtest-bearing
-modules keep normal reporting.
+**Verified 2026-08-12** in a clean venv (Python 3.10.18, PyQt5 5.15.11,
+pyqtgraph 0.14.0, numpy 1.26.4, `pytest-forked` 1.7.5):
 
-**Steps to finish:**
+- 44 passed forked + 160 passed & 11 subtests unforked = 204 total.
+- 12 consecutive runs of each pass: **0 failures, 0 segfaults, 0 hangs**.
+- Fault injection into a forked module returns `rc=1` and names the failing test —
+  failures are not swallowed.
 
-1. Confirm the suite passes at all: `QT_QPA_PLATFORM=offscreen pytest -q`.
-   Expect 193 passed. This was never run after the markers were added.
-2. Time one run. Blanket forking cost ~13 s vs ~5 s baseline; a 20-run loop
-   exceeded a 10-minute timeout. If selective forking is still slow, reduce the
-   measurement to 10 runs rather than 20.
-3. Measure the segfault rate on **Python 3.10** (3.12 does not reproduce it).
-   Target 0 failures; anything above 0/10 means the approach did not work.
-4. Re-run the fault injection to prove subtests are still reported. Break an
-   assertion in `tools/position_checker/tests/test_math_conventions.py` and
-   confirm `rc=1`. **If this reports `rc=0`, the approach has failed** — that
-   module must never run forked.
-5. Add `pytest-forked` to the CI install step in `.github/workflows/ci.yml`
-   (currently `pip install pytest platformio` — it does not install it).
-6. Commit, push, and watch CI. Because the bug is intermittent, one green run is
-   not proof; re-run the workflow a few times.
-
-**If selective forking fails**, the fallback is two pytest invocations in CI: one
-`--forked` pass over `tools/evka_gui/tests` and `tools/calibration/tests`, and one
-normal pass over everything else.
-
-A Python 3.10 repro environment matching CI (PyQt5 5.15.11, pyqtgraph 0.14.0) is
-required — the bug does not appear on 3.12. It was built with
-`conda create -p <path> python=3.10` then `pip install -e . pytest pytest-forked`.
+Remaining: watch the first few CI runs. The original bug was intermittent, so one
+green run is not proof.
 
 ---
 
@@ -88,7 +71,7 @@ No test file covers these:
 `test_calibration_report`.
 
 Note any new test that builds pyqtgraph widgets inherits the step-1 problem and
-will need the same `pytestmark`.
+will need `pytestmark = pytest.mark.qt_heavy` (never `pytest.mark.forked`).
 
 ---
 
@@ -132,3 +115,10 @@ Warning only today. Bump to current majors and confirm the workflow still passes
   it.** History is already pushed; the code and docs are correct.
 - Root `.gitignore` has no global `node_modules/` rule — redundant with
   `tools/webdash_harness/.gitignore`. Deliberately skipped.
+- Handoff polish (2026-08-12): stale 191/45 test counts corrected to 204/50 across
+  README/HANDOFF/final_integration_validation; `numpy` capped `<2` for the Wine
+  PyInstaller build; dead `.gitignore` rules (C# `bin/`/`obj/`/`*.dll`/`*.pdb`,
+  `tools/analysis/`, `tools/web_server/`) removed and `build/`/`dist/` anchored;
+  `tools/VISUALIZATION_GUIDE.md` deleted (gitignored, unreferenced, described
+  Three.js/Plotly work never done); v3 DRC/backup debris removed from the v4 PCB
+  workspace, clearing the last `/home/yunusdanabas` paths from tracked files.

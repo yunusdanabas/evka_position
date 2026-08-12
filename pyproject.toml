@@ -9,7 +9,8 @@ description = "Python tools for the evka_position spherical 3D positioning syste
 requires-python = ">=3.10"
 dependencies = [
     "pyserial>=3.5",
-    "numpy>=1.24",
+    # Capped below 2.0 for the Wine/PyInstaller Windows build — see requirements.txt.
+    "numpy>=1.24,<2",
     "PyQt5>=5.15",
     "pyqtgraph>=0.13",
 ]
@@ -21,3 +22,8 @@ position-checker = "tools.position_checker.main:main"
 
 [tool.setuptools.packages.find]
 include = ["tools*"]
+
+[tool.pytest.ini_options]
+markers = [
+    "qt_heavy: builds pyqtgraph/Qt widgets; must run in its own `pytest -m qt_heavy --forked` invocation",
+]

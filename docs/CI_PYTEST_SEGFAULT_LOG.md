@@ -98,20 +98,56 @@ with    --forked :  rc=0            14 passed                        <- fault SW
 A test setup that hides real regressions is worse than an intermittent crash, so
 forking must not be applied to the whole suite.
 
-**Current (unverified) approach:** fork only the six modules that build pyqtgraph
+### Per-module `pytest.mark.forked` — tried and rejected 2026-08-12
+
+The obvious refinement was to fork only the six modules that build pyqtgraph
 widgets, via `pytestmark = pytest.mark.forked`, leaving every other module —
-including the subtest-bearing ones — running normally. See `REMAINING_WORK.md`;
-this is implemented in the working tree but **not yet measured**.
+including the subtest-bearing ones — running normally.
 
-## Recommended next step
+**It deadlocks.** Not intermittently: every run, on Python 3.10, in both a
+ROS-flavoured conda env and a clean CI-equivalent venv. `pytest -q` collects 204
+items, prints through `tools/calibration/tests/test_gui.py`, reaches the first
+forked module, and hangs indefinitely (killed at 300 s, and once at 11 min).
 
-Process isolation is the standard remedy for cross-test Qt/C++ state and is the
-only approach not yet tried: run the GUI test modules in separate processes
-(`pytest-forked`, or `pytest-xdist` with `--forked`). That removes the shared
-global registry entirely rather than trying to keep it consistent.
+Cause: `tools/calibration/tests/test_gui.py` sorts before the marked modules and
+builds a `QApplication` in the **parent** process. `pytest-forked` then calls
+`os.fork()` from a parent holding live Qt state and threads; the child inherits
+locks held by threads that do not exist in it, and blocks forever. Classic
+fork-without-exec-in-a-threaded-process deadlock — nothing specific to pyqtgraph.
 
-Interim option if CI redness is blocking: mark the GUI suite non-blocking, or
-retry the step once, while keeping the non-GUI tests gating.
+Why this went unnoticed: the recorded green run predates `pytest-forked` actually
+being installed. Without the plugin, pytest treats `mark.forked` as an unknown
+marker and ignores it, so the suite ran fully unforked and the markers were inert.
+
+## Resolution — two invocations, marker-selected (2026-08-12)
+
+The six modules carry `pytestmark = pytest.mark.qt_heavy` (registered under
+`[tool.pytest.ini_options]` in `pyproject.toml`), and the suite runs as:
+
+```bash
+QT_QPA_PLATFORM=offscreen pytest -q -m qt_heavy --forked   # 44 passed
+QT_QPA_PLATFORM=offscreen pytest -q -m "not qt_heavy"      # 160 passed, 11 subtests
+```
+
+This works because each invocation is a fresh process. In the forked pass *every*
+collected test is forked, so the parent never builds a `QApplication` and there is
+nothing to deadlock on. The subtest-bearing modules live entirely in the second,
+unforked pass, so the swallowed-subtest failure mode cannot apply to them.
+
+Measured in a clean venv (Python 3.10.18, PyQt5 5.15.11, pyqtgraph 0.14.0,
+numpy 1.26.4, pytest 8.4.1, pytest-forked 1.7.5):
+
+| Pass | Result | 12 consecutive runs |
+|---|---|---|
+| `-m qt_heavy --forked` | 44 passed, ~10 s | 0 failures, 0 segfaults, 0 hangs |
+| `-m "not qt_heavy"` | 160 passed + 11 subtests, ~4 s | 0 failures, 0 segfaults, 0 hangs |
+
+Fault injection re-run against the forked pass: a deliberately failing test in
+`tools/evka_gui/tests/test_recording.py` returns `rc=1` and is named in the summary.
+Failures are reported, not swallowed.
+
+**Do not** reintroduce `pytest.mark.forked`, and do not merge the two invocations
+back into one — either change restores a failure mode measured above.
 
 ## Related latent bug (separate from the segfault)
 

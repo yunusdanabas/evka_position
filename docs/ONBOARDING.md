@@ -46,7 +46,8 @@ py -m pip install -r requirements.txt
 Optional software-only checks:
 
 ```bash
-QT_QPA_PLATFORM=offscreen pytest -q
+QT_QPA_PLATFORM=offscreen pytest -q -m qt_heavy --forked
+QT_QPA_PLATFORM=offscreen pytest -q -m "not qt_heavy"
 pio run -e wemos_d1_r32 -e esp32s3_v4 -e esp32s3_v4_rgb38
 python -m tools.ipt.solver
 cd tools/webdash_harness && npm ci && npm test

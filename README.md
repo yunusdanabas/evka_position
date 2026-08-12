@@ -36,11 +36,18 @@ Known repeatability record:
 
 | Check | Result |
 |---|---|
-| `QT_QPA_PLATFORM=offscreen pytest -q` | PASS: 191 tests |
-| Dashboard harness (`npm ci && npm test`) | PASS: 45 checks |
+| `QT_QPA_PLATFORM=offscreen pytest -q -m qt_heavy --forked` | PASS: 44 tests |
+| `QT_QPA_PLATFORM=offscreen pytest -q -m "not qt_heavy"` | PASS: 160 tests, 11 subtests (204 total with the above) |
+| Dashboard harness (`npm ci && npm test`) | PASS: 50 checks |
 | `python -m compileall tools -q` | PASS |
 | `python -m tools.ipt.solver` | PASS: 0.405 mm target error |
 | PlatformIO build matrix | PASS: all 10 configured environments |
+
+The Python suite runs as **two invocations on purpose**. Modules marked `qt_heavy` build
+pyqtgraph widgets that segfault when they share a process, so they run forked; forking only
+works if the parent has not built a QApplication first, which is why they get their own
+invocation. A plain `pytest -q` is still expected to segfault intermittently — use the two
+commands above. Background: [docs/CI_PYTEST_SEGFAULT_LOG.md](docs/CI_PYTEST_SEGFAULT_LOG.md).
 
 These are software-only results. Hardware acceptance remains governed by the open
 gates in [docs/integration/final_integration_validation.md](docs/integration/final_integration_validation.md).

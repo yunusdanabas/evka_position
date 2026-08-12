@@ -10,9 +10,12 @@ from tools.evka_gui.ipt_panel import IptPanel
 
 # This module builds pyqtgraph plot widgets, which register in a process-global
 # ViewBox registry that every later plot construction walks. Sharing one process
-# across these modules segfaults intermittently, so run this one forked.
+# across these modules segfaults intermittently, so qt_heavy modules run in their
+# own "pytest -m qt_heavy --forked" invocation (see CONTRIBUTING.md). Do NOT mark
+# them pytest.mark.forked: forking after another module has built a QApplication
+# in the parent process deadlocks the run.
 # See docs/CI_PYTEST_SEGFAULT_LOG.md.
-pytestmark = pytest.mark.forked
+pytestmark = pytest.mark.qt_heavy
 
 
 @pytest.fixture(scope="module")
